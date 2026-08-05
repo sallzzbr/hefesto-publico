@@ -1,0 +1,31 @@
+{
+  "aviso": "Simulacao e hipotese, nao promessa. Rentabilidade passada nao garante futura.",
+  "cenarios": [
+    {
+      "aporte_mensal_necessario_bruto": "209.84",
+      "cenario": "conservador",
+      "taxa_anual_pct": "8.00",
+      "taxa_mensal_equivalente_pct": "0.6434"
+    },
+    {
+      "aporte_mensal_necessario_bruto": "181.49",
+      "cenario": "base",
+      "taxa_anual_pct": "10.00",
+      "taxa_mensal_equivalente_pct": "0.7974"
+    },
+    {
+      "aporte_mensal_necessario_bruto": "154.05",
+      "cenario": "otimista",
+      "taxa_anual_pct": "12.00",
+      "taxa_mensal_equivalente_pct": "0.9489"
+    }
+  ],
+  "modo": "objetivo",
+  "nota_tributacao": "O aporte acima leva ao alvo BRUTO. Em regime tributado o valor liquido no resgate sera menor, entao o aporte real precisa ser maior — calcular isso exige saber a idade de cada aporte no resgate, que depende de quando voce saca.",
+  "premissas": {
+    "capital_inicial": "10000.00",
+    "meses": 60,
+    "regime": "aporte postecipado (fim do mes), taxa mensal equivalente",
+    "valor_alvo": "30000.00"
+  }
+}

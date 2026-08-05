@@ -1,0 +1,53 @@
+# requires_human_approval — a fronteira que nenhum CI verde remove.
+#
+# O cerco pode aprovar código sozinho; mudança de REGRA não. Os paths abaixo são spec e
+# contrato: specs/planos do ecossistema, os invariantes dos harnesses, os contratos dos agents
+# e o contrato do repo. Diff neles pede olho humano mesmo com tudo verde.
+#
+# ATENÇÃO — isto é inerte sozinho, e há uma segunda condição menos óbvia.
+#
+# (1) CODEOWNERS só vira gate com branch protection, que NÃO está disponível neste repo
+#     (privado, neste plano). Testado por API: 403 tanto em branch protection quanto em ruleset.
+#     Logo este arquivo é documentação de quais paths são regra de negócio, e só isso. Não é
+#     pendência, não é decisão em aberto, não precisa ser relembrado a cada revisão.
+#
+# (2) O GitHub NÃO aceita a aprovação do autor do PR. Com @sallzzbr como dono único (hoje, 50
+#     de 51 commits do repo), ligar a proteção faria todo PR de autoria do próprio Antonio
+#     travar ou depender de admin bypass — que é o mesmo que não ter gate. Onde isto morde de
+#     verdade e já vale hoje: PR aberto por AGENTE (como o que introduziu este arquivo), em
+#     que o autor não é o dono e a aprovação humana passa a ser real. Para PR humano, só vira
+#     gate honesto com um segundo revisor no repo.
+#
+# (3) Com dono único, as regras específicas abaixo produzem HOJE exatamente o mesmo revisor que
+#     a regra `*` sozinha — em CODEOWNERS a última regra que casa vence, e todas apontam para a
+#     mesma pessoa. Elas ficam porque declaram QUAIS paths são regra de negócio (o
+#     `requires_human_approval` do artigo), e passam a diferenciar de fato no dia em que houver
+#     um segundo dono. Enquanto não houver, são intenção documentada, não roteamento real.
+#
+# Ou seja: ligar a branch protection é decisão do Antonio, e o ganho imediato é sobre PR de
+# agente, não sobre os dele.
+
+# Default: tudo tem dono.
+*                                           @sallzzbr
+
+# Spec e planejamento — mudança de regra de negócio.
+/docs/superpowers/specs/                    @sallzzbr
+/docs/superpowers/plans/                    @sallzzbr
+
+# Invariantes em código: os harnesses são o protocolo, não uma sugestão dele.
+/plugins/odin/skills/dev-loop/harness/      @sallzzbr
+/plugins/hermes/skills/criativo-fluxo/harness/ @sallzzbr
+/plugins/mimyr/skills/gerar-curso/harness/  @sallzzbr
+
+# Contratos de papel: modelo, tools e postura dos agents.
+/plugins/*/agents/                          @sallzzbr
+
+# Contrato do repo e a própria esteira (gate que edita o próprio gate). `package.json` entra
+# porque é a fonte única dos comandos de verificação e a casa dos guards `pretest:node` e
+# `premutation` — afrouxar um glob ou apagar um piso ali é editar o gate, não configurar build.
+/AGENTS.md                                  @sallzzbr
+/.github/                                   @sallzzbr
+/package.json                               @sallzzbr
+/stryker.conf.json                          @sallzzbr
+/scripts/                                   @sallzzbr
+/.claude-plugin/marketplace.json            @sallzzbr

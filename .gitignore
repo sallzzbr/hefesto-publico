@@ -1,0 +1,30 @@
+.DS_Store
+*.log
+*.swp
+*.swo
+*~
+.env
+.env.local
+.vscode/
+.idea/
+node_modules/
+dist/
+build/
+reports/
+.stryker-tmp*/
+
+# Segredos e credenciais
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# Cache e lixo de SO
+Thumbs.db
+__pycache__/
+*.pyc
+
+# Cobertura (pytest-cov)
+.coverage
+.coverage.*
+htmlcov/

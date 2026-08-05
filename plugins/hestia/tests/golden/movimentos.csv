@@ -1,0 +1,6 @@
+data;ativo;operacao;valor;quantidade;observacao
+2026-01-20;CDB Banco X 102% CDI;aporte;2000,00;;aporte do mes
+2026-02-15;IVVB11;aporte;300,00;2;"compra; parcela 1 de 3"
+2026-02-28;IVVB11;provento;87,50;;dividendo
+2026-03-10;CDB Banco X 102% CDI;resgate;150,00;;
+2026-03-20;Fundo Y Prev;aporte;500,00;;

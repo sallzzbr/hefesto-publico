@@ -1,0 +1,19 @@
+{
+  "name": "mimyr",
+  "version": "1.1.4",
+  "description": "Cursos e didática: gerar mini-cursos HTML, módulos e capítulos na voz do autor, com harness multi-agente de geração de curso (capítulos em paralelo + revisão adversarial), revisão pedagógica, análise de aulas e scripts de transcrição e checagens.",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "homepage": "https://github.com/sallzzbr/hefesto",
+  "repository": "https://github.com/sallzzbr/hefesto",
+  "license": "MIT",
+  "keywords": [
+    "cursos",
+    "didatica",
+    "education",
+    "courses",
+    "portuguese"
+  ]
+}

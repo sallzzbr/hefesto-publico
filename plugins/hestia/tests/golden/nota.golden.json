@@ -1,0 +1,98 @@
+{
+  "conferencia_do_total_da_nota": {
+    "confere": true,
+    "diferenca": "0.00",
+    "informado": "578.50",
+    "soma_dos_itens": "578.50"
+  },
+  "criterios": {
+    "agrupamento": "pela coluna `categoria` do produtos.csv; a soma de cada grupo e de `valor_total`, o unico campo que todo item tem",
+    "divergencia": "relatada, nunca recusada — a skill manda mostrar e perguntar antes de seguir, e a decisao de gravar assim mesmo e do usuario",
+    "extracao": "quantidade x valor_unitario comparado a valor_total, tolerancia de 0.01 (1 centavo, o custo de o mercado truncar em vez de arredondar); item sem quantidade fica fora da conferencia",
+    "formato": "os valores saem com PONTO decimal, que e o padrao do JSON no hestia. Ao GRAVAR no livro converta para virgula (tabela BRL <-> cru da skill): planilha em pt-BR le '312.40' como 31240",
+    "item_orfao": "segregado em `sem_categoria` e somado em `nao_coberto` dentro do proprio lancamento proposto, para que lancar menos do que se gastou nao passe por omissao na narrativa"
+  },
+  "divergencias_de_extracao": [],
+  "itens_considerados": 17,
+  "itens_sem_quantidade": [
+    {
+      "data": "2026-07-12",
+      "motivo": "registrado so com valor_total (contrato da skill); fica fora da conferencia de extracao e das comparacoes de preco unitario",
+      "produto": "Pão de forma Wickbold",
+      "valor_total": "25.80"
+    }
+  ],
+  "lancamento_proposto": {
+    "data": "2026-07-12",
+    "descricao": "Mercado Pão de Açúcar — nota de 12/07",
+    "linhas": [
+      {
+        "categoria": "Alimentação",
+        "data": "2026-07-12",
+        "descricao": "Mercado Pão de Açúcar — nota de 12/07",
+        "tipo": "despesa",
+        "valor": "312.40"
+      },
+      {
+        "categoria": "Limpeza",
+        "data": "2026-07-12",
+        "descricao": "Mercado Pão de Açúcar — nota de 12/07",
+        "tipo": "despesa",
+        "valor": "48.90"
+      },
+      {
+        "categoria": "Higiene",
+        "data": "2026-07-12",
+        "descricao": "Mercado Pão de Açúcar — nota de 12/07",
+        "tipo": "despesa",
+        "valor": "27.30"
+      }
+    ],
+    "mercado": "Pão de Açúcar",
+    "metodo": null,
+    "metodo_motivo": "use o metodo da nota se visivel; senao pergunte ao usuario (Fluxo 2)",
+    "nao_coberto": "189.90",
+    "total": "388.60"
+  },
+  "notas_na_selecao": [
+    {
+      "data": "2026-07-12",
+      "mercado": "Pão de Açúcar"
+    }
+  ],
+  "por_categoria": [
+    {
+      "categoria": "Alimentação",
+      "itens": 11,
+      "pct_do_agrupado": "80.39",
+      "valor": "312.40"
+    },
+    {
+      "categoria": "Limpeza",
+      "itens": 3,
+      "pct_do_agrupado": "12.58",
+      "valor": "48.90"
+    },
+    {
+      "categoria": "Higiene",
+      "itens": 2,
+      "pct_do_agrupado": "7.03",
+      "valor": "27.30"
+    }
+  ],
+  "sem_categoria": [
+    {
+      "data": "2026-07-12",
+      "motivo": "produto sem `categoria` no catalogo — sem ela nao ha grupo, e chutar um grupo gravaria despesa na categoria errada",
+      "produto": "Ração Golden 15kg",
+      "valor_total": "189.90"
+    }
+  ],
+  "simplificacoes": [
+    "`--data` e `--mercado` comparam o texto exato como esta no CSV, sem normalizar acento nem caixa: 'Atacadao' nao casa com 'Atacadão'",
+    "a conferencia do total da nota compara o total de TODOS os itens da selecao, orfaos inclusive — e o que a nota impressa cobra, diferente do que o lancamento cobre"
+  ],
+  "total_agrupado": "388.60",
+  "total_dos_itens": "578.50",
+  "total_sem_categoria": "189.90"
+}

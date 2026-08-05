@@ -1,0 +1,6 @@
+nome;tipo;categoria;descricao;valor;dia;metodo;parcelas_restantes
+Aluguel;despesa;Moradia;Aluguel do apê;2200,00;10;transferência;
+Curso 12x;despesa;Educação;Parcela do curso;480,00;5;crédito;0
+Consórcio;despesa;Casa;Parcela do consórcio;900,00;45;boleto;18
+Aluguel recebido;receita;Renda;Aluguel do imóvel;1800,00;8;transferência;
+Bônus 3x;receita;Salário;Parcela do bônus;2000,00;20;transferência;2

@@ -1,0 +1,11 @@
+data;mercado;produto;quantidade;unidade;valor_unitario;valor_total
+2026-05-04;Extra;Café Pilão 500g;500;g;0,0436;21,80
+2026-05-04;Extra;Leite Itambé 1L;2;l;4,49;8,98
+2026-05-04;Extra;Cerveja Heineken 350ml;3;un;5,20;15,60
+2026-05-18;Extra;Café Pilão 500g;500;g;0,0436;21,80
+2026-05-18;Extra;Leite Itambé 1L;2;l;4,69;9,38
+2026-05-18;Extra;Cerveja Heineken 350ml;3;un;5,20;15,60
+2026-06-02;Assaí;Café Melitta 500g;500;g;0,0398;19,90
+2026-06-02;Assaí;Leite Itambé 1L;3;l;4,89;14,67
+2026-06-02;Assaí;Cerveja Heineken 350ml;6;un;5,49;32,94
+2026-06-15;Assaí;Sal Cisne 1kg;1;kg;3,20;3,20

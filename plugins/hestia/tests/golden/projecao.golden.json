@@ -1,0 +1,42 @@
+{
+  "aviso": "Simulacao e hipotese, nao promessa. Rentabilidade passada nao garante futura.",
+  "cenarios": [
+    {
+      "cenario": "conservador",
+      "montante_final_bruto": "73049.00",
+      "montante_final_liquido": null,
+      "nota_tributacao": "NENHUM imposto aplicado. Para CDB, Tesouro ou debenture o valor recebido sera MENOR que o bruto acima — passe --tributacao para calcular.",
+      "rendimento_bruto": "15049.00",
+      "taxa_anual_pct": "8.00",
+      "taxa_mensal_equivalente_pct": "0.6434",
+      "total_aportado": "58000.00"
+    },
+    {
+      "cenario": "base",
+      "montante_final_bruto": "77354.08",
+      "montante_final_liquido": null,
+      "nota_tributacao": "NENHUM imposto aplicado. Para CDB, Tesouro ou debenture o valor recebido sera MENOR que o bruto acima — passe --tributacao para calcular.",
+      "rendimento_bruto": "19354.08",
+      "taxa_anual_pct": "10.00",
+      "taxa_mensal_equivalente_pct": "0.7974",
+      "total_aportado": "58000.00"
+    },
+    {
+      "cenario": "otimista",
+      "montante_final_bruto": "81896.43",
+      "montante_final_liquido": null,
+      "nota_tributacao": "NENHUM imposto aplicado. Para CDB, Tesouro ou debenture o valor recebido sera MENOR que o bruto acima — passe --tributacao para calcular.",
+      "rendimento_bruto": "23896.43",
+      "taxa_anual_pct": "12.00",
+      "taxa_mensal_equivalente_pct": "0.9489",
+      "total_aportado": "58000.00"
+    }
+  ],
+  "modo": "projecao",
+  "premissas": {
+    "aporte_mensal": "800.00",
+    "capital_inicial": "10000.00",
+    "meses": 60,
+    "regime": "aporte postecipado (fim do mes), taxa mensal equivalente"
+  }
+}

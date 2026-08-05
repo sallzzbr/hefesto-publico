@@ -1,0 +1,60 @@
+{
+  "fora_do_calculo": {
+    "aportes": "500.00",
+    "nota": "movimentos reais, fora do total porque o rendimento deles nao e calculavel",
+    "proventos": "0.00",
+    "resgates": "0.00"
+  },
+  "formula": "rendimento = (saldo_final - saldo_inicial) - aportes + resgates",
+  "periodo": {
+    "ativo": null,
+    "fim": null,
+    "inicio": null
+  },
+  "por_ativo": [
+    {
+      "aportes": "2000.00",
+      "ativo": "CDB Banco X 102% CDI",
+      "primeiro_snapshot": "2026-01-05",
+      "proventos": "0.00",
+      "rendimento": "500.00",
+      "rendimento_pct_sobre_base": "4.17",
+      "resgates": "150.00",
+      "saldo_final": "12350.00",
+      "saldo_inicial": "10000.00",
+      "ultimo_snapshot": "2026-03-31"
+    },
+    {
+      "aportes": "300.00",
+      "ativo": "IVVB11",
+      "primeiro_snapshot": "2026-01-05",
+      "proventos": "87.50",
+      "rendimento": "180.00",
+      "rendimento_pct_sobre_base": "3.40",
+      "resgates": "0.00",
+      "saldo_final": "5480.00",
+      "saldo_inicial": "5000.00",
+      "ultimo_snapshot": "2026-03-31"
+    }
+  ],
+  "sem_base_de_calculo": [
+    {
+      "aportes": "500.00",
+      "ativo": "Fundo Y Prev",
+      "motivo": "rendimento exige 2+ snapshots do ativo no periodo",
+      "proventos": "0.00",
+      "resgates": "0.00",
+      "snapshots_no_periodo": 1
+    }
+  ],
+  "total": {
+    "aportes": "2300.00",
+    "cobertura": "so ativos com 2+ snapshots no periodo; o resto esta em fora_do_calculo",
+    "proventos": "87.50",
+    "rendimento": "680.00",
+    "rendimento_pct_sobre_base": "3.93",
+    "resgates": "150.00",
+    "saldo_final": "17830.00",
+    "saldo_inicial": "15000.00"
+  }
+}

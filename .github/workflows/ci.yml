@@ -1,0 +1,174 @@
+# Esteira do hefesto — o cerco que devolve vermelho sem pedir licença.
+#
+# Por que este arquivo existe: até 2026-07-28 o repo tinha 2204 linhas de teste em 4 suítes
+# e NADA as disparava. O gate documentado no AGENTS.md era `validar.mjs` + 2 greps, e nem
+# mencionava `node --test`/`pytest`. Regra em markdown é pedido educado; gate é o que roda
+# sozinho e reprova. Toda verificação daqui é determinística: exit code, não julgamento.
+#
+# FONTE ÚNICA: os comandos vivem em `package.json` (scripts) e a explicação de por que cada um
+# tem a forma que tem vive em `AGENTS.md` > "Verificação antes de commitar". Este arquivo só
+# os invoca. Não copie comando para cá — foi a duplicação em 4 lugares que deixou o piso do
+# mutation score errado em todos eles na primeira versão deste trabalho.
+#
+# ⚠️ ESTE WORKFLOW NÃO IMPEDE MERGE, E NÃO HÁ O QUE FAZER A RESPEITO. Bloquear PR exigiria os
+# 4 jobs como *required status checks*, o que depende de branch protection ou ruleset —
+# indisponível em repositório privado neste plano (a API devolve 403; a UI de rulesets deixa
+# salvar e não enforça). Não é configuração pendente nem decisão em aberto: a esteira INFORMA e
+# não barra, e é assim que fica. Assunto encerrado — não reabra em revisão.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# PR com vários pushes seguidos: só o último run interessa. Mas SÓ em PR: em `push` para
+# master o ref é sempre refs/heads/master, e cancelar em cadeia faria dois merges seguidos
+# deixarem o primeiro commit de master sem verificação concluída (aparece "cancelled", não
+# "failed" — some do radar). Achado da lente R2.
+concurrency:
+  # Em PR: grupo por ref, cancela o run anterior — só o último push interessa.
+  # Em push para master: grupo por SHA, ou seja, um grupo por commit e NADA é cancelado.
+  # `cancel-in-progress: false` sozinho não bastava: o GitHub mantém no máximo um run ativo e
+  # um pendente por grupo, e o terceiro push descarta o pendente — o commit do meio terminava
+  # `cancelled`, sem verificação concluída e sem aparecer como falha. Achado do Codex.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validar:
+    name: Validador de marketplace e plugins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # História completa: o gate de bump precisa diffar contra a base.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # A regra de versionamento do AGENTS.md não tinha gate nenhum — o validador só conferia
+      # a SINCRONIA entre plugin.json e marketplace.json, nunca se o diff veio com bump. Era
+      # prosa afirmando processo, e pegou o próprio autor (afbd9b8 mexeu em plugins/odin/ sem
+      # subir o odin). `tests/` fica de fora de propósito: não é contrato publicado.
+      - name: Plugin alterado tem bump de versão
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+            node scripts/verificar-bump.mjs "origin/${{ github.base_ref }}"
+          elif [ -n "${{ github.event.before }}" ] && git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            node scripts/verificar-bump.mjs "${{ github.event.before }}"
+          else
+            echo "sem base comparável (primeiro push do branch) — gate de bump pulado"
+          fi
+      # Sem `npm ci`: o validador é script standalone sem dependências (AGENTS.md — o plugin
+      # nunca tem build step), e `npm run` não precisa de node_modules para invocá-lo.
+      - run: npm run validar
+      # As duas checagens de repo que o validador não cobre. Estavam só no AGENTS.md, que
+      # afirmava "tudo abaixo roda sozinho no CI" enquanto elas não rodavam em lugar nenhum —
+      # prosa afirmando enforcement inexistente, o defeito que esta esteira existe para matar.
+      # NÃO use `! grep ...`: `!` transforma QUALQUER exit != 0 em sucesso, e o grep sai 2 em
+      # ERRO (path inexistente, permissão negada). Verificado: renomear `plugins/odin/` e
+      # esquecer de atualizar o workflow fazia o grep sair 2, o `!` virar 0 e o gate aprovar
+      # sem ter examinado arquivo nenhum — fail-open silencioso. Achado do Codex.
+      # Só exit 1 ("não achou") aprova; 0 reprova por ter achado; qualquer outro é erro.
+      # `--exclude=ci.yml` pelo mesmo motivo que `--exclude=AGENTS.md`: os dois arquivos citam
+      # o termo para proibi-lo, e sem a exclusão o gate reprova na própria definição.
+      # `|| c=$?` e não `c=$?` numa linha solta: o step roda com `bash -e`, e um grep que sai 1
+      # (o caso NORMAL, "não achou") abortaria antes da captura.
+      - name: Sem o nome antigo do repo
+        run: |
+          c=0
+          grep -rn "minhas-skills" . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=reports --exclude=AGENTS.md --exclude=ci.yml || c=$?
+          [ "$c" -eq 1 ] || { echo "ERRO: grep saiu $c (0 = achou o termo proibido; 2+ = erro ao varrer, gate nao examinou nada)" >&2; exit 1; }
+      - name: odin sem contexto de origem
+        run: |
+          c=0
+          grep -rin "clickup\|sonar" plugins/odin/ || c=$?
+          [ "$c" -eq 1 ] || { echo "ERRO: grep saiu $c (0 = achou contexto de origem; 2+ = erro ao varrer, gate nao examinou nada)" >&2; exit 1; }
+
+  testes-node:
+    # Sem enumerar plugins no `name:`: ele vira o rótulo do required status check, e lista de
+    # plugins apodrece — o runner varre `plugins/*/tests/` e o nome mentiria no dia seguinte.
+    name: Suítes node
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run test:node
+
+  testes-python:
+    name: Suítes pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Deps
+        # hermes não tem deps próprias; mimyr declara as dele em scripts/requirements.txt.
+        # `requirements-transcricao.txt` fica DE FORA de propósito: é Whisper + torch, pesado
+        # e sem relação com os testes.
+        # `pytest` vai pinado: é ferramenta DA ESTEIRA, e esteira que muda de comportamento
+        # sozinha não é determinística. Já o `requirements.txt` do mimyr fica com os `>=` que
+        # tem: é o contrato que o plugin publica para o usuário montar o venv dele, e travá-lo
+        # aqui seria mudar o contrato do plugin para conveniência do CI.
+        #
+        # Assimetria honesta, apontada pela revisão adversarial: o lado npm está travado com
+        # lockfile e 163/163 hashes de integrity, o lado PyPI resolve `>=` a cada run sem hash.
+        # Uma release nova de lxml pode deixar `testes-python` vermelho sem uma linha ter
+        # mudado no repo. Fechar isso pede um lock de Python (requirements com hashes), que é
+        # trabalho separado e mexe no contrato do mimyr.
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'pytest==9.1.1' 'pytest-cov==7.1.0'
+          pip install -r plugins/mimyr/scripts/requirements.txt
+      # Dois steps, não um: hermes e mimyr colidem numa invocação única de pytest. O porquê
+      # está no AGENTS.md; os comandos, no package.json.
+      - run: npm run test:py:hermes
+      - run: npm run test:py:mimyr
+      - run: npm run test:py:hestia
+      # Piso de cobertura do hestia: e o codigo que mexe com dinheiro. Sinal fraco
+      # (linha rodou != teste perceberia a linha mudando), mas gate honesto — o forte
+      # nao entrou porque nao ha ferramenta Python confiavel; ver o design doc.
+      - run: npm run cobertura:hestia
+
+  mutation:
+    name: Mutation testing (validar.mjs)
+    runs-on: ubuntu-latest
+    # Coverage diz que o código rodou; mutation score diz se os testes perceberiam o código
+    # mudando. É o gate que impede a suíte de virar teatro — sem ele, "tenho testes" não
+    # sustenta nenhuma decisão de não ler o diff. O piso vive em `stryker.conf.json`
+    # (`thresholds.break`), que é quem reprova: o job sai != 0 sozinho quando o score cai
+    # abaixo dele. Não replique o número aqui.
+    #
+    # SEM filtro de path, de propósito, apesar de gastar ~19 min em PR que só mexe em markdown.
+    # Duas razões: (1) o score também cai quando alguém enfraquece os TESTES, não só o
+    # validar.mjs, então o filtro precisaria acertar os dois lados e erra fácil; (2) `paths:` no
+    # GitHub só existe em nível de workflow, e um required check que é filtrado fora nunca
+    # reporta — o PR fica esperando para sempre. Minuto de CI é mais barato que gate furado.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run mutation
+      - name: Relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          if-no-files-found: warn

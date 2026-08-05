@@ -1,0 +1,158 @@
+{
+  "atualizadas": [
+    {
+      "ativo": "CDB Banco X 102% CDI",
+      "classe": "renda-fixa",
+      "saldo_antes": "12350.00",
+      "saldo_depois": "12850.00",
+      "variacao": "500.00",
+      "variacao_pct": "4.05"
+    },
+    {
+      "ativo": "Fundo Z Prev",
+      "classe": "fundo",
+      "saldo_antes": "0.00",
+      "saldo_depois": "1500.00",
+      "variacao": "1500.00",
+      "variacao_pct": null,
+      "variacao_pct_motivo": "saldo anterior era R$ 0,00 — nao ha base para variacao percentual, e 0% afirmaria 'nao mudou' sobre uma posicao que saiu do zero"
+    },
+    {
+      "ativo": "IVVB11",
+      "classe": "bolsa",
+      "quantidade_antes": "20",
+      "quantidade_depois": "24",
+      "quantidade_mudou": true,
+      "saldo_antes": "5200.00",
+      "saldo_depois": "6420.00",
+      "variacao": "1220.00",
+      "variacao_pct": "23.46"
+    },
+    {
+      "ativo": "Tesouro IPCA 2029",
+      "classe": "renda-fixa",
+      "saldo_antes": "8000.00",
+      "saldo_depois": "7840.00",
+      "variacao": "-160.00",
+      "variacao_pct": "-2.00"
+    }
+  ],
+  "ausentes_do_print": [
+    {
+      "ativo": "LCI Banco V",
+      "atualizado_em": "2026-03-31",
+      "motivo": "nao aparece no print — pergunte o que houve (resgatou? venceu? so nao aparece nesse print?). A linha fica como esta, e a data NAO avanca: bumpar afirmaria que a posicao foi conferida neste print",
+      "saldo_na_carteira": "3000.00"
+    }
+  ],
+  "carteira_proposta": [
+    {
+      "ativo": "CDB Banco X 102% CDI",
+      "atualizado_em": "2026-06-30",
+      "classe": "renda-fixa",
+      "indexador": "102% CDI",
+      "instituicao": "Banco X",
+      "quantidade": "",
+      "saldo": "12850.00",
+      "vencimento": "2027-06-30"
+    },
+    {
+      "ativo": "Fundo Z Prev",
+      "atualizado_em": "2026-06-30",
+      "classe": "fundo",
+      "indexador": "",
+      "instituicao": "Seguradora W",
+      "quantidade": "",
+      "saldo": "1500.00",
+      "vencimento": ""
+    },
+    {
+      "ativo": "IVVB11",
+      "atualizado_em": "2026-06-30",
+      "classe": "bolsa",
+      "indexador": "",
+      "instituicao": "Corretora Y",
+      "quantidade": "24",
+      "saldo": "6420.00",
+      "vencimento": ""
+    },
+    {
+      "ativo": "LCI Banco V",
+      "atualizado_em": "2026-03-31",
+      "classe": "renda-fixa",
+      "indexador": "95% CDI",
+      "instituicao": "Banco V",
+      "quantidade": "",
+      "saldo": "3000.00",
+      "vencimento": "2026-12-01"
+    },
+    {
+      "ativo": "Tesouro IPCA 2029",
+      "atualizado_em": "2026-06-30",
+      "classe": "renda-fixa",
+      "indexador": "IPCA+6,1",
+      "instituicao": "Tesouro Direto",
+      "quantidade": "",
+      "saldo": "7840.00",
+      "vencimento": "2029-05-15"
+    }
+  ],
+  "criterios": {
+    "ausente_do_print": "mantido na carteira proposta com saldo E data antigos, e SEM snapshot — snapshot com saldo velho na data de hoje faria o rendimento.py reportar 'estavel' onde a verdade e 'nao sei'",
+    "formato": "os valores saem com PONTO decimal, que e o padrao do JSON no hestia. Ao GRAVAR no CSV converta para virgula (tabela BRL <-> cru da skill): planilha em pt-BR le '312.40' como 31240, e a carteira apareceria inflada no Drive",
+    "novo_no_print": "sai fora da carteira proposta, com os campos de cadastro que faltam nomeados; a skill manda propor cadastrar, e o print nao tem esses dados",
+    "quantidade_mudou": "bandeira, nao conta: com a quantidade mudando, a variacao de saldo mistura aporte com rendimento, e separar os dois e o rendimento.py",
+    "variacao": "saldo_depois - saldo_antes, e o percentual sobre o saldo ANTERIOR; saldo anterior zero devolve null com motivo, nunca 0%"
+  },
+  "data_do_print": "2026-06-30",
+  "novos_no_print": [
+    {
+      "ativo": "Fundo Novo AAA",
+      "falta_cadastrar": [
+        "classe",
+        "instituicao",
+        "indexador",
+        "vencimento"
+      ],
+      "motivo": "ativo novo no print — a skill manda propor cadastrar, e estes campos nao estao no print. Sem eles a linha nao entra na carteira proposta: montar uma com `classe` chutada gravaria dado inventado",
+      "quantidade": null,
+      "saldo": "2200.00"
+    }
+  ],
+  "patrimonio_antes": "28550.00",
+  "patrimonio_depois": "33810.00",
+  "patrimonio_variacao": "5260.00",
+  "simplificacoes": [
+    "`patrimonio_depois` inclui as posicoes ausentes do print pelo saldo ANTIGO (porque nao sao removidas) — ou seja, mistura conferido com nao conferido. Para o numero limpo do que de fato mexeu, use `variacao_das_posicoes_confirmadas`",
+    "o casamento de ativo e por texto exato, sem normalizar acento nem caixa: 'ivvb11' nao casa com 'IVVB11' e apareceria como ativo novo"
+  ],
+  "snapshots_propostos": [
+    {
+      "ativo": "CDB Banco X 102% CDI",
+      "data": "2026-06-30",
+      "saldo": "12850.00"
+    },
+    {
+      "ativo": "Fundo Z Prev",
+      "data": "2026-06-30",
+      "saldo": "1500.00"
+    },
+    {
+      "ativo": "IVVB11",
+      "data": "2026-06-30",
+      "saldo": "6420.00"
+    },
+    {
+      "ativo": "Tesouro IPCA 2029",
+      "data": "2026-06-30",
+      "saldo": "7840.00"
+    }
+  ],
+  "variacao_das_posicoes_confirmadas": {
+    "posicoes": 4,
+    "saldo_antes": "25550.00",
+    "saldo_depois": "28610.00",
+    "variacao": "3060.00",
+    "variacao_pct": "11.98"
+  }
+}

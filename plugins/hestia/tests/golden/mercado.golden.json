@@ -1,0 +1,122 @@
+{
+  "criterios": {
+    "desvio": "amostral (n-1); minimo de 3 compras por item",
+    "fora_do_padrao": "ultima quantidade acima de media + 1 desvio",
+    "preco": "convertido para a unidade_base do catalogo (g->kg, ml->l)"
+  },
+  "evolucao_de_preco": [
+    {
+      "ate": "2026-06-02",
+      "compras": 3,
+      "de": "2026-05-04",
+      "marca": "Itambé",
+      "preco_primeiro": "4.49",
+      "preco_ultimo": "4.89",
+      "produto": "Leite Itambé 1L",
+      "tipo": "leite",
+      "unidade_base": "l",
+      "variacao_pct": "8.91"
+    },
+    {
+      "ate": "2026-06-02",
+      "compras": 3,
+      "de": "2026-05-04",
+      "marca": "Heineken",
+      "preco_primeiro": "5.20",
+      "preco_ultimo": "5.49",
+      "produto": "Cerveja Heineken 350ml",
+      "tipo": "cerveja",
+      "unidade_base": "un",
+      "variacao_pct": "5.58"
+    },
+    {
+      "ate": "2026-06-02",
+      "compras": 1,
+      "de": "2026-06-02",
+      "marca": "Melitta",
+      "preco_primeiro": "39.80",
+      "preco_ultimo": "39.80",
+      "produto": "Café Melitta 500g",
+      "tipo": "café",
+      "unidade_base": "kg",
+      "variacao_pct": null
+    },
+    {
+      "ate": "2026-05-18",
+      "compras": 2,
+      "de": "2026-05-04",
+      "marca": "Pilão",
+      "preco_primeiro": "43.60",
+      "preco_ultimo": "43.60",
+      "produto": "Café Pilão 500g",
+      "tipo": "café",
+      "unidade_base": "kg",
+      "variacao_pct": "0.00"
+    }
+  ],
+  "maiores_gastos": [
+    {
+      "produto": "Cerveja Heineken 350ml",
+      "total": "64.14"
+    },
+    {
+      "produto": "Café Pilão 500g",
+      "total": "43.60"
+    },
+    {
+      "produto": "Leite Itambé 1L",
+      "total": "33.03"
+    },
+    {
+      "produto": "Café Melitta 500g",
+      "total": "19.90"
+    },
+    {
+      "produto": "Sal Cisne 1kg",
+      "total": "3.20"
+    }
+  ],
+  "periodo": {
+    "fim": null,
+    "inicio": null
+  },
+  "produtos": 4,
+  "quantidade_fora_do_padrao": [
+    {
+      "acima_do_padrao": true,
+      "desvio": "1.73",
+      "limite_media_mais_1_desvio": "5.73",
+      "media": "4.00",
+      "produto": "Cerveja Heineken 350ml",
+      "ultima_quantidade": "6.00"
+    },
+    {
+      "acima_do_padrao": true,
+      "desvio": "0.58",
+      "limite_media_mais_1_desvio": "2.91",
+      "media": "2.33",
+      "produto": "Leite Itambé 1L",
+      "ultima_quantidade": "3.00"
+    }
+  ],
+  "quantidade_no_padrao": [],
+  "sem_base_de_desvio": [
+    {
+      "compras": 1,
+      "motivo": "desvio amostral exige 3+ compras do item",
+      "produto": "Café Melitta 500g"
+    },
+    {
+      "compras": 2,
+      "motivo": "desvio amostral exige 3+ compras do item",
+      "produto": "Café Pilão 500g"
+    }
+  ],
+  "sem_catalogo": [
+    {
+      "data": "2026-06-15",
+      "motivo": "produto fora do catalogo — sem unidade_base nao ha preco comparavel",
+      "produto": "Sal Cisne 1kg"
+    }
+  ]
+}

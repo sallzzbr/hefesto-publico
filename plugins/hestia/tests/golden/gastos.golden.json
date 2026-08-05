@@ -1,0 +1,611 @@
+{
+  "categorias_novas_no_mes": [
+    {
+      "categoria": "Casa",
+      "motivo": "sem gasto nesta categoria em nenhum dos 6 meses da base — nao ha media para comparar, entao nao ha percentual a afirmar",
+      "valor": "350.00"
+    }
+  ],
+  "criterios": {
+    "base_da_media": "media historica = SO os meses anteriores ao analisado; o mes nao entra na base contra a qual e medido",
+    "categorias": "a quebra por categoria e so de DESPESA; receita entra so na visao do mes",
+    "desvio": "amostral (n-1), a definicao unica do estatistica.py",
+    "fora_do_padrao": "acima de media + 1 desvio OU mais de 30% acima da media; o simetrico marca o desvio para baixo",
+    "limitrofe": "nao ha rotulo de limitrofe: a skill chama os limiares de heuristica de apresentacao mas nao define a banda, entao o script devolve `folga_sobre_o_limite` (menor distancia ate um limiar atingido) e a leitura fica com quem narra",
+    "meses_sem_gasto_na_categoria": "contam como R$ 0,00 na media, para que o n seja o mesmo em toda categoria e 'media de N meses' seja verdade em toda linha",
+    "precisao": "as comparacoes rodam na precisao cheia e o arredondamento para 2 casas acontece so na exibicao; num caso muito justo o `valor` pode sair igual ao limite exibido e ainda assim ter cruzado o limite real",
+    "tendencia": "monotonicidade estrita nos ultimos 3 meses da janela; qualquer zigue-zague e 'estavel'"
+  },
+  "evolucao_por_categoria": [
+    {
+      "categoria": "Moradia",
+      "serie": [
+        {
+          "mes": "2025-12",
+          "valor": "2545.50"
+        },
+        {
+          "mes": "2026-01",
+          "valor": "2528.10"
+        },
+        {
+          "mes": "2026-02",
+          "valor": "2535.30"
+        },
+        {
+          "mes": "2026-03",
+          "valor": "2522.70"
+        },
+        {
+          "mes": "2026-04",
+          "valor": "2518.50"
+        },
+        {
+          "mes": "2026-05",
+          "valor": "2540.40"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "2714.20"
+        }
+      ],
+      "tendencia": "subindo",
+      "tendencia_base": [
+        "2026-04",
+        "2026-05",
+        "2026-06"
+      ],
+      "total_na_janela": "17904.70"
+    },
+    {
+      "categoria": "Alimentação",
+      "serie": [
+        {
+          "mes": "2025-12",
+          "valor": "2000.00"
+        },
+        {
+          "mes": "2026-01",
+          "valor": "1850.00"
+        },
+        {
+          "mes": "2026-02",
+          "valor": "1920.00"
+        },
+        {
+          "mes": "2026-03",
+          "valor": "2050.00"
+        },
+        {
+          "mes": "2026-04",
+          "valor": "2100.00"
+        },
+        {
+          "mes": "2026-05",
+          "valor": "2080.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "2640.00"
+        }
+      ],
+      "tendencia": "estavel",
+      "tendencia_base": [
+        "2026-04",
+        "2026-05",
+        "2026-06"
+      ],
+      "total_na_janela": "14640.00"
+    },
+    {
+      "categoria": "Saúde",
+      "serie": [
+        {
+          "mes": "2025-12",
+          "valor": "480.00"
+        },
+        {
+          "mes": "2026-01",
+          "valor": "480.00"
+        },
+        {
+          "mes": "2026-02",
+          "valor": "480.00"
+        },
+        {
+          "mes": "2026-03",
+          "valor": "480.00"
+        },
+        {
+          "mes": "2026-04",
+          "valor": "480.00"
+        },
+        {
+          "mes": "2026-05",
+          "valor": "1947.80"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "480.00"
+        }
+      ],
+      "tendencia": "estavel",
+      "tendencia_base": [
+        "2026-04",
+        "2026-05",
+        "2026-06"
+      ],
+      "total_na_janela": "4827.80"
+    },
+    {
+      "categoria": "Educação",
+      "serie": [
+        {
+          "mes": "2025-12",
+          "valor": "600.00"
+        },
+        {
+          "mes": "2026-01",
+          "valor": "600.00"
+        },
+        {
+          "mes": "2026-02",
+          "valor": "600.00"
+        },
+        {
+          "mes": "2026-03",
+          "valor": "550.00"
+        },
+        {
+          "mes": "2026-04",
+          "valor": "500.00"
+        },
+        {
+          "mes": "2026-05",
+          "valor": "450.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "400.00"
+        }
+      ],
+      "tendencia": "caindo",
+      "tendencia_base": [
+        "2026-04",
+        "2026-05",
+        "2026-06"
+      ],
+      "total_na_janela": "3700.00"
+    },
+    {
+      "categoria": "Transporte",
+      "serie": [
+        {
+          "mes": "2025-12",
+          "valor": "248.00"
+        },
+        {
+          "mes": "2026-01",
+          "valor": "240.00"
+        },
+        {
+          "mes": "2026-02",
+          "valor": "255.00"
+        },
+        {
+          "mes": "2026-03",
+          "valor": "230.00"
+        },
+        {
+          "mes": "2026-04",
+          "valor": "270.00"
+        },
+        {
+          "mes": "2026-05",
+          "valor": "265.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "289.00"
+        }
+      ],
+      "tendencia": "estavel",
+      "tendencia_base": [
+        "2026-04",
+        "2026-05",
+        "2026-06"
+      ],
+      "total_na_janela": "1797.00"
+    },
+    {
+      "categoria": "Lazer",
+      "serie": [
+        {
+          "mes": "2025-12",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-01",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-02",
+          "valor": "180.00"
+        },
+        {
+          "mes": "2026-03",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-04",
+          "valor": "240.00"
+        },
+        {
+          "mes": "2026-05",
+          "valor": "290.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "320.00"
+        }
+      ],
+      "tendencia": "subindo",
+      "tendencia_base": [
+        "2026-04",
+        "2026-05",
+        "2026-06"
+      ],
+      "total_na_janela": "1030.00"
+    },
+    {
+      "categoria": "Assinaturas",
+      "serie": [
+        {
+          "mes": "2025-12",
+          "valor": "66.80"
+        },
+        {
+          "mes": "2026-01",
+          "valor": "66.80"
+        },
+        {
+          "mes": "2026-02",
+          "valor": "66.80"
+        },
+        {
+          "mes": "2026-03",
+          "valor": "66.80"
+        },
+        {
+          "mes": "2026-04",
+          "valor": "66.80"
+        },
+        {
+          "mes": "2026-05",
+          "valor": "66.80"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "66.80"
+        }
+      ],
+      "tendencia": "estavel",
+      "tendencia_base": [
+        "2026-04",
+        "2026-05",
+        "2026-06"
+      ],
+      "total_na_janela": "467.60"
+    },
+    {
+      "categoria": "Casa",
+      "serie": [
+        {
+          "mes": "2025-12",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-01",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-02",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-03",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-04",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-05",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "350.00"
+        }
+      ],
+      "tendencia": "estavel",
+      "tendencia_base": [
+        "2026-04",
+        "2026-05",
+        "2026-06"
+      ],
+      "total_na_janela": "350.00"
+    }
+  ],
+  "janela": [
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06"
+  ],
+  "maiores_mudancas": {
+    "mais_cairam": [
+      {
+        "categoria": "Saúde",
+        "delta": "-1467.80",
+        "valor": "480.00",
+        "valor_anterior": "1947.80"
+      },
+      {
+        "categoria": "Educação",
+        "delta": "-50.00",
+        "valor": "400.00",
+        "valor_anterior": "450.00"
+      }
+    ],
+    "mais_subiram": [
+      {
+        "categoria": "Alimentação",
+        "delta": "560.00",
+        "valor": "2640.00",
+        "valor_anterior": "2080.00"
+      },
+      {
+        "categoria": "Casa",
+        "delta": "350.00",
+        "valor": "350.00",
+        "valor_anterior": "0.00"
+      },
+      {
+        "categoria": "Moradia",
+        "delta": "173.80",
+        "valor": "2714.20",
+        "valor_anterior": "2540.40"
+      }
+    ],
+    "mes_anterior": "2026-05"
+  },
+  "mes": "2026-06",
+  "meses_de_base": [
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05"
+  ],
+  "recorrencias_x_realidade": {
+    "conferem": [
+      {
+        "categoria": "Moradia",
+        "lancamentos": 1,
+        "nome": "Aluguel",
+        "tipo": "despesa",
+        "valor_cadastrado": "2200.00"
+      },
+      {
+        "categoria": "Assinaturas",
+        "lancamentos": 1,
+        "nome": "Netflix",
+        "tipo": "despesa",
+        "valor_cadastrado": "44.90"
+      },
+      {
+        "categoria": "Moradia",
+        "lancamentos": 1,
+        "nome": "Internet",
+        "tipo": "despesa",
+        "valor_cadastrado": "129.90"
+      },
+      {
+        "categoria": "Casa",
+        "lancamentos": 1,
+        "nome": "Sofá 6x",
+        "tipo": "despesa",
+        "valor_cadastrado": "350.00"
+      },
+      {
+        "categoria": "Salário",
+        "lancamentos": 1,
+        "nome": "Salário",
+        "tipo": "receita",
+        "valor_cadastrado": "8500.00"
+      }
+    ],
+    "criterio": "casamento pelo nome CONTIDO na descricao (substring, case-insensitive, sem acento-fold); o valor fica FORA do casamento para que a recorrencia que mudou de preco caia em 'divergencias' e nao em 'nao_apareceram'",
+    "divergencias": [
+      {
+        "categoria": "Assinaturas",
+        "lancado": [
+          {
+            "data": "2026-06-12",
+            "descricao": "Spotify",
+            "diferenca": "2.00",
+            "valor": "21.90"
+          }
+        ],
+        "nome": "Spotify",
+        "tipo": "despesa",
+        "valor_cadastrado": "19.90"
+      }
+    ],
+    "nao_apareceram": [
+      {
+        "categoria": "Saúde",
+        "motivo": "nenhum lancamento do mes tem esse nome na descricao",
+        "nome": "Academia",
+        "tipo": "despesa",
+        "valor_cadastrado": "99.00"
+      }
+    ]
+  },
+  "simplificacoes": [
+    "'mes anterior' e o mes imediatamente anterior PRESENTE nos livros informados, que pode nao ser o mes calendario anterior se houver buraco na janela",
+    "mes que nao veio nos livros nao entra na janela nem vira R$ 0,00 — a base e o que foi informado, e nao um calendario preenchido por conta propria"
+  ],
+  "variacoes_fora_do_padrao": [
+    {
+      "base_esparsa": false,
+      "categoria": "Saúde",
+      "criterios_atingidos": [
+        "pct"
+      ],
+      "desvio": "599.23",
+      "direcao": "abaixo",
+      "folga_sobre_o_limite": "27.24",
+      "limites": {
+        "media_mais_1_desvio": "1323.86",
+        "media_menos_1_desvio": "125.41",
+        "pct_abaixo": "507.24",
+        "pct_acima": "942.02"
+      },
+      "media": "724.63",
+      "media_de_n_meses": 6,
+      "meses_com_gasto_na_base": 6,
+      "valor": "480.00",
+      "variacao_pct": "-33.76"
+    },
+    {
+      "base_esparsa": false,
+      "categoria": "Educação",
+      "criterios_atingidos": [
+        "desvio"
+      ],
+      "desvio": "63.25",
+      "direcao": "abaixo",
+      "folga_sobre_o_limite": "86.75",
+      "limites": {
+        "media_mais_1_desvio": "613.25",
+        "media_menos_1_desvio": "486.75",
+        "pct_abaixo": "385.00",
+        "pct_acima": "715.00"
+      },
+      "media": "550.00",
+      "media_de_n_meses": 6,
+      "meses_com_gasto_na_base": 6,
+      "valor": "400.00",
+      "variacao_pct": "-27.27"
+    },
+    {
+      "base_esparsa": true,
+      "categoria": "Lazer",
+      "criterios_atingidos": [
+        "desvio",
+        "pct"
+      ],
+      "desvio": "134.23",
+      "direcao": "acima",
+      "folga_sobre_o_limite": "67.44",
+      "limites": {
+        "media_mais_1_desvio": "252.56",
+        "media_menos_1_desvio": "-15.89",
+        "pct_abaixo": "82.83",
+        "pct_acima": "153.83"
+      },
+      "media": "118.33",
+      "media_de_n_meses": 6,
+      "meses_com_gasto_na_base": 3,
+      "valor": "320.00",
+      "variacao_pct": "170.42"
+    },
+    {
+      "base_esparsa": false,
+      "categoria": "Alimentação",
+      "criterios_atingidos": [
+        "desvio",
+        "pct"
+      ],
+      "desvio": "97.78",
+      "direcao": "acima",
+      "folga_sobre_o_limite": "40.00",
+      "limites": {
+        "media_mais_1_desvio": "2097.78",
+        "media_menos_1_desvio": "1902.22",
+        "pct_abaixo": "1400.00",
+        "pct_acima": "2600.00"
+      },
+      "media": "2000.00",
+      "media_de_n_meses": 6,
+      "meses_com_gasto_na_base": 6,
+      "valor": "2640.00",
+      "variacao_pct": "32.00"
+    },
+    {
+      "base_esparsa": false,
+      "categoria": "Transporte",
+      "criterios_atingidos": [
+        "desvio"
+      ],
+      "desvio": "15.12",
+      "direcao": "acima",
+      "folga_sobre_o_limite": "22.54",
+      "limites": {
+        "media_mais_1_desvio": "266.46",
+        "media_menos_1_desvio": "236.21",
+        "pct_abaixo": "175.93",
+        "pct_acima": "326.73"
+      },
+      "media": "251.33",
+      "media_de_n_meses": 6,
+      "meses_com_gasto_na_base": 6,
+      "valor": "289.00",
+      "variacao_pct": "14.99"
+    },
+    {
+      "base_esparsa": false,
+      "categoria": "Moradia",
+      "criterios_atingidos": [
+        "desvio"
+      ],
+      "desvio": "10.46",
+      "direcao": "acima",
+      "folga_sobre_o_limite": "171.99",
+      "limites": {
+        "media_mais_1_desvio": "2542.21",
+        "media_menos_1_desvio": "2521.29",
+        "pct_abaixo": "1772.23",
+        "pct_acima": "3291.28"
+      },
+      "media": "2531.75",
+      "media_de_n_meses": 6,
+      "meses_com_gasto_na_base": 6,
+      "valor": "2714.20",
+      "variacao_pct": "7.21"
+    }
+  ],
+  "visao_do_mes": {
+    "comparacao_com_mes_anterior": {
+      "despesas_anterior": "7640.00",
+      "despesas_delta": "-380.00",
+      "mes_anterior": "2026-05",
+      "receitas_anterior": "8500.00",
+      "receitas_delta": "0.00",
+      "saldo_anterior": "860.00",
+      "saldo_delta": "380.00"
+    },
+    "despesas": "7260.00",
+    "mes": "2026-06",
+    "receitas": "8500.00",
+    "saldo": "1240.00",
+    "taxa_de_poupanca_pct": "14.59"
+  }
+}

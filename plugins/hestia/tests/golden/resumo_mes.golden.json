@@ -1,0 +1,98 @@
+{
+  "comprometido_restante": {
+    "criterio": "mesmo nome na descricao E mesmo valor (Fluxo 2 da skill orcamento)",
+    "faltando": [
+      {
+        "categoria": "Moradia",
+        "dia": "15",
+        "nome": "Internet",
+        "parcelas_restantes": null,
+        "valor": "129.90"
+      },
+      {
+        "categoria": "Casa",
+        "dia": "20",
+        "nome": "Sofá 6x",
+        "parcelas_restantes": "3",
+        "valor": "350.00"
+      }
+    ],
+    "ja_lancadas": [
+      {
+        "categoria": "Moradia",
+        "dia": "10",
+        "nome": "Aluguel",
+        "parcelas_restantes": null,
+        "valor": "2200.00"
+      },
+      {
+        "categoria": "Assinaturas",
+        "dia": "12",
+        "nome": "Netflix",
+        "parcelas_restantes": null,
+        "valor": "44.90"
+      }
+    ],
+    "total_faltando": "479.90"
+  },
+  "despesas": "3083.55",
+  "despesas_por_categoria": [
+    {
+      "categoria": "Moradia",
+      "pct_das_despesas": "77.43",
+      "valor": "2387.45"
+    },
+    {
+      "categoria": "Alimentação",
+      "pct_das_despesas": "14.63",
+      "valor": "451.20"
+    },
+    {
+      "categoria": "Transporte",
+      "pct_das_despesas": "6.49",
+      "valor": "200.00"
+    },
+    {
+      "categoria": "Assinaturas",
+      "pct_das_despesas": "1.46",
+      "valor": "44.90"
+    }
+  ],
+  "lancamentos": 8,
+  "maiores_despesas": [
+    {
+      "categoria": "Moradia",
+      "data": "2026-06-10",
+      "descricao": "Aluguel",
+      "valor": "2200.00"
+    },
+    {
+      "categoria": "Alimentação",
+      "data": "2026-06-03",
+      "descricao": "Compra no mercado",
+      "valor": "352.90"
+    },
+    {
+      "categoria": "Transporte",
+      "data": "2026-06-05",
+      "descricao": "Gasolina",
+      "valor": "200.00"
+    },
+    {
+      "categoria": "Moradia",
+      "data": "2026-06-10",
+      "descricao": "Conta de luz",
+      "valor": "187.45"
+    },
+    {
+      "categoria": "Alimentação",
+      "data": "2026-06-20",
+      "descricao": "Feira",
+      "valor": "98.30"
+    }
+  ],
+  "receitas": "9700.00",
+  "saldo": "6616.45",
+  "saldo_projetado": "6136.55",
+  "taxa_de_poupanca_pct": "68.21"
+}

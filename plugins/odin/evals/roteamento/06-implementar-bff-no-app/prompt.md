@@ -1,0 +1,1 @@
+Implementar BFF no app

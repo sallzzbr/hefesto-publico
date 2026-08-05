@@ -1,0 +1,1 @@
+Em que fase estamos?

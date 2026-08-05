@@ -1,0 +1,6 @@
+# Deps dos scripts do plugin mimyr (instalar no venv do workspace de curso).
+# Transcrição de áudio (Whisper + torch) fica em requirements-transcricao.txt — pesada, ideal com GPU.
+beautifulsoup4>=4.12
+lxml>=5.0
+fonttools>=4.50
+brotli>=1.1

@@ -1,0 +1,38 @@
+{
+  "hoje": "2026-07-28",
+  "metas": [
+    {
+      "acumulado": "18400.00",
+      "aporte_mensal_planejado": "800.00",
+      "aporte_para_o_prazo_sem_juros": "1054.55",
+      "atraso_meses": 3,
+      "data_alvo": "2027-06-30",
+      "falta": "11600.00",
+      "meses_ate_alvo": 11,
+      "meses_no_ritmo": 14,
+      "meta": "Reserva de emergência",
+      "progresso_pct": "61.33",
+      "projecao_chegada": "2027-09-28",
+      "ritmo_mensal": "883.33",
+      "ritmo_motivo": "media de 3 meses",
+      "valor_alvo": "30000.00"
+    },
+    {
+      "acumulado": "9200.00",
+      "aporte_mensal_planejado": null,
+      "aporte_para_o_prazo_sem_juros": "2702.44",
+      "atraso_meses": 85,
+      "data_alvo": "2029-12-31",
+      "falta": "110800.00",
+      "meses_ate_alvo": 41,
+      "meses_no_ritmo": 126,
+      "meta": "Entrada do apê",
+      "progresso_pct": "7.67",
+      "projecao_chegada": "2037-01-28",
+      "ritmo_mensal": "883.33",
+      "ritmo_motivo": "media de 3 meses",
+      "valor_alvo": "120000.00"
+    }
+  ],
+  "nota": "projecao usa o ritmo observado, sem premissa de juros; para cenarios com taxa, use juros_compostos.py"
+}

@@ -1,0 +1,37 @@
+{
+  "name": "hefesto",
+  "private": true,
+  "type": "module",
+  "description": "Marketplace de plugins Claude Code. Este manifesto NÃO é build step nem dep de plugin: existe só para a esteira de CI rodar as suítes e o mutation testing. Nenhum plugin publicado consome node_modules.",
+  "_fonte_unica": "Os scripts abaixo são os comandos CANÔNICOS de verificação: o CI (.github/workflows/ci.yml) os invoca em vez de repetir os comandos, e AGENTS.md ('Verificação antes de commitar') é a fonte única da EXPLICAÇÃO de por que cada um tem a forma que tem (glob obrigatório no node --test; hermes e mimyr em invocações separadas). Ao mudar um comando, mude aqui — não no CI.",
+  "_ponytail_P10": {
+    "dependencia": "@stryker-mutator/core",
+    "porque_P1_a_P5_falharam": [
+      "P1 (não escreva o que não precisa existir): mutation testing é capacidade NOVA, não conversão de prosa — assumido como escopo deliberado. Sem ele, uma suíte verde não sustenta nenhuma decisão de não ler o diff, porque agente otimiza contra o gate que se mede: com meta de coverage, aprende a produzir teste que executa tudo e afirma quase nada.",
+      "P2 (já existe no codebase?): não. O repo tem harnesses .mjs standalone (loop.mjs, criativo.mjs, validar.mjs), nenhum deles mutila código nem mede sobrevivência de mutante. Nada a reusar.",
+      "P3 (a stdlib faz isso?): não. `node:test` roda testes; não injeta defeito nem conta mutante morto. Fazer à mão exige parse de AST, patch por mutante, re-execução da suíte 1154 vezes e relatório — centenas de linhas de infraestrutura no repo, o oposto de P13.",
+      "P4 (feature da plataforma?): não existe em Node nem no Claude Code.",
+      "P5 (dependência já instalada resolve?): falha trivialmente — o repo tinha ZERO dependências npm antes deste diff.",
+      "Degrau escolhido: dependência nova, e é a que o próprio artigo de origem nomeia para esta stack ('PIT no mundo Java, Stryker em JavaScript e TypeScript, mutmut em Python: a ferramenta existe, o que falta é hábito'). Escrever o nosso seria o caso do Uncle Bob, que fez isso em Clojure porque não havia ferramenta — em JS, há."
+    ],
+    "contencao": "devDependency, nunca dependency. Não é lida por nenhum plugin publicado nem por nenhum dos harnesses; só o job `mutation` do CI e `npm run mutation` a tocam."
+  },
+  "_gates_medem_efeito": "Regra que os dois scripts de guarda encarnam, e que custou dois furos para ser aprendida: gate deve medir o EFEITO, não o INDÍCIO. Contar arquivo de teste não prova que teste rodou (arquivo vazio passa); o exit 0 do Stryker não prova que ele mutilou algo (zero mutante vira score NaN, e `NaN < break` é falso). Por isso `testes-node.mjs` cobra testes executados lidos da saída TAP, e `verificar-mutantes.mjs` cobra mutantes contabilizáveis lidos do relatório JSON. Ao criar guarda nova, pergunte o que ela mede — se for a existência de um arquivo, ela ainda não é uma guarda.",
+  "scripts": {
+    "test": "npm run test:node && npm run test:py",
+    "test:node": "node scripts/testes-node.mjs",
+    "test:py": "npm run test:py:hermes && npm run test:py:mimyr && npm run test:py:hestia",
+    "test:py:hermes": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -p no:cacheprovider -q plugins/hermes/tests",
+    "test:py:mimyr": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -p no:cacheprovider -q plugins/mimyr/tests",
+    "validar": "node plugins/hefesto/skills/validar-plugin/scripts/validar.mjs .",
+    "premutation": "test -f plugins/hefesto/skills/validar-plugin/scripts/validar.mjs || { echo \"ERRO: o alvo do mutation testing sumiu. Stryker com 0 mutantes calcula score NaN, e NaN < break e falso: o job sairia 0 sem mutilar nada.\" >&2; exit 1; }",
+    "mutation": "stryker run",
+    "postmutation": "node scripts/verificar-mutantes.mjs",
+    "test:py:hestia": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -p no:cacheprovider -q plugins/hestia/tests",
+    "cobertura:hestia": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -p no:cacheprovider -p pytest_cov -q --cov=plugins/hestia/scripts --cov-report=term-missing --cov-fail-under=90 plugins/hestia/tests"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "^9.2.0"
+  },
+  "_piso_de_cobertura": "PISO 90 sobre baseline REAL de 94,58% (2026-07-29), mesma politica do thresholds.break do stryker: anti-regressao, nao meta. Cobertura e sinal FRACO — diz que a linha rodou, nao que o teste perceberia ela mudando. Esta aqui porque o sinal forte (mutation testing) nao tem, hoje, ferramenta Python em que se possa confiar: ver a secao 'Mutation testing em Python' no design doc do cerco. Gate fraco e honesto vale mais que gate forte e mentiroso. VERIFICADO FECHANDO: piso alto reprova (exit 1) E alvo de cobertura inexistente reprova com 0.00% (exit 1) — diferente das ferramentas de mutation, que saem 0 quando nao medem nada."
+}

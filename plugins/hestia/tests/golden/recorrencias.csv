@@ -1,0 +1,6 @@
+nome;tipo;categoria;descricao;valor;dia;metodo;parcelas_restantes
+Aluguel;despesa;Moradia;Aluguel do apê;2200,00;10;transferência;
+Netflix;despesa;Assinaturas;Assinatura;44,90;12;crédito;
+Internet;despesa;Moradia;Fibra 500MB;129,90;15;débito;
+Sofá 6x;despesa;Casa;Parcela do sofá;350,00;20;crédito;3
+Salário;receita;Salário;Salário do mês;8500,00;1;transferência;

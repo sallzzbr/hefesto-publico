@@ -1,0 +1,137 @@
+{
+  "categorias_novas_no_mes": null,
+  "criterios": {
+    "base_da_media": "media historica = SO os meses anteriores ao analisado; o mes nao entra na base contra a qual e medido",
+    "categorias": "a quebra por categoria e so de DESPESA; receita entra so na visao do mes",
+    "desvio": "amostral (n-1), a definicao unica do estatistica.py",
+    "fora_do_padrao": "acima de media + 1 desvio OU mais de 30% acima da media; o simetrico marca o desvio para baixo",
+    "limitrofe": "nao ha rotulo de limitrofe: a skill chama os limiares de heuristica de apresentacao mas nao define a banda, entao o script devolve `folga_sobre_o_limite` (menor distancia ate um limiar atingido) e a leitura fica com quem narra",
+    "meses_sem_gasto_na_categoria": "contam como R$ 0,00 na media, para que o n seja o mesmo em toda categoria e 'media de N meses' seja verdade em toda linha",
+    "precisao": "as comparacoes rodam na precisao cheia e o arredondamento para 2 casas acontece so na exibicao; num caso muito justo o `valor` pode sair igual ao limite exibido e ainda assim ter cruzado o limite real",
+    "tendencia": "monotonicidade estrita nos ultimos 3 meses da janela; qualquer zigue-zague e 'estavel'"
+  },
+  "evolucao_por_categoria": [
+    {
+      "categoria": "Moradia",
+      "serie": [
+        {
+          "mes": "2026-06",
+          "valor": "2714.20"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 1",
+      "total_na_janela": "2714.20"
+    },
+    {
+      "categoria": "Alimentação",
+      "serie": [
+        {
+          "mes": "2026-06",
+          "valor": "2640.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 1",
+      "total_na_janela": "2640.00"
+    },
+    {
+      "categoria": "Saúde",
+      "serie": [
+        {
+          "mes": "2026-06",
+          "valor": "480.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 1",
+      "total_na_janela": "480.00"
+    },
+    {
+      "categoria": "Educação",
+      "serie": [
+        {
+          "mes": "2026-06",
+          "valor": "400.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 1",
+      "total_na_janela": "400.00"
+    },
+    {
+      "categoria": "Casa",
+      "serie": [
+        {
+          "mes": "2026-06",
+          "valor": "350.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 1",
+      "total_na_janela": "350.00"
+    },
+    {
+      "categoria": "Lazer",
+      "serie": [
+        {
+          "mes": "2026-06",
+          "valor": "320.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 1",
+      "total_na_janela": "320.00"
+    },
+    {
+      "categoria": "Transporte",
+      "serie": [
+        {
+          "mes": "2026-06",
+          "valor": "289.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 1",
+      "total_na_janela": "289.00"
+    },
+    {
+      "categoria": "Assinaturas",
+      "serie": [
+        {
+          "mes": "2026-06",
+          "valor": "66.80"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 1",
+      "total_na_janela": "66.80"
+    }
+  ],
+  "janela": [
+    "2026-06"
+  ],
+  "maiores_mudancas": null,
+  "mes": "2026-06",
+  "meses_de_base": [],
+  "recorrencias_x_realidade": null,
+  "secoes_puladas": {
+    "maiores_mudancas": "mudanca mes a mes exige um mes anterior na janela",
+    "recorrencias_x_realidade": "nao ha recorrencias cadastradas (recorrencias.csv nao informado)",
+    "variacoes_fora_do_padrao": "a media historica exige 2 meses ANTERIORES ao analisado (3 meses de dados); a janela tem 1",
+    "visao_do_mes.comparacao_com_mes_anterior": "so 1 mes na janela — comparacao mes a mes exige pelo menos 2"
+  },
+  "simplificacoes": [
+    "'mes anterior' e o mes imediatamente anterior PRESENTE nos livros informados, que pode nao ser o mes calendario anterior se houver buraco na janela",
+    "mes que nao veio nos livros nao entra na janela nem vira R$ 0,00 — a base e o que foi informado, e nao um calendario preenchido por conta propria"
+  ],
+  "variacoes_fora_do_padrao": null,
+  "visao_do_mes": {
+    "comparacao_com_mes_anterior": null,
+    "despesas": "7260.00",
+    "mes": "2026-06",
+    "receitas": "8500.00",
+    "saldo": "1240.00",
+    "taxa_de_poupanca_pct": "14.59"
+  }
+}

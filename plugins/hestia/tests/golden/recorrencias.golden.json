@@ -1,0 +1,83 @@
+{
+  "criterios": {
+    "diferenca": "receitas recorrentes menos despesas recorrentes. E o que o CADASTRO diz, nao previsao do mes: o mes real tem gasto variavel que nao esta aqui, e para a foto do mes o script e o resumo_mes.py",
+    "fixa_ou_parcelada": "`parcelas_restantes` vazio = fixa; numero = parcelamento (contrato da skill orcamento)",
+    "totais": "o comprometido soma as despesas dos DOIS grupos — parcela tambem compromete o mes; os subtotais ficam ao lado para a leitura por grupo"
+  },
+  "diferenca_receitas_menos_despesas": "5656.30",
+  "fixas": [
+    {
+      "categoria": "Moradia",
+      "descricao": "Aluguel do apê",
+      "dia": "10",
+      "metodo": "transferência",
+      "nome": "Aluguel",
+      "tipo": "despesa",
+      "valor": "2200.00"
+    },
+    {
+      "categoria": "Assinaturas",
+      "descricao": "Assinatura",
+      "dia": "12",
+      "metodo": "crédito",
+      "nome": "Netflix",
+      "tipo": "despesa",
+      "valor": "44.90"
+    },
+    {
+      "categoria": "Assinaturas",
+      "descricao": "Assinatura",
+      "dia": "12",
+      "metodo": "crédito",
+      "nome": "Spotify",
+      "tipo": "despesa",
+      "valor": "19.90"
+    },
+    {
+      "categoria": "Moradia",
+      "descricao": "Fibra 500MB",
+      "dia": "15",
+      "metodo": "débito",
+      "nome": "Internet",
+      "tipo": "despesa",
+      "valor": "129.90"
+    },
+    {
+      "categoria": "Saúde",
+      "descricao": "Mensalidade",
+      "dia": "5",
+      "metodo": "débito",
+      "nome": "Academia",
+      "tipo": "despesa",
+      "valor": "99.00"
+    },
+    {
+      "categoria": "Salário",
+      "descricao": "Salário do mês",
+      "dia": "1",
+      "metodo": "transferência",
+      "nome": "Salário",
+      "tipo": "receita",
+      "valor": "8500.00"
+    }
+  ],
+  "parceladas": [
+    {
+      "categoria": "Casa",
+      "descricao": "Parcela do sofá",
+      "dia": "20",
+      "metodo": "crédito",
+      "nome": "Sofá 6x",
+      "parcelas_restantes": 3,
+      "tipo": "despesa",
+      "valor": "350.00"
+    }
+  ],
+  "recorrencias": 7,
+  "subtotal_despesas_fixas": "2493.70",
+  "subtotal_despesas_parceladas": "350.00",
+  "subtotal_receitas_fixas": "8500.00",
+  "subtotal_receitas_parceladas": "0.00",
+  "total_comprometido_despesas": "2843.70",
+  "total_recorrente_receitas": "8500.00"
+}
