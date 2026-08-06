@@ -1,6 +1,6 @@
 {
   "name": "hefesto",
-  "version": "3.1.3",
+  "version": "3.1.4",
   "description": "A forja de plugins do Antonio: criar-plugin (scaffold de plugin/marketplace), criar-skill (SKILL.md no padrão), validar-plugin (validação determinística) e versionar-plugin (bump semver sincronizado).",
   "author": {
     "name": "Antonio Salgado",
@@ -9,5 +9,12 @@
   "homepage": "https://github.com/sallzzbr/hefesto-publico",
   "repository": "https://github.com/sallzzbr/hefesto-publico",
   "license": "MIT",
-  "keywords": ["plugin-development", "scaffolding", "claude-code", "marketplace", "portuguese", "hefesto"]
+  "keywords": [
+    "plugin-development",
+    "scaffolding",
+    "claude-code",
+    "marketplace",
+    "portuguese",
+    "hefesto"
+  ]
 }

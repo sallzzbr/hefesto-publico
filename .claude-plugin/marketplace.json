@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Hefesto — forja pessoal de skills do Antonio para Claude Code.",
-    "version": "3.17.0"
+    "version": "3.17.1"
   },
   "plugins": [
     {
       "name": "hefesto",
       "source": "./plugins/hefesto",
       "description": "A forja de plugins: criar, validar e versionar plugins e skills de Claude Code.",
-      "version": "3.1.3",
+      "version": "3.1.4",
       "category": "productivity",
       "tags": [
         "plugin-development",
@@ -25,7 +25,7 @@
       "name": "bragir",
       "source": "./plugins/bragir",
       "description": "Voz e escrita: escrever como Antonio, analisar voz de autores, gerenciar personas de audiência.",
-      "version": "1.2.2",
+      "version": "1.2.3",
       "category": "writing",
       "tags": [
         "writing",
@@ -38,7 +38,7 @@
       "name": "mimyr",
       "source": "./plugins/mimyr",
       "description": "Cursos e didática: gerar mini-cursos HTML, módulos e capítulos na voz do autor, com revisão pedagógica, análise de aulas e scripts de transcrição e checagens.",
-      "version": "1.1.4",
+      "version": "1.1.5",
       "category": "education",
       "tags": [
         "cursos",
@@ -51,7 +51,7 @@
       "name": "hestia",
       "source": "./plugins/hestia",
       "description": "Héstia — economia doméstica: despesas e receitas com saldo, recorrências, análise de gastos, notas de supermercado com comparação de preços, e carteira de investimentos com metas e simulações. Dados em CSVs no Google Drive, em BRL.",
-      "version": "0.12.0",
+      "version": "0.12.1",
       "category": "finance",
       "tags": [
         "financas",
@@ -65,7 +65,7 @@
       "name": "hermes",
       "source": "./plugins/hermes",
       "description": "Marketing de performance e criativos: fluxo de estúdio multi-agente (rotas em rough, produção com seleção, crítica adversarial), direção de arte ancorada em referência, e as metodologias de unit economics, fadiga criativa, verba e auditoria de conta/CRO.",
-      "version": "1.3.0",
+      "version": "1.3.1",
       "category": "marketing",
       "tags": [
         "marketing",
@@ -79,7 +79,7 @@
       "name": "odin",
       "source": "./plugins/odin",
       "description": "Double diamond como sistema operacional de desafios: descobrir, definir, desenvolver, entregar — com dev-loop multi-agente TDD, tier expresso para desafios pequenos e acompanhamento por placar.",
-      "version": "2.4.4",
+      "version": "2.4.5",
       "category": "productivity",
       "tags": [
         "desafios",

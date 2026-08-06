@@ -1,6 +1,6 @@
 {
   "name": "bragir",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Bragir — voz e escrita: escrever-como-antonio (voz do autor), analisar-voz (extrai perfil-de-voz.md de documentos) e gerenciar-personas (calibra audiência por projeto).",
   "author": {
     "name": "Antonio Salgado",
@@ -9,5 +9,12 @@
   "homepage": "https://github.com/sallzzbr/hefesto-publico",
   "repository": "https://github.com/sallzzbr/hefesto-publico",
   "license": "MIT",
-  "keywords": ["writing", "voice", "portuguese", "personas", "content-generation", "bragir"]
+  "keywords": [
+    "writing",
+    "voice",
+    "portuguese",
+    "personas",
+    "content-generation",
+    "bragir"
+  ]
 }

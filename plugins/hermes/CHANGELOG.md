@@ -1,5 +1,11 @@
 # Changelog — hermes
 
+## 1.3.1 — 2026-08-06 (URLs do repositório público)
+
+Patch de metadado: `homepage`/`repository` do plugin.json apontam para o espelho
+público `sallzzbr/hefesto-publico` (rename do marketplace). Sem mudança de
+comportamento nas skills.
+
 ## 1.3.0 — 2026-07-31 (a sessão de operação de 30/07 vira metodologia)
 
 Uma sessão real de operação gerou 18 aprendizados; a auditoria de cobertura mostrou que só 1
