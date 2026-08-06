@@ -10,7 +10,7 @@ O repo é um **marketplace** que publica seis plugins: **hefesto** (a forja de p
 
 Dentro do Claude Code:
 
-    /plugin marketplace add sallzzbr/hefesto
+    /plugin marketplace add sallzzbr/hefesto-publico
     /plugin install hefesto@hefesto     # forja de plugins
     /plugin install bragir@hefesto      # voz e escrita
     /plugin install mimyr@hefesto       # cursos e didática
@@ -162,7 +162,7 @@ Documentação completa em [plugins/odin/README.md](plugins/odin/README.md).
 
 ## Desenvolvimento local
 
-    git clone git@github.com:sallzzbr/hefesto.git
+    git clone git@github.com:sallzzbr/hefesto-publico.git
     # No Claude Code, adicione pelo caminho absoluto do clone (ajuste ao seu OS):
     /plugin marketplace add /caminho/para/hefesto
 

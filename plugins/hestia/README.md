@@ -38,7 +38,7 @@ Um **conector do Google Drive** ativo (Cowork ou Claude Code). É ele quem lê e
 
 ## Instalação
 
-    /plugin marketplace add sallzzbr/hefesto
+    /plugin marketplace add sallzzbr/hefesto-publico
     /plugin install hestia@hefesto
 
 ## Onde ficam os dados

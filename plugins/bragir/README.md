@@ -21,7 +21,7 @@ Até a v2.x do marketplace, as skills de voz viviam no plugin `hefesto`. Migrara
 
 ## Instalação
 
-    /plugin marketplace add sallzzbr/hefesto
+    /plugin marketplace add sallzzbr/hefesto-publico
     /plugin install bragir@hefesto
 
 ## Contratos

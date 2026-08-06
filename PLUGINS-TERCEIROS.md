@@ -12,7 +12,7 @@ Catálogo de referência do que está realmente instalado no meu Claude Code, co
 |-------------|--------|---------------|
 | `claude-plugins-official` | [anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official) | Diretório oficial da Anthropic com plugins curados |
 | `superpowers-marketplace` | [obra/superpowers-marketplace](https://github.com/obra/superpowers-marketplace) | Marketplace do Jesse Vincent (autor do `superpowers`) |
-| `hefesto` | [sallzzbr/hefesto](https://github.com/sallzzbr/hefesto) | Meu próprio marketplace (hefesto = forja de plugins; bragir = voz/personas; odin = desafios) |
+| `hefesto` | [sallzzbr/hefesto-publico](https://github.com/sallzzbr/hefesto-publico) | Meu próprio marketplace (hefesto = forja de plugins; bragir = voz/personas; odin = desafios) |
 | `expo-plugins` | [expo/skills](https://github.com/expo/skills) | Skills oficiais da Expo |
 | `railway-skills` | [railwayapp/railway-skills](https://github.com/railwayapp/railway-skills) | Skills oficiais da Railway |
 

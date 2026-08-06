@@ -51,7 +51,7 @@ padrão do dev-loop do odin — invariantes em código, não em prosa:
 
 ## Instalação
 
-    /plugin marketplace add sallzzbr/hefesto
+    /plugin marketplace add sallzzbr/hefesto-publico
     /plugin install mimyr@hefesto
 
 ## Dependência: bragir

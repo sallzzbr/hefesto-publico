@@ -105,7 +105,7 @@ Antes de disparar, a skill apresenta o perfil de custo/rigor (Econômico, Balanc
 ## Instalação
 
 ```
-/plugin marketplace add sallzzbr/hefesto
+/plugin marketplace add sallzzbr/hefesto-publico
 /plugin install odin@hefesto
 ```
 
