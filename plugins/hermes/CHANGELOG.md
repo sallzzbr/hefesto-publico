@@ -1,5 +1,13 @@
 # Changelog — hermes
 
+## 1.3.2 — 2026-09-02 (redação de réguas reais no histórico)
+
+Patch de higiene, achado da auditoria adversarial de 2026-09-01: a entrada 1.0.0 deste
+arquivo e um comentário em `tests/test_skill_contracts.py` citavam as réguas reais de CAC
+do workspace de origem como exemplo de hardcode inconsistente. Os números viram `R$X × R$Y`
+— o exemplo continua fazendo sentido sem o dado do negócio, e o espelho público deixa de
+precisar de scrub nesses dois arquivos. Sem mudança de comportamento nas skills.
+
 ## 1.3.1 — 2026-08-06 (URLs do repositório público)
 
 Patch de metadado: `homepage`/`repository` do plugin.json apontam para o espelho
