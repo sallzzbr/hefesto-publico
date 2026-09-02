@@ -1,6 +1,6 @@
 {
   "name": "odin",
-  "version": "2.4.5",
+  "version": "2.4.6",
   "description": "Double diamond como sistema operacional de desafios: descobrir (evidência), definir (problema + placar + hipóteses), desenvolver (alavancas por aprendizado × reversibilidade), entregar (spec → TDD → PR) — com o harness dev-loop multi-agente (script de Workflow + agentes operário/arquiteto/revisor/mecânico, invariantes em código, tiering de modelo/effort por step via defaults) e acompanhar (re-medir placar, perseverar/pivotar/encerrar). Todo desafio documentado e acompanhado no diretório de desafios do projeto, resolvido pela regra única do plugin.",
   "author": {
     "name": "Antonio Salgado",

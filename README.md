@@ -1,5 +1,7 @@
 # Hefesto
 
+[![CI](https://github.com/sallzzbr/hefesto-publico/actions/workflows/ci.yml/badge.svg)](https://github.com/sallzzbr/hefesto-publico/actions/workflows/ci.yml)
+
 > Forja pessoal de skills do Antonio para Claude Code. O nome vem do deus grego da metalurgia e do artesanato — este repo é onde as ferramentas são marteladas, afiadas e distribuídas.
 
 O repo é um **marketplace** que publica seis plugins: **hefesto** (a forja de plugins), **bragir** (voz, escrita e editorial), **mimyr** (cursos e didática), **hestia** (economia doméstica), **hermes** (marketing de performance e criativos) e **odin** (desafios pelo double diamond).
@@ -122,7 +124,7 @@ plugin; a operação acoplada a dados/credenciais ficou no workspace.
 | `criativo-fluxo` | Fluxo de estúdio multi-agente via harness `criativo.mjs` (2 estágios): rotas visuais em rough → humano escolhe VENDO → candidatos em paralelo → seleção → composição → pre-flight → crítica adversarial fail-closed → pacote com rationale. |
 | `direcao-de-arte` | Rotas e decisões estéticas ancoradas em referência, com princípios de design de estúdio. |
 | `sugerir-criativos` | Portfólio de 5 conceitos (escalar vencedor · dor · resultado · prova social · não testado). |
-| `validar-criativo` | Crítica adversarial avulsa (critérios A-J: inclui PT-BR correto, legibilidade em thumbnail, completude da mensagem, voz da copy) — qualquer bloqueante = fail. |
+| `validar-criativo` | Crítica adversarial avulsa (critérios A-Q: inclui PT-BR correto, legibilidade em thumbnail, completude da mensagem, voz da copy) — qualquer bloqueante = fail. |
 | `evoluir-vencedor` | 3 variações controladas de um vencedor sustentado — 1 variável por variação. |
 | `analisar-criativos` | Hook × framework × formato × tom vs performance + ângulos não testados. |
 | `unit-economics` | Margens, CAC breakeven/alvo, ROAS alvo + cenários de verba — fonte canônica das réguas. |
@@ -164,15 +166,16 @@ Documentação completa em [plugins/odin/README.md](plugins/odin/README.md).
 
     git clone git@github.com:sallzzbr/hefesto-publico.git
     # No Claude Code, adicione pelo caminho absoluto do clone (ajuste ao seu OS):
-    /plugin marketplace add /caminho/para/hefesto
+    /plugin marketplace add /caminho/para/hefesto-publico
 
 ### Verificação
 
-    npm run validar     # validador de marketplace/plugins
-    npm test            # as suítes node (todo plugin com tests/) + as pytest
-    npm run mutation    # mutation testing do validar.mjs
+    npm run validar            # validador de marketplace/plugins
+    npm test                   # as suítes node (todo plugin com tests/) + as pytest
+    npm run cobertura:hestia   # piso de cobertura dos scripts que mexem com dinheiro
+    npm run mutation           # mutation testing do validar.mjs
 
-O CI roda esses três em todo PR (`.github/workflows/ci.yml`) **mais dois greps de repo** que
+O CI roda esses quatro em todo PR (`.github/workflows/ci.yml`) **mais dois greps de repo** que
 só existem como steps do workflow — então local verde não equivale a CI verde. Pré-requisitos
 (inclusive Python ≥ 3.10 para o mimyr), armadilhas e o que cada gate significa estão em
 [AGENTS.md](AGENTS.md), seção "Verificação antes de commitar" — fonte única, para não divergir
@@ -195,27 +198,32 @@ daqui.
     │   ├── bragir/                        # voz, escrita e editorial (5 skills)
     │   │   ├── .claude-plugin/plugin.json
     │   │   ├── perfil-de-voz.md           # perfil de voz canônico do Antonio (fallback)
-    │   │   └── skills/
-    │   │       ├── escrever-como-antonio/
-    │   │       ├── analisar-voz/
-    │   │       └── gerenciar-personas/
-    │   ├── mimyr/                         # cursos e didática (5 skills + scripts Python)
+    │   │   └── skills/                    # escrever-como-antonio, analisar-voz, gerenciar-personas,
+    │   │                                  #   planejar-agenda, analisar-metricas
+    │   ├── mimyr/                         # cursos e didática (5 skills + 3 agents + harness curso.mjs)
     │   │   ├── .claude-plugin/plugin.json
-    │   │   ├── skills/                    # gerar-curso, gerar-modulo, escrever-capitulo,
+    │   │   ├── agents/                    # escritor-de-capitulo, revisor-de-curso, mecanico-de-curso
+    │   │   ├── skills/                    # gerar-curso (+harness), gerar-modulo, escrever-capitulo,
     │   │   │                              #   revisar-capitulo, analise-de-aula
     │   │   ├── scripts/                   # transcrição, extração, checagens (+ requirements.txt)
     │   │   └── tests/                     # contratos das skills + testes dos scripts (pytest)
-    │   ├── hestia/                        # economia doméstica (orçamento, mercado e investimentos; dados no Drive do usuário)
+    │   ├── hestia/                        # economia doméstica (6 skills, 14 commands, scripts Python)
     │   │   ├── .claude-plugin/plugin.json
-    │   │   ├── commands/                  # /lancar, /status, /fechar-mes
-    │   │   └── skills/orcamento/
+    │   │   ├── commands/                  # /lancar, /abrir-mes, /recorrencias, /status, /analisar,
+    │   │   │                              #   /fechar-mes, /nota, /catalogo, /mercado, /preco,
+    │   │   │                              #   /carteira, /meta, /investimentos, /simular
+    │   │   ├── skills/                    # orcamento, analisar-gastos, mercado, analisar-mercado,
+    │   │   │                              #   investimentos, analisar-investimentos
+    │   │   ├── scripts/                   # as contas de dinheiro (Decimal, sob golden test)
+    │   │   └── tests/                     # golden tests (pytest, piso de cobertura no CI)
     │   ├── hermes/                        # marketing e criativos (16 skills, 4 agents, harness criativo.mjs)
     │   │   ├── .claude-plugin/plugin.json
     │   │   ├── agents/                    # diretor-de-arte, produtor, validador, mecanico
-    │   │   ├── skills/                    # criativo-fluxo (+harness), direcao-de-arte, ... (12)
+    │   │   ├── skills/                    # criativo-fluxo (+harness), direcao-de-arte, ... (16)
     │   │   └── tests/                     # contratos do harness e das skills (pytest)
-    │   └── odin/                          # double diamond de desafios (6 skills, 9 comandos)
-    ├── AGENTS.md                          # boas práticas para IAs que mantêm o repo
+    │   └── odin/                          # double diamond de desafios (6 skills, 9 comandos, 4 agents, harness loop.mjs)
+    ├── AGENTS.md                          # contrato de manutenção do repo (IAs e humanos)
+    ├── CLAUDE.md                          # importa o AGENTS.md para o Claude Code
     ├── PLUGINS-TERCEIROS.md               # catálogo de plugins que o Antonio usa
     └── README.md
 
@@ -226,10 +234,12 @@ daqui.
 ## Desenvolvimento e espelho
 
 O desenvolvimento acontece num repositório privado (histórico completo, specs e
-planos internos em `docs/superpowers/`). Este repositório público é o **espelho
-publicado** do marketplace — gerado a cada release por snapshot sanitizado, via
-script de publicação do repo privado. Issues e sugestões são bem-vindas aqui; PRs
-diretos não são aceitos (o espelho é regenerado a cada versão).
+planos internos em `docs/superpowers/`). O repositório público
+[`sallzzbr/hefesto-publico`](https://github.com/sallzzbr/hefesto-publico) é o
+**espelho publicado** do marketplace — gerado a cada release por snapshot sanitizado
+do commit taggeado, via script de publicação do repo privado. Cada versão tem uma
+Release com as notas dos CHANGELOGs dos plugins. Issues e sugestões são bem-vindas
+no espelho; PRs diretos não são aceitos lá (o espelho é regenerado a cada versão).
 
 ---
 

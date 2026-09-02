@@ -77,7 +77,10 @@ qualquer consulta pontual dentro do loop.
    confirmado antes de virar retrabalho; 1 revisor por vez, passadas cegas.
 5. **O loop tem fim** — 3 iterações; estourou, escala pro humano com diagnóstico.
 6. **Nada antes do vermelho** — testes escritos e falhando pelo motivo certo abrem o loop;
-   o implementador não edita o teste que precisa passar.
+   o implementador não edita o teste que precisa passar. Os dois são verificados em código
+   desde a 2.4.6: o mecânico roda os testes da SPEC de forma independente (exit 0 = bloqueado)
+   e devolve o hash de cada um; a validação de cada iteração devolve os hashes de novo e
+   qualquer diferença é bloqueante automático, sem confirmação.
 7. **Operário executa, arquiteto pensa** — Sonnet implementa; decisão de arquitetura vira
    consulta ao arquiteto (**Fable quando disponível, senão Opus**), com teto de 2 por unidade
    por iteração; consulta que revela furo na spec escala pro humano. Nunca 2 arquitetos em
@@ -151,8 +154,11 @@ defaults.
 | **Balanceado** | 2-3 unidades, integração moderada | operários em paralelo · 2 lentes (corretude + segurança/bordas) |
 | **Máximo** | arquitetura, segurança/dados/a11y, regressão ampla | operários em paralelo · 3 lentes (+ ponytail/arquitetura) |
 
-Invariantes que NENHUM perfil remove (estão no script, não são negociáveis por perfil): portão
-TDD vermelho, implementador não edita teste, teto de iterações/consultas, revisor nunca é o
+Invariantes que NENHUM perfil remove (estão no script, não são negociáveis por perfil, e cada um
+tem um caso em `tests/harness-dev-loop.test.mjs` que roda o script com agentes falsos): portão
+TDD vermelho **confirmado por execução independente** (step `tdd:vermelho`, no mecânico),
+implementador não edita teste (**hash dos testes da SPEC comparado a cada iteração**), teto de
+iterações/consultas, **teto de 4 operários simultâneos** nos perfis paralelos, revisor nunca é o
 autor, auditoria ponytail em toda iteração, e **Haiku somente nos steps mecânicos whitelisted
 em código** — `validar` (rodar validações e reportar) por default e `spec` (checklist de
 formato) só sob opt-in nos defaults, porque tem julgamento. TDD, implementação, consulta de
@@ -163,9 +169,12 @@ Step em haiku que não retornar cai UMA vez pro operário (Sonnet) e desliga o h
 do run — o tier barato nunca aborta um run.
 
 Apresente: complexidade estimada, perfil sugerido com porquê e o nº esperado de agentes. **Piso**
-(nenhuma consulta, nenhum finding plausível): `2 + iterações × (unidades + lentes + 2)` — o `+2`
-por iteração é o agente de validação e o da auditoria ponytail; as lentes rodam **por iteração**,
-não uma vez. Ex.: 3 unidades, Balanceado (2 lentes), 3 iterações → `2 + 3×(3+2+2)` = **23**.
+(nenhuma consulta, nenhum finding plausível): `3 + iterações × (unidades + lentes + 2)` — o `3`
+fixo é spec + portão TDD + a execução independente do vermelho (mecânico, haiku); o `+2` por
+iteração é o agente de validação e o da auditoria ponytail; as lentes rodam **por iteração**,
+não uma vez. Ex.: 3 unidades, Balanceado (2 lentes), 3 iterações → `3 + 3×(3+2+2)` = **24**.
+Nos perfis paralelos, no máximo 4 operários rodam ao mesmo tempo (lotes) — mais unidades não
+aumentam a concorrência, só o tempo.
 Somam-se por cima, e são imprevisíveis: cada consulta ao arquiteto custa 2 (o arquiteto + a
 re-invocação do operário), cada duplicação/abstração achada pela auditoria custa 1 de confirmação.
 Estime o piso, diga que é piso e a pergunta de **opt-in explícito**: *"posso orquestrar

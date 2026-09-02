@@ -6,7 +6,7 @@
 
 > Plugin de cursos e didática. O nome vem de Mímir, o guardião do poço da sabedoria na mitologia nórdica — aqui moram as skills que transformam material acadêmico em mini-cursos HTML publicáveis.
 
-Até a v3.1 do marketplace, estas skills viviam como skills locais do repo [mimyr](https://github.com/sallzzbr) (o workspace de cursos). Foram promovidas a plugin para servir qualquer workspace de curso no mesmo formato.
+Até a v3.1 do marketplace, estas skills viviam como skills locais do repo `mimyr` (o workspace de cursos, privado). Foram promovidas a plugin para servir qualquer workspace de curso no mesmo formato.
 
 ## Skills
 

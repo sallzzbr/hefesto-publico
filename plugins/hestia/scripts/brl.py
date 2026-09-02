@@ -53,8 +53,16 @@ def brl(texto: str | Decimal | int, campo: str = "valor") -> Decimal:
 
     # `1.234,56` -> ponto e milhar, virgula e decimal. `1234,56` -> virgula e decimal.
     # `1,234.56` (formato EN) NAO e aceito: seria ambiguo com o BR e o dado do hestia e BR.
+    # A recusa do EN e explicita — a ordem dos replaces abaixo leria `1,234.56` como 1234,56.
     if "," in limpo:
+        if "." in limpo.rsplit(",", 1)[1]:
+            raise ErroDeEntrada(f"{campo}: {bruto!r} mistura virgula e ponto no formato EN — use 1.234,56")
         limpo = limpo.replace(".", "").replace(",", ".")
+    # `1.500` sem virgula -> milhar, nao um real e cinquenta. Grupos de exatamente 3 digitos
+    # depois de um primeiro grupo sem zero a esquerda; `0.500` e `1234.56` seguem decimais.
+    # Achado da auditoria de 2026-09-01: chegava pela CLI do juros_compostos e lia 1.500 como 1,5.
+    elif re.fullmatch(r"-?[1-9]\d{0,2}(\.\d{3})+", limpo):
+        limpo = limpo.replace(".", "")
 
     if not re.fullmatch(r"-?\d+(\.\d+)?", limpo):
         raise ErroDeEntrada(f"{campo}: {bruto!r} nao e um valor monetario reconhecido")

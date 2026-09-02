@@ -4,7 +4,7 @@
 
 ## Propósito do repo
 
-`hefesto` é um **marketplace Claude Code** que publica seis **plugins**: `hefesto` (forja de plugins: criar, validar e versionar plugins e skills), `bragir` (escrita/voz e editorial: escrever-como-antonio, analisar-voz, gerenciar-personas, planejar-agenda, analisar-metricas), `mimyr` (cursos e didática: 5 skills + scripts Python + harness gerar-curso), `hestia` (economia doméstica: orçamento, análise de gastos, mercado e investimentos com dados no Google Drive do usuário), `hermes` (marketing de performance e criativos: 16 skills + 4 agents + harness criativo.mjs) e `odin` (missões pelo double diamond: 6 skills + 9 comandos). O objetivo é ser instalável com dois comandos, funcionar em qualquer SO e ser compartilhável com amigos sem precisar de setup manual.
+`hefesto` é um **marketplace Claude Code** que publica seis **plugins**: `hefesto` (forja de plugins: criar, validar e versionar plugins e skills), `bragir` (escrita/voz e editorial: escrever-como-antonio, analisar-voz, gerenciar-personas, planejar-agenda, analisar-metricas), `mimyr` (cursos e didática: 5 skills + scripts Python + harness gerar-curso), `hestia` (economia doméstica: orçamento, análise de gastos, mercado e investimentos com dados no Google Drive do usuário), `hermes` (marketing de performance e criativos: 16 skills + 4 agents + harness criativo.mjs) e `odin` (desafios pelo double diamond: 6 skills + 9 comandos). O objetivo é ser instalável com dois comandos, funcionar em qualquer SO e ser compartilhável com amigos sem precisar de setup manual.
 
 > Rumo do repo: o backlog mestre da reorganização do ecossistema (forja, bragir, mimyr, hestia, odin v2.3, hermes) está em `docs/superpowers/specs/2026-07-22-megaplano-ecossistema-plugins.md`.
 
@@ -46,7 +46,7 @@ hefesto/                                    # raiz = marketplace
 │   │   ├── commands/                         # comandos hestia
 │   │   └── skills/                           # orçamento, análise de gastos, mercado, investimentos
 │   ├── hermes/                               # plugin de marketing e criativos (harness de estúdio)
-│   └── odin/                                 # plugin de missões (double diamond)
+│   └── odin/                                 # plugin de desafios (double diamond)
 │       ├── .claude-plugin/
 │       │   └── plugin.json                   # manifesto do plugin
 │       ├── commands/
@@ -154,7 +154,7 @@ Tipos comuns: `feat`, `fix`, `docs`, `restructure`, `chore`, `refactor`. Mensage
 
 Prefira usar a forja: `criar-skill` scaffolda, `versionar-plugin` faz o bump, `validar-plugin` confere. O passo a passo manual equivalente:
 
-1. Crie `plugins/<plugin>/skills/<nome>/SKILL.md` com frontmatter válido (no plugin certo: `hefesto` = forja; `bragir` = escrita/voz; `mimyr` = cursos/didática; `hestia` = economia doméstica; `odin` = missões).
+1. Crie `plugins/<plugin>/skills/<nome>/SKILL.md` com frontmatter válido (no plugin certo: `hefesto` = forja; `bragir` = escrita/voz; `mimyr` = cursos/didática; `hestia` = economia doméstica; `hermes` = marketing/criativos; `odin` = desafios).
 2. Atualize a tabela de skills no `README.md` (raiz) e, no caso do odin, no `plugins/odin/README.md`.
 3. Bump `version` no `plugin.json` do plugin + na entrada correspondente de `marketplace.json.plugins[]` + em `marketplace.json.metadata.version` (minor bump).
 4. Se a skill lê/escreve recursos do plugin, coloque-os em `plugins/<plugin>/<recurso>` e referencie via `${CLAUDE_PLUGIN_ROOT}`.
@@ -205,6 +205,12 @@ O que este arquivo guarda é a **explicação** — o porquê de cada comando te
   O piso de testes fica **exatamente na contagem atual**, sem folga: contagem de teste é
   determinística, então qualquer queda é perda real. Com folga o furo reabre — no piso 25,
   esvaziar dois arquivos dava 23 reais + 2 passes de arquivo vazio = 25, e passava.
+- **Harness tem teste COMPORTAMENTAL, não só grep de marcador.** `plugins/odin/tests/
+  harness-dev-loop.test.mjs` embrulha o corpo do `loop.mjs` num `AsyncFunction` com os globals
+  do Workflow (`args`, `agent`, `parallel`, `phase`, `log`) e um `agent` falso por `label`;
+  cada invariante "em código" tem um caso que o vê rodando. Invariante novo no harness entra
+  com caso novo ali — grep de string no `.mjs` trava declaração, não efeito. (mimyr e hermes
+  ainda têm só contrato por marcador + `node --check`; o runner do odin é o molde.)
 - **Não enumere plugins na descoberta**: lista de plugins apodrece e o que ficar de fora tem a
   suíte ignorada em silêncio. Duas consequências que vêm junto e não são de graça: (a) o
   diretório precisa se chamar `tests` — `tests_node/` e afins seguem invisíveis, então suíte
@@ -282,6 +288,30 @@ Tudo passando + diff review humano = seguro commitar.
 >
 > A justificativa P10 da dependência (por que P1–P5 falharam) vive em `package.json`, campo
 > `_ponytail_P10` — no manifesto, que é onde ela serve para quem vier depois.
+
+## Release e espelho público
+
+O repo público `sallzzbr/hefesto-publico` é um **snapshot sanitizado do commit taggeado** do
+privado, gerado por `scripts/publicar-espelho.sh`. Regras que o script impõe (não são pedido):
+
+1. **Release = bump + CHANGELOG + CI verde + `scripts/publicar-espelho.sh`.** O script recusa
+   árvore suja, snapshota `HEAD` (nunca a working tree), e recusa republicar uma versão já
+   taggeada com conteúdo diferente — a tag `vX.Y.Z` nos dois repos aponta para o que foi
+   publicado. Use `--dry-run` para ver o que sairia sem tocar o público.
+2. **Todo plugin mantém `CHANGELOG.md`** (desde 2026-09-02) e o gate de bump cobra a entrada
+   `## <versão>`. O espelho nasce sem histórico de commits; o CHANGELOG é o que sobrevive à
+   travessia e vira as notas da GitHub Release.
+3. **O que fica de fora:** `docs/superpowers/`, `reports/`, o próprio publicador. **Scrubs**
+   determinísticos: IDs/nomes do workspace de origem na fixture do hermes, o token de origem
+   no grep do CI, as réguas reais de CAC no CHANGELOG do hermes, o CODEOWNERS (o do público não
+   cita paths que não existem lá). **Guard bloqueante** por grep no stage; o nome da marca de
+   origem do hermes é retenção deliberada (provenance) e o guard só o aceita no `README.md`
+   raiz e no `plugins/hermes/CHANGELOG.md` — em qualquer outro arquivo, aborta.
+4. O stage roda `validar.mjs`, as suítes node, o pytest do hermes e o gate de bump antes de
+   qualquer push. Vermelho no stage = nada publicado.
+
+`CLAUDE.md` na raiz só importa este arquivo (`@AGENTS.md`): o Claude Code carrega `CLAUDE.md`,
+não `AGENTS.md`. Não duplique conteúdo lá.
 
 ## Quando em dúvida
 

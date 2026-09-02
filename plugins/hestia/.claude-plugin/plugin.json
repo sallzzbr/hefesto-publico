@@ -1,7 +1,7 @@
 {
   "name": "hestia",
   "displayName": "Héstia — Economia Doméstica",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "description": "Economia doméstica completa em português (BRL): despesas e receitas com saldo do mês, recorrências, análise de gastos, notas de supermercado com catálogo de produtos e comparação de preços, carteira de investimentos com proventos, metas e simulações. Dados em CSVs no Google Drive; sempre confirma antes de escrever; investimentos com guardrail explícito (educa/calcula/simula, nunca recomenda ativo).",
   "author": {
     "name": "Antonio Salgado",

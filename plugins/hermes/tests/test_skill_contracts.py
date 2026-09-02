@@ -58,7 +58,7 @@ def test_no_workspace_credentials_or_account_ids_in_plugin() -> None:
     # reescreve. plugin.json (author) fica fora por não ser .md/.mjs: autoria é legítima.
     forbidden = [
         "000000000000000", "CA_ExemploLoja", "META_ACCESS_TOKEN", "111111111", "exemplo.loja",
-        "ExemploLoja", "Shih Tzu", "Fulana",
+        "ExemploLoja", "NichoExemplo", "Fulana",
     ]
     scanned = 0
     for path in PLUGIN_DIR.rglob("*"):
@@ -75,7 +75,7 @@ def test_no_workspace_credentials_or_account_ids_in_plugin() -> None:
 
 def test_ruler_numbers_are_lookup_not_literals() -> None:
     # réguas de decisão vêm do unit-economics mais recente, nunca hardcoded (achado da Fase 7:
-    # R$56 × R$63,57 inconsistentes entre commands do workspace)
+    # R$X × R$Y inconsistentes entre commands do workspace)
     for d in skill_dirs():
         text = (d / "SKILL.md").read_text(encoding="utf-8")
         assert not re.search(r"CAC (alvo|máximo|max)[^.\n]*R\$\s*\d", text), (

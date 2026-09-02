@@ -42,6 +42,11 @@ const PERFIS = {
 
 const MAX_ITERACOES = 3
 const MAX_CONSULTAS_POR_UNIDADE_ITERACAO = 2
+// Teto de concorrência dos operários (perfis balanceado/máximo). `parallel()` sem lote
+// despachava TODAS as unidades de uma vez — SPEC de 8 unidades = 8 operários simultâneos, sem
+// nada no plano de custo dizendo isso. Achado da auditoria de 2026-09-01; testado em
+// tests/harness-dev-loop.test.mjs.
+const PARALELO_MAX = 4
 
 // ── tiering de modelo/effort por step (v2.3) ─────────────────────────────────
 // A unidade de configuração é o STEP, não o agente: cada chamada do harness pertence a um step
@@ -119,9 +124,21 @@ const CONSULTA_SCHEMA = { type: 'object', additionalProperties: false, required:
   furoNaSpec: { type: 'boolean' },
 } }
 
-const VALID_SCHEMA = { type: 'object', additionalProperties: false, required: ['verde'], properties: {
+// `hashesDosTestes` é required: é a prova, em código, de que os testes da SPEC saíram da
+// implementação como entraram no TDD (comparados com os hashes do `tdd:vermelho`). Sem o
+// campo, "o operário não edita teste" volta a ser só uma frase no prompt.
+const VALID_SCHEMA = { type: 'object', additionalProperties: false, required: ['verde', 'hashesDosTestes'], properties: {
   verde: { type: 'boolean' },
   falhas: { type: 'array', items: { type: 'object', required: ['comando', 'resumo'], properties: { comando: { type: 'string' }, resumo: { type: 'string' } } } },
+  hashesDosTestes: { type: 'object', additionalProperties: { type: 'string' } },
+} }
+
+// Execução INDEPENDENTE dos testes escritos no TDD: o operário declara `vermelhoConfirmado`,
+// mas quem escreveu o teste é o pior juiz de que ele falha pelo motivo certo. O mecânico roda e
+// reporta o exit; o hash de cada arquivo vira a baseline do check de testes intactos.
+const VERMELHO_SCHEMA = { type: 'object', additionalProperties: false, required: ['exitZero', 'hashesDosTestes'], properties: {
+  exitZero: { type: 'boolean' }, comando: { type: 'string' }, resumo: { type: 'string' },
+  hashesDosTestes: { type: 'object', additionalProperties: { type: 'string' } },
 } }
 
 const REVIEW_SCHEMA = { type: 'object', additionalProperties: false, required: ['findings'], properties: {
@@ -160,6 +177,26 @@ async function emSequencia(itens, fn) {
   return out
 }
 
+// Paralelo com teto (PARALELO_MAX por lote). `parallel()` devolve null pro thunk que lançou;
+// `seNulo(item)` transforma isso em erro NOMEADO — sumir com a unidade fechava verde com uma
+// unidade nunca implementada.
+async function emLotes(itens, fn, seNulo) {
+  const out = []
+  for (let i = 0; i < itens.length; i += PARALELO_MAX) {
+    const lote = itens.slice(i, i + PARALELO_MAX)
+    const r = await parallel(lote.map(x => () => fn(x)))
+    out.push(...r.map((v, j) => v || seNulo(lote[j])))
+  }
+  return out
+}
+
+// Modelo EFETIVO por step, registrado no momento de cada execução — não inferido de flags
+// globais no fim do run: um fallback tardio não pode re-rotular steps que já rodaram no tier
+// certo (finding #5 do Codex na revisão hermes 1.0.1, portado pra cá em 2026-09-02). Última
+// execução vence (steps repetem por iteração); step que nunca rodou reporta o configurado.
+const execucoesPorStep = {}
+const registrarExec = (step, modelo) => { execucoesPorStep[step] = modelo }
+
 // Fable é tier restrito: cravar no frontmatter quebraria o spawn de quem não tem acesso.
 // Piso garantido = Opus (frontmatter do agente); Fable entra por override de runtime (desde a
 // 2.3 dirigido pelos defaults — MODELOS_STEP.consulta.padrao — em vez de arg manual por sessão),
@@ -193,13 +230,17 @@ const tentar = async (prompt, opts) => { try { return await agent(prompt, opts) 
 async function consultarArquiteto(prompt, opts) {
   const t = TIERING.consulta
   const base = { ...ARQUITETO, ...(t.effort ? { effort: t.effort } : {}), ...opts }
-  if (t.modelo !== 'fable' || overrideArquitetoMorto) return await tentar(prompt, base)
+  if (t.modelo !== 'fable' || overrideArquitetoMorto) {
+    registrarExec('consulta', t.modelo === 'fable' ? 'opus (promoção desligada no run)' : t.modelo)
+    return await tentar(prompt, base)
+  }
 
   // O registro do fallback NÃO afirma que a culpa foi do Fable — as causas são indistinguíveis.
   const r = await tentar(prompt, { ...base, model: 'fable' })
-  if (r) return r
+  if (r) { registrarExec('consulta', 'fable'); return r }
   overrideArquitetoMorto = true
   fallbacksModelo.push({ step: 'consulta', chamada: base.label, de: 'fable', para: 'opus (frontmatter)', causa: 'a chamada com override não retornou (tier indisponível, schema inválido ou timeout — indistinguíveis aqui); override desligado para o resto do run' })
+  registrarExec('consulta', 'opus (fallback da promoção)')
   return await tentar(prompt, base)
 }
 
@@ -212,16 +253,20 @@ let haikuMorto = false
 async function chamarOperario(step, prompt, opts) {
   const t = TIERING[step]
   const base = { ...OPERARIO, ...(t.effort ? { effort: t.effort } : {}), ...opts }
-  if (t.modelo !== 'haiku' || haikuMorto) return await tentar(prompt, base)
+  if (t.modelo !== 'haiku' || haikuMorto) {
+    registrarExec(step, t.modelo === 'haiku' ? 'sonnet (haiku desligado no run)' : t.modelo)
+    return await tentar(prompt, base)
+  }
   const r = await tentar(prompt, { ...base, ...MECANICO })
-  if (r) return r
+  if (r) { registrarExec(step, 'haiku'); return r }
   haikuMorto = true
   fallbacksModelo.push({ step, chamada: base.label, de: 'haiku (mecanico)', para: 'sonnet (operario)', causa: 'a chamada rebaixada não retornou (agente indisponível, schema inválido ou timeout — indistinguíveis aqui); haiku desligado para o resto do run' })
+  registrarExec(step, 'sonnet (fallback do haiku)')
   return await tentar(prompt, base)
 }
 
 // Revisor é opus SEMPRE (MODELOS_STEP não permite outro modelo) — só o effort é configurável.
-const chamarRevisor = (step, prompt, extra) => tentar(prompt, { ...REVISOR, ...(TIERING[step].effort ? { effort: TIERING[step].effort } : {}), ...extra })
+const chamarRevisor = (step, prompt, extra) => { registrarExec(step, 'opus'); return tentar(prompt, { ...REVISOR, ...(TIERING[step].effort ? { effort: TIERING[step].effort } : {}), ...extra }) }
 
 // ── Fase 0: args válidos (falha barata antes de gastar agente) ───────────────
 // A tool Workflow pode entregar args como string JSON — normalizar antes de validar.
@@ -283,17 +328,15 @@ const TIERING = {}
 log(`Tiering por step: ${Object.entries(TIERING).map(([s, t]) => `${s}=${t.modelo}${t.effort ? `(${t.effort})` : ''}`).join(' · ')}`)
 if (tieringRecusado.length > 0) log(`Tiering: ${tieringRecusado.length} pedido(s) recusado(s) pela whitelist — ver modelos.recusados no relatório`)
 
-// Modelos/efforts EFETIVOS por step, não os pedidos: se um fallback desligou fable ou haiku no
-// meio do run, é a queda que aparece aqui — o detalhe de qual chamada caiu fica em `fallbacks`.
-// Vai em TODO desfecho pós-resolução (verde, escalado, bloqueado, erro), não só no verde: num
-// run escalado é justamente aqui que se lê com que modelo cada step rodou.
+// Modelos/efforts EFETIVOS por step — do registro de execução real (execucoesPorStep), não de
+// flags globais no fim: um fallback tardio não pode re-rotular step que já rodou no tier certo.
+// Step que nunca rodou reporta o configurado. O detalhe de qual chamada caiu fica em
+// `fallbacks`. Vai em TODO desfecho pós-resolução (verde, escalado, bloqueado, erro), não só no
+// verde: num run escalado é justamente aqui que se lê com que modelo cada step rodou.
 const relatorioModelos = () => ({
   porStep: Object.fromEntries(Object.keys(MODELOS_STEP).map(s => {
     const t = TIERING[s]
-    let efetivo = t.modelo
-    if (t.modelo === 'fable' && overrideArquitetoMorto) efetivo = 'opus (fallback — ver fallbacks)'
-    if (t.modelo === 'haiku' && haikuMorto) efetivo = 'sonnet (fallback — ver fallbacks)'
-    return [s, { modelo: efetivo, effort: t.effort || 'herdado da sessão' }]
+    return [s, { modelo: execucoesPorStep[s] ?? t.modelo, effort: t.effort || 'herdado da sessão' }]
   })),
   recusados: tieringRecusado,
 })
@@ -348,6 +391,30 @@ if (!tdd.vermelhoConfirmado) {
 const testesDaSpec = [...new Set(tdd.testes.map(t => t.path))]
 if (testesDaSpec.length === 0 && validacoes.length === 0) {
   return { status: 'bloqueado', fase: 'TDD', detalhe: 'nenhum teste executável e nenhum comando de validação — não há como afirmar verde', acao: 'declarar as validações do projeto nos args ou mapear os critérios a testes executáveis na SPEC', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+}
+
+// VERMELHO VERIFICADO, não declarado. Até 2026-09-02 `vermelhoConfirmado` era a palavra do
+// mesmo agente que escreveu os testes — a skill dizia "portão TDD vermelho" como invariante em
+// código e não era. O mecânico (step `validar`, haiku) roda SÓ os testes da SPEC: exit 0 aqui
+// é teste que nasceu verde. Os hashes que ele devolve são a baseline do check de testes
+// intactos, comparada em código a cada iteração (abaixo, na auditoria). Testado em
+// tests/harness-dev-loop.test.mjs.
+let hashesBase = {}
+if (testesDaSpec.length > 0) {
+  const vermelho = await chamarOperario('validar',
+    `Rode SOMENTE os testes da SPEC (${testesDaSpec.join(', ')}) na branch ${ARGS.branch} e reporte
+    exitZero=true se o comando saiu 0 (todos passaram) ou false se saiu diferente de 0. Não
+    corrija nada. Calcule também o SHA-256 de CADA um desses arquivos (ex.: \`shasum -a 256 <path>\`)
+    e devolva em hashesDosTestes como {path: hash}, com todos os paths listados acima.`,
+    { label: 'tdd:vermelho', phase: 'TDD', schema: VERMELHO_SCHEMA }
+  )
+  if (!vermelho) return { status: 'erro', fase: 'TDD', detalhe: 'a execução independente dos testes da SPEC não retornou', acao: 'sem ela o vermelho é só declarado; reinvocar com resumeFromRunId', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+  if (vermelho.exitZero) {
+    return { status: 'bloqueado', fase: 'TDD', detalhe: `os testes da SPEC passaram (exit 0) antes de qualquer implementação — o vermelho declarado pelo operário não se confirmou${vermelho.resumo ? `: ${vermelho.resumo}` : ''}`, acao: 'teste que nasce verde é suspeito: critério já atendido (cortar) ou teste inútil (reescrever) — revisar antes de qualquer implementação', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+  }
+  const semHash = testesDaSpec.filter(p => !vermelho.hashesDosTestes[p])
+  if (semHash.length > 0) return { status: 'erro', fase: 'TDD', detalhe: `sem hash para ${semHash.join(', ')} — não há como provar depois que os testes saíram da implementação intactos`, acao: 'reinvocar com resumeFromRunId', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+  hashesBase = vermelho.hashesDosTestes
 }
 
 // ── Fases 3-5: loop implementar → validar → revisar ─────────────────────────
@@ -434,8 +501,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // não entrava em `escaladas`, o loop seguia com menos unidades do que a SPEC tem e podia
   // fechar verde com uma unidade nunca implementada. Null vira erro nomeado, não silêncio.
   const resultados = perfil.paralelo
-    ? (await parallel(spec.unidades.map(u => () => implementarUnidade(u))))
-        .map((r, i) => r || { unidade: spec.unidades[i].id, status: 'erro', motivo: 'a execução da unidade lançou exceção — nenhum resultado' })
+    ? await emLotes(spec.unidades, implementarUnidade, (u) => ({ unidade: u.id, status: 'erro', motivo: 'a execução da unidade lançou exceção — nenhum resultado' }))
     : await emSequencia(spec.unidades, implementarUnidade)
 
   const escaladas = resultados.filter(r => r.status === 'escalada' || r.status === 'erro')
@@ -460,7 +526,9 @@ while (iteracao < MAX_ITERACOES && !verde) {
   ].filter(Boolean).join(' e TAMBÉM ')
   const val = await chamarOperario('validar',
     `Rode na branch ${ARGS.branch} ${alvosDaValidacao} e confirme que passam.
-    Não corrija nada — só execute e reporte.`,
+    Não corrija nada — só execute e reporte. Calcule também o SHA-256 de cada teste da SPEC
+    (${testesDaSpec.length ? testesDaSpec.join(', ') : 'nenhum — devolva {}'}) e devolva em
+    hashesDosTestes como {path: hash}: é a prova de que a implementação não tocou neles.`,
     { label: `validar:i${iteracao}`, phase: 'Validar', schema: VALID_SCHEMA }
   )
   if (!val) return { status: 'erro', fase: 'Validar', iteracao, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora() }
@@ -517,6 +585,24 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // o porquê no código — que é onde a justificativa serve pra quem vier depois, não num campo
   // que morre com o run. Bloqueante automático: não passa pela confirmação.
   const bloqueantesAutomaticos = []
+
+  // ── REGRA DURA: TESTES DA SPEC INTACTOS — decidida em código ─────────────────
+  // Hash de cada teste após a implementação comparado à baseline do `tdd:vermelho`. Diferente
+  // ou ausente = bloqueante automático, sem confirmação: o operário que edita o teste pra passar
+  // não tem apelação, e "sem hash" é fail-closed (não há como provar que ficou intacto).
+  for (const p of testesDaSpec) {
+    const agora = (val.hashesDosTestes || {})[p]
+    if (agora && agora === hashesBase[p]) continue
+    bloqueantesAutomaticos.push({
+      arquivo: p,
+      resumo: agora ? `Teste da SPEC alterado durante a implementação: ${p}` : `Teste da SPEC sem hash na validação: ${p} — não há como provar que ficou intacto`,
+      cenario: agora
+        ? `O hash de ${p} mudou entre o portão TDD (${hashesBase[p]}) e a validação (${agora}). O implementador não edita os testes que precisa fazer passar: se o teste parece errado, isso é consulta de arquitetura, não correção. Reverta o teste ao estado do TDD.`
+        : `A validação não devolveu hash para ${p}. Sem ele a regra "implementador não edita teste" fica sem prova. Reporte o SHA-256 de todos os testes da SPEC.`,
+      severidade: 'bloqueante', confianca: 'confirmado', origem: 'testes-intactos',
+    })
+  }
+
   for (const d of auditoria.dependenciasNovas) {
     const barrada = !d.justificativaEncontrada
     if (barrada) {

@@ -6,7 +6,7 @@ courses/<curso>/fonts/ (Inter para o corpo, Fraunces para os titulos em
 serifa), em vez de estimar por numero de caracteres. Estimativa erra: os
 diagramas ja foram cortados duas vezes com contas de guardanapo.
 
-    python tools/checar_svg_overflow.py courses/ux-e-tecnologia
+    python scripts/checar_svg_overflow.py courses/ux-e-tecnologia
 """
 from __future__ import annotations
 

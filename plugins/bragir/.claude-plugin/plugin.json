@@ -1,6 +1,6 @@
 {
   "name": "bragir",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Bragir — voz e escrita: escrever-como-antonio (voz do autor), analisar-voz (extrai perfil-de-voz.md de documentos) e gerenciar-personas (calibra audiência por projeto).",
   "author": {
     "name": "Antonio Salgado",

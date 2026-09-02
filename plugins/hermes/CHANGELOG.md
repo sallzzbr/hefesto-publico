@@ -244,7 +244,7 @@ Plugin novo, destilado do cockpit da Seja Feloiz a partir do diagnóstico da ger
   `sugerir-criativos`, `validar-criativo`, `evoluir-vencedor`, `analisar-criativos`) + 6
   analíticas (`unit-economics` com cenários de verba, `pnl-mensal`, `fadiga-criativa`,
   `otimizar-verba`, `auditoria-de-estrutura`, `auditoria-cro`). Réguas de decisão viram
-  **lookup do unit-economics mais recente** (mata os hardcodes inconsistentes R$56 × R$63,57
+  **lookup do unit-economics mais recente** (mata os hardcodes inconsistentes R$X × R$Y
   do workspace).
 - **Testes de contrato** em `tests/` (harness, agents, skills, portabilidade, versões).
 - Sem dependência do bragir (deliberado — voz da marca ≠ voz pessoal; documentado no README).

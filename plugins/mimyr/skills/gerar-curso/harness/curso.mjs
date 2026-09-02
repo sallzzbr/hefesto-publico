@@ -44,6 +44,10 @@ const PERFIS = {
 }
 
 const MAX_ITERACOES = 3
+// Teto de concorrência dos escritores (perfis balanceado/máximo). `parallel()` sem lote
+// despachava TODOS os capítulos de uma vez — curso de 12 capítulos = 12 escritores simultâneos,
+// sem nada no plano de custo dizendo isso. Achado da auditoria de 2026-09-01 (espelho do odin).
+const PARALELO_MAX = 4
 
 // ── tiering de modelo/effort por step ────────────────────────────────────────
 // A unidade de configuração é o STEP, não o agente: cada chamada pertence a um step nomeado,
@@ -128,6 +132,26 @@ async function emSequencia(itens, fn) {
   return out
 }
 
+// Paralelo com teto (PARALELO_MAX por lote). `parallel()` devolve null pro thunk que lançou;
+// `seNulo(item)` transforma isso em erro NOMEADO — capítulo sumido fecharia verde sem nunca
+// ter sido escrito.
+async function emLotes(itens, fn, seNulo) {
+  const out = []
+  for (let i = 0; i < itens.length; i += PARALELO_MAX) {
+    const lote = itens.slice(i, i + PARALELO_MAX)
+    const r = await parallel(lote.map(x => () => fn(x)))
+    out.push(...r.map((v, j) => v || seNulo(lote[j])))
+  }
+  return out
+}
+
+// Modelo EFETIVO por step, registrado no momento de cada execução — não inferido de flags
+// globais no fim do run: um fallback tardio não pode re-rotular steps que já rodaram no tier
+// certo (finding #5 do Codex na revisão hermes 1.0.1, portado pra cá em 2026-09-02). Última
+// execução vence (steps repetem por iteração); step que nunca rodou reporta o configurado.
+const execucoesPorStep = {}
+const registrarExec = (step, modelo) => { execucoesPorStep[step] = modelo }
+
 // agent() devolve null tanto por indisponibilidade quanto por schema inválido/timeout — e pode
 // LANÇAR. Exceção vira null: todo call site trata null como desfecho estruturado, e um throw
 // sem rede mataria o workflow sem status, sem fallbacks e sem modelos. Morrer sem relatório
@@ -149,23 +173,26 @@ async function chamarEscritor(step, prompt, opts) {
   const base = { ...ESCRITOR, ...(t.effort ? { effort: t.effort } : {}), ...opts }
   if (t.modelo === 'haiku' && !haikuMorto) {
     const r = await tentar(prompt, { ...base, ...MECANICO })
-    if (r) return r
+    if (r) { registrarExec(step, 'haiku'); return r }
     haikuMorto = true
     fallbacksModelo.push({ step, chamada: base.label, de: 'haiku (mecanico)', para: 'sonnet (escritor)', causa: 'a chamada rebaixada não retornou (agente indisponível, schema inválido ou timeout — indistinguíveis aqui); haiku desligado para o resto do run' })
+    registrarExec(step, 'sonnet (fallback do haiku)')
     return await tentar(prompt, base)
   }
   if (t.modelo === 'opus' && !promocaoEscritorMorta) {
     const r = await tentar(prompt, { ...base, model: 'opus' })
-    if (r) return r
+    if (r) { registrarExec(step, 'opus'); return r }
     promocaoEscritorMorta = true
     fallbacksModelo.push({ step, chamada: base.label, de: 'opus (promoção)', para: 'sonnet (frontmatter)', causa: 'a chamada promovida não retornou (tier indisponível, schema inválido ou timeout — indistinguíveis aqui); promoção desligada para o resto do run' })
+    registrarExec(step, 'sonnet (fallback da promoção)')
     return await tentar(prompt, base)
   }
+  registrarExec(step, t.modelo === 'haiku' ? 'sonnet (haiku desligado no run)' : t.modelo === 'opus' ? 'sonnet (promoção desligada no run)' : t.modelo)
   return await tentar(prompt, base)
 }
 
 // Revisor é opus SEMPRE (MODELOS_STEP não permite outro modelo) — só o effort é configurável.
-const chamarRevisor = (step, prompt, extra) => tentar(prompt, { ...REVISOR, ...(TIERING[step].effort ? { effort: TIERING[step].effort } : {}), ...extra })
+const chamarRevisor = (step, prompt, extra) => { registrarExec(step, 'opus'); return tentar(prompt, { ...REVISOR, ...(TIERING[step].effort ? { effort: TIERING[step].effort } : {}), ...extra }) }
 
 // ── Fase 0: args válidos (falha barata antes de gastar agente) ───────────────
 let ARGS = args
@@ -224,16 +251,14 @@ const TIERING = {}
 log(`Tiering por step: ${Object.entries(TIERING).map(([s, t]) => `${s}=${t.modelo}${t.effort ? `(${t.effort})` : ''}`).join(' · ')}`)
 if (tieringRecusado.length > 0) log(`Tiering: ${tieringRecusado.length} pedido(s) recusado(s) pela whitelist — ver modelos.recusados no relatório`)
 
-// Modelos/efforts EFETIVOS por step, não os pedidos: se um fallback desligou opus ou haiku no
-// meio do run, é a queda que aparece aqui — o detalhe de qual chamada caiu fica em `fallbacks`.
-// Vai em TODO desfecho (verde, escalado, bloqueado, erro), não só no verde.
+// Modelos/efforts EFETIVOS por step — do registro de execução real (execucoesPorStep), não de
+// flags globais no fim: um fallback tardio não pode re-rotular step que já rodou no tier certo.
+// Step que nunca rodou reporta o configurado; o detalhe de qual chamada caiu fica em
+// `fallbacks`. Vai em TODO desfecho (verde, escalado, bloqueado, erro), não só no verde.
 const relatorioModelos = () => ({
   porStep: Object.fromEntries(Object.keys(MODELOS_STEP).map(s => {
     const t = TIERING[s]
-    let efetivo = t.modelo
-    if (t.modelo === 'opus' && s === 'escrever' && promocaoEscritorMorta) efetivo = 'sonnet (fallback — ver fallbacks)'
-    if (t.modelo === 'haiku' && haikuMorto) efetivo = 'sonnet (fallback — ver fallbacks)'
-    return [s, { modelo: efetivo, effort: t.effort || 'herdado da sessão' }]
+    return [s, { modelo: execucoesPorStep[s] ?? t.modelo, effort: t.effort || 'herdado da sessão' }]
   })),
   recusados: tieringRecusado,
 })
@@ -332,8 +357,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // parallel() devolve null pro thunk que lançou — null vira erro nomeado, não silêncio: um
   // capítulo sumido fecharia verde sem nunca ter sido escrito.
   const resultados = perfil.paralelo
-    ? (await parallel(capitulosAlvo.map(c => () => escreverCapitulo(c))))
-        .map((r, i) => r || { capitulo: capitulosAlvo[i].id, status: 'erro', motivo: 'a escrita lançou exceção — nenhum resultado' })
+    ? await emLotes(capitulosAlvo, escreverCapitulo, (c) => ({ capitulo: c.id, status: 'erro', motivo: 'a escrita lançou exceção — nenhum resultado' }))
     : await emSequencia(capitulosAlvo, escreverCapitulo)
   resultadosUltimaIteracao = resultados
 

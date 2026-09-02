@@ -85,7 +85,8 @@ def tributar_por_tranche(inicial: Decimal, aporte: Decimal, i: Decimal, n: int, 
     faixa de 15%, enquanto o do penultimo mes fica 1 mes e paga 22,5% + IOF. Tratar o bolo como
     uma coisa so erraria para menos, de forma plausivel.
 
-    SIMPLIFICACAO DECLARADA: a idade vem em meses e vira dias por `meses * 30`. O calculo real
+    SIMPLIFICACAO DECLARADA: a idade vem em meses e vira dias por `meses * 365/12`
+    (`DIAS_POR_MES`, acima — nao 30, que tinha vies sistematico contra o usuario). O calculo real
     usa dias corridos entre a data de cada aporte e a do resgate, que dependem do calendario.
     Isso pode deslocar um aporte que esta na fronteira de uma faixa (180, 360, 720 dias). Esta
     dito na saida, porque simplificacao nao declarada e mentira.
