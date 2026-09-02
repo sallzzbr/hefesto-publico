@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Hefesto — forja pessoal de skills do Antonio para Claude Code.",
-    "version": "3.17.3"
+    "version": "3.17.4"
   },
   "plugins": [
     {
       "name": "hefesto",
       "source": "./plugins/hefesto",
       "description": "A forja de plugins: criar, validar e versionar plugins e skills de Claude Code.",
-      "version": "3.1.5",
+      "version": "3.1.6",
       "category": "productivity",
       "tags": [
         "plugin-development",
@@ -79,7 +79,7 @@
       "name": "odin",
       "source": "./plugins/odin",
       "description": "Double diamond como sistema operacional de desafios: descobrir, definir, desenvolver, entregar — com dev-loop multi-agente TDD, tier expresso para desafios pequenos e acompanhamento por placar.",
-      "version": "2.4.6",
+      "version": "2.4.7",
       "category": "productivity",
       "tags": [
         "desafios",

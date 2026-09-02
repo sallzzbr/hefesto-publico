@@ -11,7 +11,7 @@ Um diretório por frase, no formato `evals/**/prompt.md + graders/*.md` document
 
 ```
 evals/roteamento/<NN>-<slug>/
-├── prompt.md            # a frase golden, verbatim
+├── prompt.md            # a frase golden (derivada da matriz: mesma intenção, placeholder X concretizado)
 └── graders/
     └── criteria.md      # critério LLM: qual banner de ativação deve (e não deve) aparecer
 ```
@@ -29,6 +29,13 @@ claude plugin eval plugins/odin --case 'roteamento/42*'  # um caso
 ```
 
 Rodar **antes de cada release**, junto da auditoria manual da matriz.
+
+## O que roda hoje
+
+`tests/evals-formato.test.mjs` (suíte node do repo, no CI) trava a **estrutura**: cada frase da
+matriz tem exatamente um caso, cada `criteria.md` cita a frase certa e tem `## Esperado` e
+`## Score`, e todo banner esperado existe literalmente no SKILL.md da skill. Não julga
+roteamento — isso é o `claude plugin eval` (abaixo) ou a auditoria manual.
 
 ## Limitação conhecida
 

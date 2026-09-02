@@ -26,18 +26,18 @@ const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PLUGINS = join(RAIZ, 'plugins');
 
 // Pisos anti-regressão, não metas. Suba junto ao adicionar suíte.
-const PISO_ARQUIVOS = 5;
+const PISO_ARQUIVOS = 10;
 // hefesto nominalmente: é a suíte comportamental que sustenta o mutation score, e o
 // stryker.conf.json já a nomeia por path literal. Mesma enumeração, não uma segunda.
-const PISO_ARQUIVOS_HEFESTO = 2;
-// Piso EXATAMENTE na contagem atual (37 desde 2026-09-02: +10 do teste comportamental do
-// harness do odin), não abaixo dela: diferente do mutation score, que
+const PISO_ARQUIVOS_HEFESTO = 3;
+// Piso EXATAMENTE na contagem atual (97 desde 2026-09-02: runners comportamentais dos 3
+// harnesses, manifestos do validador, contratos de bragir e evals do odin), não abaixo dela: diferente do mutation score, que
 // tem ruído e por isso ganha folga, contagem de teste é determinística — qualquer queda é
 // perda real. Um piso "com margem" reabriria o furo: com piso 25, esvaziar os dois arquivos
 // do odin dava 23 reais + 2 passes de arquivo vazio = 25, e passava. Verificado.
 // Ao adicionar teste, o piso continua satisfeito; ao remover de propósito, baixe aqui no
 // mesmo commit e diga por quê.
-const PISO_TESTES = 37;
+const PISO_TESTES = 97;
 
 function varrer(dir) {
   let achados = [];

@@ -200,8 +200,9 @@ O que este arquivo guarda é a **explicação** — o porquê de cada comando te
   ela mede; se for a existência de um arquivo, ela ainda não é uma guarda.
 - **`npm run test:node` é o `scripts/testes-node.mjs`**, não um glob de shell. Ele descobre
   **recursivamente** em `plugins/*/tests/**` (glob de shell não desce em subpasta: um teste
-  quebrado em `tests/integracao/` saía 0), e cobra três pisos — arquivos totais (≥4), arquivos
-  do hefesto (≥2) e **testes efetivamente executados** lidos do `# pass` da saída TAP (≥27).
+  quebrado em `tests/integracao/` saía 0), e cobra três pisos — arquivos totais, arquivos
+  do hefesto e **testes efetivamente executados** lidos do `# pass` da saída TAP (os números
+  vivem só no script; aqui só a regra).
   O piso de testes fica **exatamente na contagem atual**, sem folga: contagem de teste é
   determinística, então qualquer queda é perda real. Com folga o furo reabre — no piso 25,
   esvaziar dois arquivos dava 23 reais + 2 passes de arquivo vazio = 25, e passava.
@@ -209,8 +210,9 @@ O que este arquivo guarda é a **explicação** — o porquê de cada comando te
   harness-dev-loop.test.mjs` embrulha o corpo do `loop.mjs` num `AsyncFunction` com os globals
   do Workflow (`args`, `agent`, `parallel`, `phase`, `log`) e um `agent` falso por `label`;
   cada invariante "em código" tem um caso que o vê rodando. Invariante novo no harness entra
-  com caso novo ali — grep de string no `.mjs` trava declaração, não efeito. (mimyr e hermes
-  ainda têm só contrato por marcador + `node --check`; o runner do odin é o molde.)
+  com caso novo ali — grep de string no `.mjs` trava declaração, não efeito. mimyr
+  (`harness-gerar-curso.test.mjs`) e hermes (`harness-criativo-fluxo.test.mjs`) seguem o mesmo
+  molde desde 2026-09-02; o contrato por marcador + `node --check` continua como segunda camada.
 - **Não enumere plugins na descoberta**: lista de plugins apodrece e o que ficar de fora tem a
   suíte ignorada em silêncio. Duas consequências que vêm junto e não são de graça: (a) o
   diretório precisa se chamar `tests` — `tests_node/` e afins seguem invisíveis, então suíte

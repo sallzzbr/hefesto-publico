@@ -12,18 +12,19 @@ description: "<verbo EN> <o que>. Use when <gatilho 1>, <gatilho 2>, <gatilho 3>
 ---
 ```
 
-Regras de `description`:
+Regras de `description` — separadas entre o que o `validar.mjs` **cobra** e o que é **recomendação**:
 
-- Comece com verbo em inglês (`Write`, `Analyze`, `Create`, `Generate`, `Scaffold`, `Validate`) — o matcher favorece isso.
-- Inclua gatilhos concretos: os termos que o usuário provavelmente usará quando precisar da skill ("na minha voz", "analisa esses docx", "cria uma persona").
-- Máx 1024 chars; mire 200–400 úteis. Descrição vaga = skill que nunca dispara.
-- Misture PT e EN quando a base de usuários é bilíngue — os dois disparam.
+- **Cobrado:** presente, não vazia, 60–1024 chars (abaixo de 60 é aviso, acima de 1024 é erro).
+- **Cobrado nos plugins com teste de contrato:** contém um gatilho de uso explícito — `Use when …` (EN) ou `Use quando/para …` (PT). Os dois dialetos disparam; o repo tem os dois de propósito: hefesto, bragir e mimyr abrem com verbo em inglês (`Write`, `Analyze`, `Scaffold`); hestia e odin abrem com `Use quando …` porque o público é 100% PT-BR e as frases de gatilho são as que o usuário fala.
+- Recomendação: gatilhos concretos — os termos que o usuário provavelmente usará quando precisar da skill ("na minha voz", "analisa esses docx", "cria uma persona"). Descrição vaga = skill que nunca dispara.
+- Recomendação: mire 200–500 chars úteis. Skills com muitos gatilhos (hestia) passam de 500 e tudo bem — o limite duro é 1024.
+- Misture PT e EN quando a base de usuários é bilíngue.
 
 Campos opcionais úteis: `allowed-tools`, `argument-hint`, `paths` (glob para auto-load condicional), `disable-model-invocation` (para skills que só fazem sentido via comando explícito).
 
 ## Corpo
 
-- Estrutura clara com progressão: `## Input` (o que perguntar/receber) → `## Before X` (pré-condições e checagens) → `## Output` (o que produzir, onde, com template quando couber) → `## Important` (armadilhas e limites).
+- Estrutura clara com progressão. O molde default é `## Input` (o que perguntar/receber) → `## Before X` (pré-condições e checagens) → `## Output` (o que produzir, onde, com template quando couber) → `## Important` (armadilhas e limites) — é o que hefesto, mimyr e bragir usam. Os plugins de domínio (hestia, odin) usam seções próprias (regras inegociáveis, base de leitura, fluxo por operação, banner de ativação); o que não muda é a progressão pré-condições → operação → saída → limites. Skill nova segue o dialeto do plugin onde nasce.
 - Liste pré-requisitos e dependências externas: skill oficial (`docx`), skill de outro plugin (`bragir:escrever-como-antonio`), ferramenta de sistema.
 - Seja específico em I/O: "escreva `./perfil-de-voz.md`" em vez de "salve o perfil".
 - Quando delegar para outra skill, diga o nome exato e o momento de invocar.
@@ -39,7 +40,7 @@ Campos opcionais úteis: `allowed-tools`, `argument-hint`, `paths` (glob para au
 ## O que separa skill de command e de agent
 
 - **Skill** = capacidade com instruções (dispara por contexto ou comando; carrega conhecimento).
-- **Command** = atalho fino `/nome` que delega para a skill (padrão da casa: toda skill relevante tem um).
+- **Command** = atalho fino `/nome` que delega para a skill. É decisão **por plugin**, não regra: hefesto, hestia e odin têm um command por operação (o usuário invoca de propósito); bragir, mimyr e hermes roteiam só pela `description` (a skill dispara pelo contexto da conversa). Crie command quando a operação é chamada pelo nome; não crie só para cumprir tabela.
 - **Agent** = papel com system prompt próprio para trabalho delegado (revisor, validador); só quando há delegação real.
 - **Harness/script** = quando existe loop com fases fixas, agentes por fase e critério de parada (ex.: dev-loop do odin). Script sem deps e sem build.
 
@@ -47,5 +48,5 @@ Campos opcionais úteis: `allowed-tools`, `argument-hint`, `paths` (glob para au
 
 - Backwards-compat shims ao renomear (alias do nome antigo). Renomeou, renomeou em tudo.
 - Seções comentadas "por enquanto" — delete ou implemente.
-- Emojis sem pedido explícito.
+- Emojis decorativos. Exceções nomeadas: o banner de ativação do odin (📍 🆘 🔴 etc., herdado do design de origem) e marcadores **funcionais de estado** (✅ ⚠️ 🛑) em tabelas de veredito do hermes e do mimyr — são enum, não enfeite. Não adicione novos.
 - Dados do usuário dentro do plugin (personas, perfis de projeto) — pertencem ao projeto.

@@ -3,6 +3,18 @@
 > Histórico anterior à 2.4.6 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 2.4.7 — 2026-09-02 (evals com runner de formato)
+
+Pendência da auditoria de 2026-09-01: os 43 casos de `evals/roteamento/` não eram lidos por
+nada (`claude plugin eval` segue em early access).
+
+- `tests/evals-formato.test.mjs`: cada frase da matriz tem exatamente um caso, cada
+  `criteria.md` cita a frase certa e tem `## Esperado`/`## Score`, e os banners esperados
+  existem literalmente nos SKILL.md. Não julga roteamento — trava a estrutura.
+- `evals/README.md`: o prompt é "derivado" da frase golden, não "verbatim" (4 casos
+  concretizam o placeholder X). Matriz: nota de auditoria de 2026-09-02 (descriptions
+  inalteradas desde a v2.2.0, verificado por diff).
+
 ## 2.4.6 — 2026-09-02 (o portão TDD vira verificação, não declaração)
 
 Correções da auditoria adversarial de 2026-09-01 (Claude + duas passadas do Codex). A skill

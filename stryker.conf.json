@@ -1,11 +1,11 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation testing do validar.mjs — o unico modulo do repo com suite comportamental (23 testes). Coverage diz que o codigo rodou; mutation score diz se os testes perceberiam o codigo mudando. Alvo deliberadamente estreito: e o gate que sustenta os outros, nao um numero de vitrine. NOTA DE CONVENCAO: o Stryker so aceita chave de comentario terminada em `_comment` (options-validator.js filtra por endsWith) — qualquer outro nome vira `WARN Unknown stryker config option` a cada run. Por isso os comentarios abaixo sao `<chave>_comment`, e nao `_<nome>`.",
+  "_comment": "Mutation testing do validar.mjs — o unico modulo do repo com suite comportamental (44 testes desde 2026-09-02). Coverage diz que o codigo rodou; mutation score diz se os testes perceberiam o codigo mudando. Alvo deliberadamente estreito: e o gate que sustenta os outros, nao um numero de vitrine. NOTA DE CONVENCAO: o Stryker so aceita chave de comentario terminada em `_comment` (options-validator.js filtra por endsWith) — qualquer outro nome vira `WARN Unknown stryker config option` a cada run. Por isso os comentarios abaixo sao `<chave>_comment`, e nao `_<nome>`.",
   "packageManager": "npm",
   "testRunner": "command",
   "commandRunner_comment": "Paths LITERAIS, nao glob, de proposito: `node --test` com glob que nao casa nada sai 0 (verificado) e todo mutante 'sobreviveria' por nao ter sido testado; com path literal ausente o Node sai 1 e o dry-run do Stryker aborta. Falha fechado. Custo aceito: teste novo do hefesto precisa ser somado aqui para entrar no score. DOUTRINA OPOSTA A DO package.json DE PROPOSITO, e nao contradicao: la o `node --test` usa glob (`plugins/*/tests/*.test.mjs`) porque o risco e OMISSAO — suite que nao entra e cobertura perdida em silencio; aqui usa literal porque o risco e NUMERO MENTIROSO — alvo que some vira score falso em vez de erro. Aberto onde omitir e o perigo, fechado onde inventar e o perigo. Ao mudar um dos dois, releia o outro.",
   "commandRunner": {
-    "command": "node --test plugins/hefesto/tests/validar-plugin-dominio.test.mjs plugins/hefesto/tests/validar-plugin-paths.test.mjs"
+    "command": "node --test plugins/hefesto/tests/validar-plugin-dominio.test.mjs plugins/hefesto/tests/validar-plugin-paths.test.mjs plugins/hefesto/tests/validar-plugin-manifestos.test.mjs"
   },
   "mutate_comment": "Path LITERAL, e mesmo assim nao basta: se o arquivo for movido/renomeado o Stryker AVISA, instrumenta 0 mutantes, calcula score NaN, e `NaN < break` e false — sai 0 sem ter mutilado nada (mutation-test-report-helper.js:118). O `break` protege contra score baixo, nunca contra score AUSENTE. Por isso o guard `premutation` do package.json checa a existencia do alvo antes. Achado da lente R2.",
   "mutate": [
@@ -17,17 +17,21 @@
     ".git",
     "reports"
   ],
-  "reporters": ["clear-text", "progress", "json"],
+  "reporters": [
+    "clear-text",
+    "progress",
+    "json"
+  ],
   "jsonReporter": {
     "fileName": "reports/mutation/mutation.json"
   },
   "timeoutMS": 60000,
   "concurrency": 4,
   "coverageAnalysis": "off",
-  "thresholds_comment": "BASELINE 2026-07-28, primeira medicao: 1154 mutantes, 334 mortos + 2 timeout, 818 SOBREVIVERAM = 29.12%. Esse e o numero honesto: 23 testes que passam verdes e nao perceberiam 7 de cada 10 mudancas no codigo que testam. break=28 e PISO ANTI-REGRESSAO nesse baseline, nao meta — piso acima do real reprovaria no primeiro run e seria desligado na semana seguinte, que e como gate morre. high/low sao so cor no relatorio; quem reprova e o break, que faz o Stryker chamar setExitCode(1) (mutation-test-report-helper.js:120-122). Sem ele o job imprime o score e sai 0 — o furo que a revisao adversarial pegou na primeira versao deste arquivo. Ao subir a cobertura real, suba o piso junto. Margem atual e de ~13 mutantes, e Timeout conta como morto: sob contencao o score infla, nunca desinfla.",
+  "thresholds_comment": "BASELINE 2026-09-02, segunda medicao: 1154 mutantes, 515 mortos + 4 timeout, 635 SOBREVIVERAM = 44.97% (primeira medicao, 2026-07-28: 334 mortos, 29.12%; o salto veio de validar-plugin-manifestos.test.mjs, 21 casos sobre frontmatter/semver/source/--plugin). break=43 e PISO ANTI-REGRESSAO nesse baseline, nao meta — piso acima do real reprovaria no primeiro run e seria desligado na semana seguinte, que e como gate morre. high/low sao so cor no relatorio; quem reprova e o break, que faz o Stryker chamar setExitCode(1) (mutation-test-report-helper.js:120-122). Sem ele o job imprime o score e sai 0 — o furo que a revisao adversarial pegou na primeira versao deste arquivo. Ao subir a cobertura real, suba o piso junto. Margem atual e de ~23 mutantes, e Timeout conta como morto: sob contencao o score infla, nunca desinfla.",
   "thresholds": {
     "high": 80,
     "low": 60,
-    "break": 28
+    "break": 43
   }
 }

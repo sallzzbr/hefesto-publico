@@ -9,7 +9,13 @@ inicial; as frases abaixo cobrem as colisões prováveis entre as 6 skills.
 access (na CLI 2.1.211 ainda não executa) — o esqueleto segue o formato documentado e a
 auditoria manual permanece obrigatória até ele liberar (`../evals/README.md`).
 
-> **Última auditoria:** 2026-07-20 (v2.2.0) — **nada mudou na superfície de ativação**: a v2.2
+> **Última auditoria:** 2026-09-02 (v2.4.7) — a superfície de ativação segue a da v2.2.0:
+> nenhuma `description` mudou entre v2.2.0 e HEAD (verificado por diff), então os vereditos
+> abaixo continuam válidos sem re-rodar as 43 frases. O que entrou: a estrutura dos 43 casos
+> de `../evals/` passou a ser travada por teste (`tests/evals-formato.test.mjs`) — frase ↔
+> caso, seções do grader e banners existentes.
+>
+> **Auditoria anterior:** 2026-07-20 (v2.2.0) — **nada mudou na superfície de ativação**: a v2.2
 > mexeu só em corpo de skill, agentes, harness e references (Fable com fallback pro arquiteto,
 > regras ponytail P1–P18, auditoria ponytail em código). Nenhum frontmatter de skill foi tocado,
 > nenhuma `description` alterada — a matriz abaixo segue válida sem re-rodar as 43 frases.
