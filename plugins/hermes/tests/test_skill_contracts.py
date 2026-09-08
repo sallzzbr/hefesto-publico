@@ -34,8 +34,12 @@ def test_expected_skills_exist_exactly() -> None:
 def test_every_skill_has_frontmatter_description_with_triggers() -> None:
     for d in skill_dirs():
         text = (d / "SKILL.md").read_text(encoding="utf-8")
-        m = re.match(r'^---\ndescription: "(.+?)"\n---\n', text, re.DOTALL)
-        assert m, f"{d.name}/SKILL.md must start with a quoted description frontmatter"
+        fm = re.match(r'^---\n(.*?)\n---\n', text, re.DOTALL)
+        assert fm, f"{d.name}/SKILL.md must start with frontmatter"
+        name = re.search(r'^name: (.+)$', fm.group(1), re.MULTILINE)
+        assert name and name.group(1) == d.name, f"{d.name}: name must match skill directory"
+        m = re.search(r'^description: "(.+?)"$', fm.group(1), re.MULTILINE)
+        assert m, f"{d.name}/SKILL.md must contain a quoted description"
         desc = m.group(1)
         assert len(desc) > 80, f"{d.name} description too short to route"
         assert "Use when" in desc, f"{d.name} description must carry usage triggers"

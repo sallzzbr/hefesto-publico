@@ -1,6 +1,6 @@
 ---
 description: Validar manifestos, versões e skills do marketplace/plugin
-argument-hint: [nome do plugin (opcional — default: todos)]
+argument-hint: "[nome do plugin (opcional — default: todos)]"
 ---
 
 # /validar-plugin

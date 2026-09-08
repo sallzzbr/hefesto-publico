@@ -1,0 +1,23 @@
+{
+  "name": "odin",
+  "version": "0.1.2",
+  "description": "Double diamond para investigar e entregar desafios: descobrir, definir, desenvolver, entregar, acompanhar e dev-loop. O adaptador local coordena planejamento, TDD, implementação e revisão independente, com invariantes em código e evidências no workspace. Modelo e esforço são herdados da sessão; preferências explícitas opcionais ficam separadas da identidade efetiva. Paths seguem a configuração do projeto.",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Odin",
+    "shortDescription": "Descoberta, entrega e revisão de software",
+    "longDescription": "Double diamond para investigar e entregar desafios: descobrir, definir, desenvolver, entregar, acompanhar e dev-loop. O adaptador local coordena planejamento, TDD, implementação e revisão independente, com invariantes em código e evidências no workspace. Modelo e esforço são herdados da sessão; preferências explícitas opcionais ficam separadas da identidade efetiva. Paths seguem a configuração do projeto.",
+    "developerName": "Antonio Salgado",
+    "category": "Productivity",
+    "defaultPrompt": [
+      "Ajude a transformar este problema numa entrega verificável."
+    ],
+    "capabilities": []
+  },
+  "license": "MIT",
+  "repository": "https://github.com/sallzzbr/hefesto-publico"
+}

@@ -16,7 +16,9 @@
 // Isso é contrato do runtime; aqui se testa a lógica do script sob esse contrato.
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -36,16 +38,17 @@ function corpoDoScript(src) {
 // label que quer quebrar.
 const TESTE = 'tests/a.test.js';
 const DEFAULTS = {
+  'spec:ids': () => ({ok:true,ids:['C1'],erros:[],verificacoesComplementares:{}}),
   'spec:validar': () => ({
     ok: true, pendenciasBloqueadoras: [], validacoesDaSpec: ['npm test'],
     criterios: [{ id: 'C1', texto: 'faz X' }],
     unidades: [{ id: 'U1', titulo: 'unidade 1', arquivos: 'src/a.js', criterios: ['C1'] }],
   }),
   'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [{ criterio: 'C1', path: TESTE, motivoFalha: 'falta implementação' }] }),
-  'tdd:vermelho': () => ({ exitZero: false, hashesDosTestes: { [TESTE]: 'h1' } }),
+  'tdd:vermelho': () => ({ exitZero: false, falhaEsperada: true, hashesDosTestes: { [TESTE]: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } }),
   'impl:': () => ({ status: 'concluida', resumo: 'ok', escada: [{ item: 'fn', degrau: 7, porque: 'nada reusável' }], arquivosTocados: ['src/a.js'] }),
   'consulta:': () => ({ decisao: 'use A', porque: 'mais simples' }),
-  'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: 'h1' } }),
+  'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } }),
   'ponytail:': () => ({ dependenciasNovas: [], duplicacoes: [], abstracoesUsoUnico: [], forasDeEscopo: [], linhasAdicionadasAcumuladas: 12 }),
   'rev:': () => ({ findings: [] }),
   'confirmar:': () => ({ real: false, porque: 'não reproduz' }),
@@ -68,7 +71,7 @@ async function rodar({ args, overrides = {}, atraso = 0 }) {
     ativos++; maxAtivos = Math.max(maxAtivos, ativos);
     if (atraso) await new Promise((r) => setTimeout(r, atraso));
     ativos--;
-    return fn(opts, chamadas);
+    return fn(opts, chamadas, prompt);
   };
   const parallel = async (thunks) => Promise.all(thunks.map((t) => Promise.resolve().then(t).catch(() => null)));
   const fn = new AsyncFunction('args', 'agent', 'parallel', 'phase', 'log', corpoDoScript(FONTE));
@@ -76,7 +79,7 @@ async function rodar({ args, overrides = {}, atraso = 0 }) {
   return { resultado, chamadas, maxAtivos };
 }
 
-const ARGS = { specPath: 'docs/plans/spec.md', branch: 'feat/x', perfil: 'economico', validacoes: ['npm test'], hoje: '2026-09-02' };
+const ARGS = { workspaceRoot: '/workspace', scriptsDir: '/plugin/scripts', specPath: 'docs/plans/spec.md', branch: 'feat/x', perfil: 'economico', validacoes: ['npm test'], hoje: '2026-09-02' };
 const label = (c) => c.label;
 
 test('args que não são objeto JSON válido morrem baratos, antes de qualquer agente', async () => {
@@ -93,6 +96,88 @@ test('spec com formato que impede o loop bloqueia na fase Spec', async () => {
   assert.match(resultado.detalhe, /critério sem teste/);
 });
 
+test('spec funcional vazia bloqueia antes do TDD e da implementação', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'spec:validar': () => ({ ok: true, criterios: [], unidades: [], pendenciasBloqueadoras: [], validacoesDaSpec: ['npm test'] }),
+  } });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.equal(resultado.fase, 'Spec');
+  assert.ok(!chamadas.some((c) => c.label === 'tdd:portao'));
+});
+
+test('ids de critério repetidos não deixam um teste provar dois critérios', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'spec:validar': () => ({
+      ok: true, pendenciasBloqueadoras: [], validacoesDaSpec: ['npm test'],
+      criterios: [{ id: 'C1', texto: 'faz X' }, { id: 'C1', texto: 'faz Y' }],
+      unidades: [{ id: 'U1', titulo: 'unidade 1', arquivos: 'src/a.js', criterios: ['C1'] }],
+    }),
+  } });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.equal(resultado.fase, 'Spec');
+  assert.match(resultado.detalhe, /C1/);
+  assert.ok(!chamadas.some((c) => c.label === 'tdd:portao'));
+});
+
+test('critério manual não isenta critério funcional com o mesmo id', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'spec:validar': () => ({
+      ok: true, pendenciasBloqueadoras: [], validacoesDaSpec: ['npm test'],
+      criterios: [{ id: 'C1', texto: 'visual', verificacaoComplementar: 'revisar tela' }, { id: 'C1', texto: 'salva dados' }],
+      unidades: [{ id: 'U1', titulo: 'unidade 1', arquivos: 'src/a.js', criterios: ['C1'] }],
+    }),
+  } });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.equal(resultado.fase, 'Spec');
+});
+
+test('ids de unidade repetidos bloqueiam antes de gerar labels de implementação', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'spec:validar': () => ({
+      ...DEFAULTS['spec:validar'](),
+      unidades: [
+        { id: 'U1', titulo: 'primeira', arquivos: 'src/a.js', criterios: ['C1'] },
+        { id: 'U1', titulo: 'segunda', arquivos: 'src/b.js', criterios: ['C1'] },
+      ],
+    }),
+  } });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.equal(resultado.fase, 'Spec');
+  assert.match(resultado.detalhe, /U1/);
+  assert.ok(!chamadas.some((c) => c.label === 'tdd:portao'));
+});
+
+test('unidade referindo critério inexistente bloqueia antes do TDD', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'spec:validar': () => ({ ...DEFAULTS['spec:validar'](), unidades: [{ id: 'U1', titulo: 'unidade 1', arquivos: 'src/a.js', criterios: ['C404'] }] }),
+  } });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.equal(resultado.fase, 'Spec');
+  assert.match(resultado.detalhe, /C404/);
+  assert.ok(!chamadas.some((c) => c.label === 'tdd:portao'));
+});
+
+test('critério funcional sem teste não usa validação genérica como prova', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [] }),
+  } });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.equal(resultado.fase, 'TDD');
+  assert.match(resultado.detalhe, /C1/);
+  assert.ok(!chamadas.some((c) => c.label.startsWith('impl:')));
+});
+
+for (const path of ['', '/tmp/a.test.js', '../a.test.js', 'https://example.com/a.test.js']) {
+  test(`referência de teste inválida bloqueia antes da implementação: ${path || '(vazia)'}`, async () => {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [{ criterio: 'C1', path, motivoFalha: 'falta implementação' }] }),
+    } });
+    assert.equal(resultado.status, 'bloqueado');
+    assert.equal(resultado.fase, 'TDD');
+    assert.ok(!chamadas.some((c) => c.label.startsWith('impl:')));
+  });
+}
+
 test('operário que não confirma o vermelho bloqueia o TDD', async () => {
   const { resultado } = await rodar({ args: ARGS, overrides: { 'tdd:portao': () => ({ vermelhoConfirmado: false, testes: [], problemas: ['teste nasceu verde'] }) } });
   assert.equal(resultado.status, 'bloqueado');
@@ -100,7 +185,7 @@ test('operário que não confirma o vermelho bloqueia o TDD', async () => {
 });
 
 test('vermelho auto-declarado não basta: o mecânico roda os testes e um exit 0 bloqueia o TDD', async () => {
-  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'tdd:vermelho': () => ({ exitZero: true, hashesDosTestes: { [TESTE]: 'h1' } }) } });
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'tdd:vermelho': () => ({ exitZero: true, falhaEsperada: false, hashesDosTestes: { [TESTE]: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } }) } });
   assert.ok(chamadas.some((c) => c.label === 'tdd:vermelho'), 'o harness despacha uma execução independente dos testes da SPEC');
   assert.equal(resultado.status, 'bloqueado');
   assert.equal(resultado.fase, 'TDD');
@@ -108,8 +193,32 @@ test('vermelho auto-declarado não basta: o mecânico roda os testes e um exit 0
   assert.ok(!chamadas.some((c) => c.label.startsWith('impl:')), 'nada implementa com o vermelho não confirmado');
 });
 
+test('erro de sintaxe/import/infra no vermelho independente aborta antes da implementação', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'tdd:vermelho': () => ({ exitZero: false, falhaEsperada: false, resumo: 'Cannot find module', hashesDosTestes: { [TESTE]: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } }),
+  } });
+  assert.equal(resultado.status, 'erro');
+  assert.equal(resultado.fase, 'TDD');
+  assert.match(resultado.detalhe, /Cannot find module/);
+  assert.ok(!chamadas.some((c) => c.label.startsWith('impl:')));
+});
+
+test('verificação manual explícita não vira alegação de critério verificado', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'spec:ids': () => ({ok:true,ids:['C1','C2'],erros:[],verificacoesComplementares:{C2:'inspecionar a tela no Claude'}}),
+    'spec:validar': () => ({
+      ok: true, pendenciasBloqueadoras: [], validacoesDaSpec: ['npm test'],
+      criterios: [{ id: 'C1', texto: 'faz X' }, { id: 'C2', texto: 'aparência aprovada', verificacaoComplementar: 'inspecionar a tela no Claude' }],
+      unidades: [{ id: 'U1', titulo: 'unidade 1', arquivos: 'src/a.js', criterios: ['C1', 'C2'] }],
+    }),
+  } });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.equal(resultado.fase, 'VerificacaoManual');
+  assert.deepEqual(resultado.verificacoesManuaisPendentes, [{ criterio: 'C2', verificacao: 'inspecionar a tela no Claude' }]);
+});
+
 test('teste da SPEC alterado durante a implementação é bloqueante automático, sem confirmação', async () => {
-  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: 'h2-mudou' } }) } });
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' } }) } });
   assert.equal(resultado.status, 'escalado');
   const findings = resultado.historico.flatMap((h) => h.findings);
   assert.ok(findings.some((f) => /alterad/i.test(f.resumo) && f.arquivo.includes(TESTE)), `esperava finding de teste alterado, veio ${JSON.stringify(findings)}`);
@@ -168,4 +277,98 @@ test('perfil balanceado despacha operários em paralelo com teto de concorrênci
   assert.equal(resultado.status, 'verde');
   assert.ok(maxAtivos > 1, 'balanceado é paralelo de verdade');
   assert.ok(maxAtivos <= 4, `teto de concorrência: ${maxAtivos} agentes simultâneos`);
+});
+
+for (const chave of ['/workspace/tests/a.test.js', './tests/a.test.js:8', '/workspace/tests/a.test.js:8-10 ("caso")']) {
+  test(`hash intacto aceita referência equivalente: ${chave}`, async () => {
+    const { resultado } = await rodar({ args: ARGS, overrides: {
+      'tdd:vermelho': () => ({exitZero:false, falhaEsperada:true, hashesDosTestes:{[chave]:'a'.repeat(64)}}),
+      'validar:': () => ({verde:true, falhas:[], hashesDosTestes:{[TESTE]:'a'.repeat(64)}}),
+    }});
+    assert.equal(resultado.status,'verde',JSON.stringify(resultado));
+  });
+}
+test('dois hashes conflitantes para o mesmo arquivo reprovam como erro de evidência', async () => {
+ const {resultado}=await rodar({args:ARGS,overrides:{'tdd:vermelho':()=>({exitZero:false,falhaEsperada:true,hashesDosTestes:{[TESTE]:'a'.repeat(64),['/workspace/'+TESTE]:'b'.repeat(64)}})}});
+ assert.equal(resultado.status,'erro'); assert.equal(resultado.fase,'TDD');
+});
+test('arquivo externo com mesmo sufixo não equivale ao teste do workspace', async () => {
+ const {resultado}=await rodar({args:ARGS,overrides:{'validar:':()=>({verde:true,hashesDosTestes:{['/outro/'+TESTE]:'a'.repeat(64)}})}});
+ assert.notEqual(resultado.status,'verde');
+});
+
+test('SPEC original duplicada bloqueia antes do agente que poderia reinterpretá-la',async()=>{
+ const {resultado,chamadas}=await rodar({args:ARGS,overrides:{'spec:ids':()=>({ok:false,ids:['C1','C1'],erros:['ID repetido: C1']})}});
+ assert.equal(resultado.status,'bloqueado');assert.equal(resultado.fase,'Spec');
+ assert.ok(!chamadas.some(c=>c.label==='spec:validar'));
+});
+test('agente que troca identidade de critério original bloqueia antes do TDD',async()=>{
+ const {resultado}=await rodar({args:ARGS,overrides:{'spec:ids':()=>({ok:true,ids:['A1'],erros:[],verificacoesComplementares:{}})}});
+ assert.equal(resultado.status,'bloqueado');assert.equal(resultado.fase,'Spec');
+});
+
+test('argumentos de caminho malformados retornam erro antes de chamar agentes', async () => {
+  for (const campo of ['workspaceRoot', 'scriptsDir', 'specPath']) {
+    for (const valor of [42, {}, '   ']) {
+      const { resultado, chamadas } = await rodar({ args: { ...ARGS, [campo]: valor } });
+      assert.equal(resultado.status, 'erro');
+      assert.equal(resultado.fase, 'Args');
+      assert.equal(chamadas.length, 0);
+    }
+  }
+});
+
+test('agente não inventa nem remove verificação manual da tabela original',async()=>{
+ for(const manual of [false,true]){
+  const {resultado}=await rodar({args:ARGS,overrides:{
+   'spec:ids':()=>({ok:true,ids:['C1'],erros:[],verificacoesComplementares:manual?{C1:'revisar contraste'}:{}}),
+   'spec:validar':()=>({...DEFAULTS['spec:validar'](),criterios:[{id:'C1',texto:'faz X',verificacaoComplementar:manual?'':'soma.test.js a escrever'}]}),
+  }});
+  assert.equal(resultado.status,manual?'bloqueado':'verde',JSON.stringify(resultado));
+  if(manual) assert.equal(resultado.fase,'VerificacaoManual');
+ }
+});
+
+test('ID constructor não herda uma verificação manual do protótipo',async()=>{
+ const {resultado}=await rodar({args:ARGS,overrides:{
+  'spec:ids':()=>({ok:true,ids:['constructor'],erros:[],verificacoesComplementares:{}}),
+  'spec:validar':()=>({...DEFAULTS['spec:validar'](),criterios:[{id:'constructor',texto:'faz X'}],unidades:[{id:'U1',titulo:'unidade',arquivos:'src/a.js',criterios:['constructor']}]}),
+  'tdd:portao':()=>({vermelhoConfirmado:true,testes:[{criterio:'constructor',path:TESTE,motivoFalha:'falta implementação'}]}),
+ }});
+ assert.equal(resultado.status,'verde',JSON.stringify(resultado));
+});
+
+for (const path of ['tests/./a.test.js', 'tests//a.test.js']) {
+  test(`path do TDD usa a mesma identidade do helper: ${path}`, async () => {
+    const { resultado } = await rodar({ args: ARGS, overrides: {
+      'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [{ criterio: 'C1', path, motivoFalha: 'falta implementação' }] }),
+    } });
+    assert.equal(resultado.status, 'verde', JSON.stringify(resultado));
+  });
+}
+
+test('comandos transportados executam os helpers reais com espaços e aspas no caminho', async t => {
+  const root = realpathSync(mkdtempSync(resolve(tmpdir(), "odin comando ' ")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const specPath = "spec ' teste.md";
+  const path = "teste ' soma.js";
+  writeFileSync(resolve(root, specPath), '# SPEC\n## Critérios de aceite\n| # | Critério | Teste |\n|---|---|---|\n| C1 | soma | teste |\n');
+  writeFileSync(resolve(root, path), 'abc');
+  let comandos = 0;
+  function executar(prompt) {
+    const command = /```bash\s*\n([\s\S]*?)```/.exec(prompt)?.[1].trim();
+    assert.ok(command, 'o prompt fornece o comando isolado da pontuação da prosa');
+    const r = spawnSync('/bin/sh', ['-c', command], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    comandos++;
+    return JSON.parse(r.stdout);
+  }
+  const { resultado } = await rodar({ args: { ...ARGS, workspaceRoot: root, scriptsDir: resolve(dirname(HARNESS), '../scripts'), specPath }, overrides: {
+    'spec:ids': (_opts, _chamadas, prompt) => executar(prompt),
+    'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [{ criterio: 'C1', path, motivoFalha: 'falta implementação' }] }),
+    'tdd:vermelho': (_opts, _chamadas, prompt) => ({ exitZero: false, falhaEsperada: true, hashesDosTestes: executar(prompt) }),
+    'validar:': (_opts, _chamadas, prompt) => ({ verde: true, falhas: [], hashesDosTestes: executar(prompt) }),
+  } });
+  assert.equal(comandos, 3);
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado));
 });

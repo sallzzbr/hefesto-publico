@@ -1,0 +1,23 @@
+{
+  "name": "hermes",
+  "version": "0.1.2",
+  "description": "Marketing de performance e criativos: fluxo de estúdio multi-agente (rotas em rough, produção com seleção, crítica adversarial), direção de arte ancorada em referência, e as metodologias de unit economics, fadiga criativa, verba e auditoria de conta/CRO.",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hermes",
+    "shortDescription": "Marketing e produção de criativos",
+    "longDescription": "Marketing de performance e criativos: fluxo de estúdio multi-agente (rotas em rough, produção com seleção, crítica adversarial), direção de arte ancorada em referência, e as metodologias de unit economics, fadiga criativa, verba e auditoria de conta/CRO.",
+    "developerName": "Antonio Salgado",
+    "category": "Productivity",
+    "defaultPrompt": [
+      "Verifique os pré-requisitos para criar um anúncio."
+    ],
+    "capabilities": []
+  },
+  "license": "MIT",
+  "repository": "https://github.com/sallzzbr/hefesto-publico"
+}

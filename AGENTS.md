@@ -10,6 +10,14 @@
 
 ## Layout canônico
 
+### Distribuição Codex
+
+`codex/` é uma raiz de marketplace separada: `.agents/plugins/marketplace.json` e seis pacotes `codex/plugins/<nome>/.codex-plugin/plugin.json`. As regras de layout e variáveis Claude abaixo continuam aplicáveis à distribuição `plugins/` da raiz, não aos entrypoints Codex. Skills nativas leem o `RUNTIME.md` do pacote e usam links relativos reais. Defaults Codex vivem em `~/.codex/hefesto/<plugin>/defaults.md` e configuração do workspace em `AGENTS.md`.
+
+Recursos de domínio são copiados para `shared/` pelo inventário `codex/resources.json`; `SKILL.md` legado vira `CONTRATO.md`. Não editar cópias geradas. Materializar com `npm --prefix codex run sync` e verificar com `npm --prefix codex test`. Os pacotes são autocontidos e instaláveis sem build. Fonte e cópia divergentes reprovam o checker. O CI privado e o público executam o check Codex; os arquivos de `codex/` aprovados no inventário integram o espelho. Não tratar smoke técnico como avaliação comportamental concluída.
+
+### Distribuição Claude
+
 ```
 hefesto/                                    # raiz = marketplace
 ├── .claude-plugin/
@@ -101,9 +109,12 @@ Se for propor mudança nisso, pense duas vezes.
 
 ```yaml
 ---
+name: nome-da-skill
 description: "<verbo> <o que>. Use when <gatilho 1>, <gatilho 2>, <gatilho 3>."
 ---
 ```
+
+`name` é obrigatório na convenção do Hefesto: kebab-case, até 64 caracteres e igual ao diretório. O validador exige presença, formato e correspondência também nos plugins externos que ele valida; arquivos legados precisam acrescentar o campo.
 
 Regras de `description`:
 
@@ -303,14 +314,9 @@ privado, gerado por `scripts/publicar-espelho.sh`. Regras que o script impõe (n
 2. **Todo plugin mantém `CHANGELOG.md`** (desde 2026-09-02) e o gate de bump cobra a entrada
    `## <versão>`. O espelho nasce sem histórico de commits; o CHANGELOG é o que sobrevive à
    travessia e vira as notas da GitHub Release.
-3. **O que fica de fora:** `docs/superpowers/`, `reports/`, o próprio publicador. **Scrubs**
-   determinísticos: IDs/nomes do workspace de origem na fixture do hermes, o token de origem
-   no grep do CI, as réguas reais de CAC no CHANGELOG do hermes, o CODEOWNERS (o do público não
-   cita paths que não existem lá). **Guard bloqueante** por grep no stage; o nome da marca de
-   origem do hermes é retenção deliberada (provenance) e o guard só o aceita no `README.md`
-   raiz e no `plugins/hermes/CHANGELOG.md` — em qualquer outro arquivo, aborta.
-4. O stage roda `validar.mjs`, as suítes node, o pytest do hermes e o gate de bump antes de
-   qualquer push. Vermelho no stage = nada publicado.
+3. **Inventário positivo:** `scripts/espelho-publico.json` lista cada arquivo aprovado, os caminhos internos excluídos e os arquivos que o scrub gera. `scripts/espelho.mjs exportar` lê a política e os blobs do commit, recusa arquivo não classificado, entrada ausente, symlink ou submódulo e só então cria o stage. Ao adicionar arquivo publicável, revise seu conteúdo e acrescente o path ao inventário; não gere a lista automaticamente no publicador.
+4. **Scrubs** continuam determinísticos para fixtures, CI e templates. O guard `scripts/espelho.mjs verificar` exige inventário completo e lê todos os arquivos; erro de leitura reprova. A marca de origem do Hermes é retenção deliberada somente no README raiz e no CHANGELOG Hermes. O guard não prova ausência de todo dado pessoal possível: revisar conteúdo de arquivos aprovados e retenções ainda faz parte da publicação.
+5. O stage roda `npm run validar`, `npm test` (todas as suítes Node e Python), `npm --prefix codex test` e o gate de bump das duas distribuições antes de qualquer push. Não instala dependências automaticamente: use o ambiente de desenvolvimento já preparado. Vermelho no stage = nada publicado.
 
 `CLAUDE.md` na raiz só importa este arquivo (`@AGENTS.md`): o Claude Code carrega `CLAUDE.md`,
 não `AGENTS.md`. Não duplique conteúdo lá.

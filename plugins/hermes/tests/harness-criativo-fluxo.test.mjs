@@ -1,5 +1,6 @@
 // Teste COMPORTAMENTAL do harness do criativo-fluxo — o script roda de verdade, com agentes
-// falsos. Molde: plugins/odin/tests/harness-dev-loop.test.mjs. O `test_harness_contracts.py`
+// SIMULADOS: comandos dos prompts, arquivos alegados, imagens e APIs não são executados.
+// Molde: plugins/odin/tests/harness-dev-loop.test.mjs. O `test_harness_contracts.py`
 // trava marcadores; aqui cada fix da revisão 1.0.1 é visto rodando.
 
 import assert from 'node:assert/strict';
@@ -160,7 +161,82 @@ test('produzir: pre-flight que não retorna, cego, ou que reprova sem falha nome
   assert.match(r2.resultado.detalhe, /cego/);
   const r3 = await rodar({ args: PRODUZIR, overrides: { 'preflight:': () => ({ ok: false, artefatos: ['out.png'], falhas: [] }) } });
   assert.match(r3.resultado.detalhe, /sem reportar falha nomeada/);
+  for (const { resultado, chamadas } of [r1, r2, r3]) {
+    assert.equal(resultado.status, 'erro');
+    assert.equal(labels(chamadas, 'crit:').length, 0);
+    assert.equal(labels(chamadas, 'correcao:').length, 0);
+    assert.equal(labels(chamadas, 'pacote:').length, 0);
+  }
 });
+
+// Fixtures do pre-flight: o controlador é real; o retorno do mecânico é SIMULADO.
+const FALHA_SCRIPT = {
+  comando: 'fixture-python fixture-validar.py out.png --arquetipo produto-isolado',
+  criterio: 'script',
+  resumo: "argument --arquetipo: invalid choice: 'produto-isolado' (choose from texto, cachorrotexto, gentecachorro, produtotexto)",
+};
+const FALHA_VISUAL = { comando: 'fixture-validar.py out.png', criterio: 'dimensao', resumo: 'dimensão diferente do formato' };
+
+for (const [caso, preflight] of [
+  ['flag inválida', { ok: false, artefatos: ['out.png'], falhas: [FALHA_SCRIPT] }],
+  ['ok=true contraditório', { ok: true, artefatos: ['out.png'], falhas: [FALHA_SCRIPT] }],
+  ['check visual misturado com erro operacional', { ok: false, artefatos: ['out.png'], falhas: [FALHA_VISUAL, FALHA_SCRIPT] }],
+  ['erro operacional sem artefato', { ok: false, artefatos: [], falhas: [FALHA_SCRIPT] }],
+]) {
+  test(`produzir: pre-flight com ${caso} encerra erro e preserva evidência antes da crítica`, async () => {
+    const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: { 'preflight:': () => structuredClone(preflight) } });
+    assert.equal(resultado.status, 'erro');
+    assert.equal(resultado.fase, 'Produzir');
+    assert.equal(resultado.iteracao, 1);
+    assert.deepEqual(resultado.preflight, preflight);
+    assert.equal(labels(chamadas, 'preflight:').length, 1);
+    assert.equal(chamadas.at(-1).label, 'preflight:i1', 'nenhum agente deve ser chamado após a falha operacional');
+    for (const prefixo of ['crit:', 'confirmar:', 'correcao:', 'pacote:']) {
+      assert.equal(labels(chamadas, prefixo).length, 0, `${prefixo} não deve tratar erro de script`);
+    }
+  });
+}
+
+test('produzir: falha visual de pre-flight segue para crítica e correção sem receber verde', async () => {
+  const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: {
+    'preflight:': () => ({ ok: false, artefatos: ['out.png'], falhas: [FALHA_VISUAL] }),
+  } });
+  assert.equal(resultado.status, 'escalado');
+  assert.equal(labels(chamadas, 'crit:').length, 1);
+  assert.equal(labels(chamadas, 'correcao:').length, 1);
+  assert.ok(labels(chamadas, 'correcao:')[0].prompt.includes(JSON.stringify([FALHA_VISUAL])));
+  assert.equal(labels(chamadas, 'pacote:').length, 1);
+});
+
+for (const [caso, segundoPreflight, status] of [
+  ['corrigido fecha verde', { ok: true, artefatos: ['out.png'], falhas: [] }, 'verde'],
+  ['com erro de script encerra antes de nova crítica', { ok: false, artefatos: ['out.png'], falhas: [FALHA_SCRIPT] }, 'erro'],
+]) {
+  test(`produzir: check visual permite recomposição e o pre-flight seguinte ${caso}`, async () => {
+    const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: {
+      'preflight:': (opts) => opts.label === 'preflight:i1'
+        ? { ok: false, artefatos: ['out.png'], falhas: [FALHA_VISUAL] }
+        : structuredClone(segundoPreflight),
+      'correcao:': () => ({ resumo: 'recompõe dimensão', comandoOverlay: 'fixture-compor --base {{BASE}} --v2 out.png', promptIa: null, copyCorrigida: null }),
+    } });
+    assert.equal(resultado.status, status);
+    assert.deepEqual(resultado.preflight, segundoPreflight);
+    assert.equal(labels(chamadas, 'preflight:').length, 2);
+    assert.equal(labels(chamadas, 'composicao:').length, 2);
+    assert.equal(labels(chamadas, 'correcao:').length, 1);
+    assert.equal(labels(chamadas, 'producao:').length, 1, 'overlay reutiliza a imagem-base');
+    if (status === 'erro') {
+      assert.equal(resultado.iteracao, 2);
+      assert.equal(chamadas.at(-1).label, 'preflight:i2');
+      assert.equal(labels(chamadas, 'crit:').length, 1);
+      assert.equal(labels(chamadas, 'pacote:').length, 0);
+    } else {
+      assert.equal(resultado.iteracoes, 2);
+      assert.equal(labels(chamadas, 'crit:').length, 2);
+      assert.equal(labels(chamadas, 'pacote:').length, 1);
+    }
+  });
+}
 
 test('produzir: finding plausível passa pelo confirmador; refutado não vira retrabalho', async () => {
   const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: {

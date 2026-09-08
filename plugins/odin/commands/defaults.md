@@ -1,6 +1,6 @@
 ---
 description: Consultar ou atualizar os defaults locais do Odin
-argument-hint: [show|set campo=valor]
+argument-hint: "[show|set campo=valor]"
 ---
 
 # /defaults

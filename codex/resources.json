@@ -1,0 +1,568 @@
+{
+  "arquivos": [
+    {
+      "source": "plugins/bragir/perfil-de-voz.md",
+      "target": "plugins/bragir/shared/perfil-de-voz.md"
+    },
+    {
+      "source": "plugins/bragir/skills/analisar-metricas/SKILL.md",
+      "target": "plugins/bragir/shared/skills/analisar-metricas/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/analisar-voz/SKILL.md",
+      "target": "plugins/bragir/shared/skills/analisar-voz/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/escrever-como-antonio/SKILL.md",
+      "target": "plugins/bragir/shared/skills/escrever-como-antonio/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/gerenciar-personas/SKILL.md",
+      "target": "plugins/bragir/shared/skills/gerenciar-personas/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/planejar-agenda/SKILL.md",
+      "target": "plugins/bragir/shared/skills/planejar-agenda/CONTRATO.md"
+    },
+    {
+      "source": "LICENSE",
+      "target": "plugins/bragir/LICENSE"
+    },
+    {
+      "source": "codex/runtime/RUNTIME.md",
+      "target": "plugins/bragir/RUNTIME.md"
+    },
+    {
+      "source": "plugins/hefesto/skills/criar-plugin/SKILL.md",
+      "target": "plugins/hefesto/shared/skills/criar-plugin/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hefesto/skills/criar-plugin/references/layout-canonico.md",
+      "target": "plugins/hefesto/shared/skills/criar-plugin/references/layout-canonico.md"
+    },
+    {
+      "source": "plugins/hefesto/skills/criar-skill/SKILL.md",
+      "target": "plugins/hefesto/shared/skills/criar-skill/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hefesto/skills/criar-skill/references/convencoes-skill.md",
+      "target": "plugins/hefesto/shared/skills/criar-skill/references/convencoes-skill.md"
+    },
+    {
+      "source": "plugins/hefesto/skills/validar-plugin/SKILL.md",
+      "target": "plugins/hefesto/shared/skills/validar-plugin/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hefesto/skills/validar-plugin/scripts/validar.mjs",
+      "target": "plugins/hefesto/shared/skills/validar-plugin/scripts/validar.mjs"
+    },
+    {
+      "source": "plugins/hefesto/skills/versionar-plugin/SKILL.md",
+      "target": "plugins/hefesto/shared/skills/versionar-plugin/CONTRATO.md"
+    },
+    {
+      "source": "LICENSE",
+      "target": "plugins/hefesto/LICENSE"
+    },
+    {
+      "source": "codex/runtime/RUNTIME.md",
+      "target": "plugins/hefesto/RUNTIME.md"
+    },
+    {
+      "source": "plugins/hermes/agents/diretor-de-arte.md",
+      "target": "plugins/hermes/shared/agents/diretor-de-arte.md"
+    },
+    {
+      "source": "plugins/hermes/agents/mecanico-de-criativo.md",
+      "target": "plugins/hermes/shared/agents/mecanico-de-criativo.md"
+    },
+    {
+      "source": "plugins/hermes/agents/produtor-de-criativo.md",
+      "target": "plugins/hermes/shared/agents/produtor-de-criativo.md"
+    },
+    {
+      "source": "plugins/hermes/agents/validador-de-criativo.md",
+      "target": "plugins/hermes/shared/agents/validador-de-criativo.md"
+    },
+    {
+      "source": "plugins/hermes/scripts/verificar_workspace.py",
+      "target": "plugins/hermes/shared/scripts/verificar_workspace.py"
+    },
+    {
+      "source": "plugins/hermes/skills/analisar-criativos/SKILL.md",
+      "target": "plugins/hermes/shared/skills/analisar-criativos/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/analise-diaria/SKILL.md",
+      "target": "plugins/hermes/shared/skills/analise-diaria/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/auditoria-cro/SKILL.md",
+      "target": "plugins/hermes/shared/skills/auditoria-cro/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/auditoria-de-estrutura/SKILL.md",
+      "target": "plugins/hermes/shared/skills/auditoria-de-estrutura/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/criativo-fluxo/SKILL.md",
+      "target": "plugins/hermes/shared/skills/criativo-fluxo/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/criativo-fluxo/harness/criativo.mjs",
+      "target": "plugins/hermes/shared/skills/criativo-fluxo/harness/criativo.mjs"
+    },
+    {
+      "source": "plugins/hermes/skills/criativo-fluxo/references/defaults.md",
+      "target": "plugins/hermes/shared/skills/criativo-fluxo/references/defaults.md"
+    },
+    {
+      "source": "plugins/hermes/skills/criativo-fluxo/references/portao-de-ideia.md",
+      "target": "plugins/hermes/shared/skills/criativo-fluxo/references/portao-de-ideia.md"
+    },
+    {
+      "source": "plugins/hermes/skills/criativo-fluxo/references/workspace-minimo.md",
+      "target": "plugins/hermes/shared/skills/criativo-fluxo/references/workspace-minimo.md"
+    },
+    {
+      "source": "plugins/hermes/skills/diagnostico-site-funil/SKILL.md",
+      "target": "plugins/hermes/shared/skills/diagnostico-site-funil/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/direcao-de-arte/SKILL.md",
+      "target": "plugins/hermes/shared/skills/direcao-de-arte/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/evoluir-vencedor/SKILL.md",
+      "target": "plugins/hermes/shared/skills/evoluir-vencedor/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/fadiga-criativa/SKILL.md",
+      "target": "plugins/hermes/shared/skills/fadiga-criativa/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/otimizar-verba/SKILL.md",
+      "target": "plugins/hermes/shared/skills/otimizar-verba/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/pnl-mensal/SKILL.md",
+      "target": "plugins/hermes/shared/skills/pnl-mensal/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/saude-do-funil/SKILL.md",
+      "target": "plugins/hermes/shared/skills/saude-do-funil/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/sintese-semanal/SKILL.md",
+      "target": "plugins/hermes/shared/skills/sintese-semanal/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/sugerir-criativos/SKILL.md",
+      "target": "plugins/hermes/shared/skills/sugerir-criativos/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/unit-economics/SKILL.md",
+      "target": "plugins/hermes/shared/skills/unit-economics/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/validar-criativo/SKILL.md",
+      "target": "plugins/hermes/shared/skills/validar-criativo/CONTRATO.md"
+    },
+    {
+      "source": "LICENSE",
+      "target": "plugins/hermes/LICENSE"
+    },
+    {
+      "source": "codex/runtime/RUNTIME.md",
+      "target": "plugins/hermes/RUNTIME.md"
+    },
+    {
+      "source": "codex/runtime/bridge.mjs",
+      "target": "plugins/hermes/runtime/bridge.mjs"
+    },
+    {
+      "source": "codex/runtime/schema.mjs",
+      "target": "plugins/hermes/runtime/schema.mjs"
+    },
+    {
+      "source": "plugins/hestia/scripts/brl.py",
+      "target": "plugins/hestia/shared/scripts/brl.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/dados.py",
+      "target": "plugins/hestia/shared/scripts/dados.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/estatistica.py",
+      "target": "plugins/hestia/shared/scripts/estatistica.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/gastos.py",
+      "target": "plugins/hestia/shared/scripts/gastos.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/ir.py",
+      "target": "plugins/hestia/shared/scripts/ir.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/juros_compostos.py",
+      "target": "plugins/hestia/shared/scripts/juros_compostos.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/mercado.py",
+      "target": "plugins/hestia/shared/scripts/mercado.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/meta.py",
+      "target": "plugins/hestia/shared/scripts/meta.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/nota.py",
+      "target": "plugins/hestia/shared/scripts/nota.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/posicoes.py",
+      "target": "plugins/hestia/shared/scripts/posicoes.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/recorrencias.py",
+      "target": "plugins/hestia/shared/scripts/recorrencias.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/rendimento.py",
+      "target": "plugins/hestia/shared/scripts/rendimento.py"
+    },
+    {
+      "source": "plugins/hestia/scripts/resumo_mes.py",
+      "target": "plugins/hestia/shared/scripts/resumo_mes.py"
+    },
+    {
+      "source": "plugins/hestia/skills/analisar-gastos/SKILL.md",
+      "target": "plugins/hestia/shared/skills/analisar-gastos/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hestia/skills/analisar-investimentos/SKILL.md",
+      "target": "plugins/hestia/shared/skills/analisar-investimentos/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hestia/skills/analisar-mercado/SKILL.md",
+      "target": "plugins/hestia/shared/skills/analisar-mercado/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hestia/skills/investimentos/SKILL.md",
+      "target": "plugins/hestia/shared/skills/investimentos/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hestia/skills/mercado/SKILL.md",
+      "target": "plugins/hestia/shared/skills/mercado/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hestia/skills/orcamento/SKILL.md",
+      "target": "plugins/hestia/shared/skills/orcamento/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hestia/skills/orcamento/references/abertura-mes-segura.md",
+      "target": "plugins/hestia/shared/skills/orcamento/references/abertura-mes-segura.md"
+    },
+    {
+      "source": "plugins/hestia/skills/orcamento/references/defaults.md",
+      "target": "plugins/hestia/shared/skills/orcamento/references/defaults.md"
+    },
+    {
+      "source": "plugins/hestia/tabelas/iof_regressivo.json",
+      "target": "plugins/hestia/shared/tabelas/iof_regressivo.json"
+    },
+    {
+      "source": "plugins/hestia/tabelas/ir_regressivo.json",
+      "target": "plugins/hestia/shared/tabelas/ir_regressivo.json"
+    },
+    {
+      "source": "LICENSE",
+      "target": "plugins/hestia/LICENSE"
+    },
+    {
+      "source": "codex/runtime/RUNTIME.md",
+      "target": "plugins/hestia/RUNTIME.md"
+    },
+    {
+      "source": "plugins/mimyr/agents/escritor-de-capitulo.md",
+      "target": "plugins/mimyr/shared/agents/escritor-de-capitulo.md"
+    },
+    {
+      "source": "plugins/mimyr/agents/mecanico-de-curso.md",
+      "target": "plugins/mimyr/shared/agents/mecanico-de-curso.md"
+    },
+    {
+      "source": "plugins/mimyr/agents/revisor-de-curso.md",
+      "target": "plugins/mimyr/shared/agents/revisor-de-curso.md"
+    },
+    {
+      "source": "plugins/mimyr/scripts/atualizar_indice_curso.py",
+      "target": "plugins/mimyr/shared/scripts/atualizar_indice_curso.py"
+    },
+    {
+      "source": "plugins/mimyr/scripts/atualizar_seo.py",
+      "target": "plugins/mimyr/shared/scripts/atualizar_seo.py"
+    },
+    {
+      "source": "plugins/mimyr/scripts/checar_svg_overflow.py",
+      "target": "plugins/mimyr/shared/scripts/checar_svg_overflow.py"
+    },
+    {
+      "source": "plugins/mimyr/scripts/corrigir_acentos.py",
+      "target": "plugins/mimyr/shared/scripts/corrigir_acentos.py"
+    },
+    {
+      "source": "plugins/mimyr/scripts/extract_docx.py",
+      "target": "plugins/mimyr/shared/scripts/extract_docx.py"
+    },
+    {
+      "source": "plugins/mimyr/scripts/extrair_audio.py",
+      "target": "plugins/mimyr/shared/scripts/extrair_audio.py"
+    },
+    {
+      "source": "plugins/mimyr/scripts/injetar_sidebar.py",
+      "target": "plugins/mimyr/shared/scripts/injetar_sidebar.py"
+    },
+    {
+      "source": "plugins/mimyr/scripts/melhorar_a11y.py",
+      "target": "plugins/mimyr/shared/scripts/melhorar_a11y.py"
+    },
+    {
+      "source": "plugins/mimyr/scripts/remover_travessao.py",
+      "target": "plugins/mimyr/shared/scripts/remover_travessao.py"
+    },
+    {
+      "source": "plugins/mimyr/scripts/requirements-transcricao.txt",
+      "target": "plugins/mimyr/shared/scripts/requirements-transcricao.txt"
+    },
+    {
+      "source": "plugins/mimyr/scripts/requirements.txt",
+      "target": "plugins/mimyr/shared/scripts/requirements.txt"
+    },
+    {
+      "source": "plugins/mimyr/scripts/transcrever.py",
+      "target": "plugins/mimyr/shared/scripts/transcrever.py"
+    },
+    {
+      "source": "plugins/mimyr/skills/analise-de-aula/SKILL.md",
+      "target": "plugins/mimyr/shared/skills/analise-de-aula/CONTRATO.md"
+    },
+    {
+      "source": "plugins/mimyr/skills/escrever-capitulo/SKILL.md",
+      "target": "plugins/mimyr/shared/skills/escrever-capitulo/CONTRATO.md"
+    },
+    {
+      "source": "plugins/mimyr/skills/gerar-curso/SKILL.md",
+      "target": "plugins/mimyr/shared/skills/gerar-curso/CONTRATO.md"
+    },
+    {
+      "source": "plugins/mimyr/skills/gerar-curso/harness/curso.mjs",
+      "target": "plugins/mimyr/shared/skills/gerar-curso/harness/curso.mjs"
+    },
+    {
+      "source": "plugins/mimyr/skills/gerar-curso/references/defaults.md",
+      "target": "plugins/mimyr/shared/skills/gerar-curso/references/defaults.md"
+    },
+    {
+      "source": "plugins/mimyr/skills/gerar-modulo/SKILL.md",
+      "target": "plugins/mimyr/shared/skills/gerar-modulo/CONTRATO.md"
+    },
+    {
+      "source": "plugins/mimyr/skills/revisar-capitulo/SKILL.md",
+      "target": "plugins/mimyr/shared/skills/revisar-capitulo/CONTRATO.md"
+    },
+    {
+      "source": "LICENSE",
+      "target": "plugins/mimyr/LICENSE"
+    },
+    {
+      "source": "codex/runtime/RUNTIME.md",
+      "target": "plugins/mimyr/RUNTIME.md"
+    },
+    {
+      "source": "codex/runtime/bridge.mjs",
+      "target": "plugins/mimyr/runtime/bridge.mjs"
+    },
+    {
+      "source": "codex/runtime/schema.mjs",
+      "target": "plugins/mimyr/runtime/schema.mjs"
+    },
+    {
+      "source": "plugins/odin/agents/arquiteto.md",
+      "target": "plugins/odin/shared/agents/arquiteto.md"
+    },
+    {
+      "source": "plugins/odin/agents/mecanico.md",
+      "target": "plugins/odin/shared/agents/mecanico.md"
+    },
+    {
+      "source": "plugins/odin/agents/operario.md",
+      "target": "plugins/odin/shared/agents/operario.md"
+    },
+    {
+      "source": "plugins/odin/agents/revisor.md",
+      "target": "plugins/odin/shared/agents/revisor.md"
+    },
+    {
+      "source": "plugins/odin/docs/inventario-skills.md",
+      "target": "plugins/odin/shared/docs/inventario-skills.md"
+    },
+    {
+      "source": "plugins/odin/docs/roteamento-matrix.md",
+      "target": "plugins/odin/shared/docs/roteamento-matrix.md"
+    },
+    {
+      "source": "plugins/odin/skills/acompanhar/SKILL.md",
+      "target": "plugins/odin/shared/skills/acompanhar/CONTRATO.md"
+    },
+    {
+      "source": "plugins/odin/skills/acompanhar/references/metodologias-acompanhamento.md",
+      "target": "plugins/odin/shared/skills/acompanhar/references/metodologias-acompanhamento.md"
+    },
+    {
+      "source": "plugins/odin/skills/definir/SKILL.md",
+      "target": "plugins/odin/shared/skills/definir/CONTRATO.md"
+    },
+    {
+      "source": "plugins/odin/skills/definir/references/desafios-tecnicos.md",
+      "target": "plugins/odin/shared/skills/definir/references/desafios-tecnicos.md"
+    },
+    {
+      "source": "plugins/odin/skills/definir/references/dossie-template.md",
+      "target": "plugins/odin/shared/skills/definir/references/dossie-template.md"
+    },
+    {
+      "source": "plugins/odin/skills/definir/references/metodologias-definicao.md",
+      "target": "plugins/odin/shared/skills/definir/references/metodologias-definicao.md"
+    },
+    {
+      "source": "plugins/odin/skills/definir/references/modelo-desafios.md",
+      "target": "plugins/odin/shared/skills/definir/references/modelo-desafios.md"
+    },
+    {
+      "source": "plugins/odin/skills/descobrir/SKILL.md",
+      "target": "plugins/odin/shared/skills/descobrir/CONTRATO.md"
+    },
+    {
+      "source": "plugins/odin/skills/descobrir/references/capa-template.md",
+      "target": "plugins/odin/shared/skills/descobrir/references/capa-template.md"
+    },
+    {
+      "source": "plugins/odin/skills/descobrir/references/contrato-de-conversa.md",
+      "target": "plugins/odin/shared/skills/descobrir/references/contrato-de-conversa.md"
+    },
+    {
+      "source": "plugins/odin/skills/descobrir/references/metodologias-investigacao.md",
+      "target": "plugins/odin/shared/skills/descobrir/references/metodologias-investigacao.md"
+    },
+    {
+      "source": "plugins/odin/skills/descobrir/references/metodologias-pesquisa.md",
+      "target": "plugins/odin/shared/skills/descobrir/references/metodologias-pesquisa.md"
+    },
+    {
+      "source": "plugins/odin/skills/desenvolver/SKILL.md",
+      "target": "plugins/odin/shared/skills/desenvolver/CONTRATO.md"
+    },
+    {
+      "source": "plugins/odin/skills/desenvolver/references/metodologias-develop.md",
+      "target": "plugins/odin/shared/skills/desenvolver/references/metodologias-develop.md"
+    },
+    {
+      "source": "plugins/odin/skills/desenvolver/references/priorizacao-ai-era.md",
+      "target": "plugins/odin/shared/skills/desenvolver/references/priorizacao-ai-era.md"
+    },
+    {
+      "source": "plugins/odin/skills/dev-loop/SKILL.md",
+      "target": "plugins/odin/shared/skills/dev-loop/CONTRATO.md"
+    },
+    {
+      "source": "plugins/odin/skills/dev-loop/harness/loop.mjs",
+      "target": "plugins/odin/shared/skills/dev-loop/harness/loop.mjs"
+    },
+    {
+      "source": "plugins/odin/skills/dev-loop/references/escada-ponytail.md",
+      "target": "plugins/odin/shared/skills/dev-loop/references/escada-ponytail.md"
+    },
+    {
+      "source": "plugins/odin/skills/dev-loop/references/protocolo-revisao-adversarial.md",
+      "target": "plugins/odin/shared/skills/dev-loop/references/protocolo-revisao-adversarial.md"
+    },
+    {
+      "source": "plugins/odin/skills/dev-loop/references/spec-template.md",
+      "target": "plugins/odin/shared/skills/dev-loop/references/spec-template.md"
+    },
+    {
+      "source": "plugins/odin/skills/dev-loop/scripts/hashes-testes.mjs",
+      "target": "plugins/odin/shared/skills/dev-loop/scripts/hashes-testes.mjs"
+    },
+    {
+      "source": "plugins/odin/skills/dev-loop/scripts/spec-ids.mjs",
+      "target": "plugins/odin/shared/skills/dev-loop/scripts/spec-ids.mjs"
+    },
+    {
+      "source": "plugins/odin/skills/entregar/SKILL.md",
+      "target": "plugins/odin/shared/skills/entregar/CONTRATO.md"
+    },
+    {
+      "source": "plugins/odin/skills/entregar/references/convencoes-formatacao.md",
+      "target": "plugins/odin/shared/skills/entregar/references/convencoes-formatacao.md"
+    },
+    {
+      "source": "plugins/odin/skills/entregar/references/defaults.md",
+      "target": "plugins/odin/shared/skills/entregar/references/defaults.md"
+    },
+    {
+      "source": "plugins/odin/skills/entregar/references/patterns-por-projeto.md",
+      "target": "plugins/odin/shared/skills/entregar/references/patterns-por-projeto.md"
+    },
+    {
+      "source": "plugins/odin/skills/entregar/references/steps-detalhados.md",
+      "target": "plugins/odin/shared/skills/entregar/references/steps-detalhados.md"
+    },
+    {
+      "source": "plugins/odin/skills/entregar/references/tipos-de-entrega.md",
+      "target": "plugins/odin/shared/skills/entregar/references/tipos-de-entrega.md"
+    },
+    {
+      "source": "LICENSE",
+      "target": "plugins/odin/LICENSE"
+    },
+    {
+      "source": "codex/runtime/RUNTIME.md",
+      "target": "plugins/odin/RUNTIME.md"
+    },
+    {
+      "source": "codex/runtime/bridge.mjs",
+      "target": "plugins/odin/runtime/bridge.mjs"
+    },
+    {
+      "source": "codex/runtime/schema.mjs",
+      "target": "plugins/odin/runtime/schema.mjs"
+    },
+    {
+      "source": "codex/runtime/MODELOS.md",
+      "target": "plugins/hefesto/MODELOS.md"
+    },
+    {
+      "source": "codex/runtime/MODELOS.md",
+      "target": "plugins/bragir/MODELOS.md"
+    },
+    {
+      "source": "codex/runtime/MODELOS.md",
+      "target": "plugins/hestia/MODELOS.md"
+    },
+    {
+      "source": "codex/runtime/MODELOS.md",
+      "target": "plugins/odin/MODELOS.md"
+    },
+    {
+      "source": "codex/runtime/MODELOS.md",
+      "target": "plugins/mimyr/MODELOS.md"
+    },
+    {
+      "source": "codex/runtime/MODELOS.md",
+      "target": "plugins/hermes/MODELOS.md"
+    }
+  ]
+}

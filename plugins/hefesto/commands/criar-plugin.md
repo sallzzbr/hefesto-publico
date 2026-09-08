@@ -1,6 +1,6 @@
 ---
 description: Scaffoldar um plugin novo no marketplace atual
-argument-hint: [nome do plugin] [descrição curta]
+argument-hint: "[nome do plugin] [descrição curta]"
 ---
 
 # /criar-plugin

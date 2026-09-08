@@ -2,6 +2,7 @@
 import sys
 from pathlib import Path
 
+import pytest
 from bs4 import BeautifulSoup
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
@@ -77,6 +78,45 @@ def test_idempotent(tmp_path: Path):
     assert update_course_index(str(tmp_path)) is False
     soup = BeautifulSoup((tmp_path / "index.html").read_text(encoding="utf-8"), "html.parser")
     assert len(soup.select(".module-item .module-meta")) == 2  # não duplica
+    assert len(soup.select(".course-meta")) == 1
+
+
+@pytest.mark.parametrize(
+    ("module_minutes", "expected_duration"),
+    [
+        ((0, 0), "~0 min"),
+        ((0, 1), "~1 min"),
+        ((1, 1), "~2 min"),
+        ((1, 2), "~3 min"),
+        ((2, 2), "~4 min"),
+        ((2, 3), "~5 min"),
+        ((3, 3), "~5 min"),
+        ((4, 4), "~10 min"),
+    ],
+)
+def test_short_course_duration_survives_repeat_sync(
+    tmp_path: Path, module_minutes: tuple[int, int], expected_duration: str
+):
+    _course(tmp_path)
+    for number, minutes in enumerate(module_minutes, start=1):
+        (tmp_path / f"modulo-{number}" / "index.html").write_text(
+            MODULE_INDEX.format(
+                mins=minutes,
+                items='<li class="module-index-item"><a href="c.html">C</a></li>',
+            ),
+            encoding="utf-8",
+        )
+
+    assert update_course_index(str(tmp_path)) is True
+    index = tmp_path / "index.html"
+    soup = BeautifulSoup(index.read_text(encoding="utf-8"), "html.parser")
+    assert soup.select_one(".course-meta").get_text() == (
+        f"2 capítulos · {expected_duration} de leitura"
+    )
+
+    first_sync = index.read_bytes()
+    assert update_course_index(str(tmp_path)) is False
+    assert index.read_bytes() == first_sync
     assert len(soup.select(".course-meta")) == 1
 
 

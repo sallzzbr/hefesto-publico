@@ -3,6 +3,19 @@
 > Histórico anterior à 2.4.6 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 2.4.9 — 2026-09-05 (correções do teste Claude)
+
+- Hashes dos testes calculados com Node/crypto pelo helper `hashes-testes.mjs`. O Workflow recebe o JSON pelo operário e normaliza identidades, sem confundir caminho absoluto/relativo e anotações de linha com mudança de conteúdo. Hash ausente/inválido ou conflitante encerra como erro de evidência.
+- Preflight `spec-ids.mjs` verifica a tabela original antes do agente de julgamento. IDs vazios/duplicados bloqueiam; extração posterior precisa preservar os mesmos IDs. O schema do TDD restringe referências aos IDs conhecidos.
+- O preflight preserva a coluna de verificação complementar: evita converter path de teste em pendência manual ou omitir exigência humana explícita.
+- Invocação local usa `scriptPath` absoluto e passa `workspaceRoot` físico e `scriptsDir`. Revisão `2026-09-05-r5` identificada no log; não retomar runs de revisão anterior.
+- Regressões executam helpers reais e comandos transportados, incluindo caminhos com espaços/aspas e symlink externo. Mantido o bloqueio de alteração real de teste.
+
+## 2.4.8 — 2026-09-05 (preparação para teste Claude)
+
+- Portão TDD verifica cobertura de critérios, referências de testes e motivo do RED independente. Critérios manuais pendentes não fecham o run como verde.
+- `name` explícito em todas as skills, alinhado ao diretório.
+
 ## 2.4.7 — 2026-09-02 (evals com runner de formato)
 
 Pendência da auditoria de 2026-09-01: os 43 casos de `evals/roteamento/` não eram lidos por

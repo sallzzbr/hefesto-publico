@@ -17,7 +17,7 @@ const TEST_DIR = dirname(fileURLToPath(import.meta.url));
 const VALIDATOR = resolve(TEST_DIR, '..', 'skills', 'validar-plugin', 'scripts', 'validar.mjs');
 
 const DESCRICAO_OK = 'description: "Write demo behavior for tests. Use when you need a fixture that routes correctly and validates."';
-const SKILL_OK = ['---', DESCRICAO_OK, '---', '', '# Demo', '', 'Corpo sem paths de domínio.', ''].join('\n');
+const SKILL_OK = ['---', 'name: observe', DESCRICAO_OK, '---', '', '# Demo', '', 'Corpo sem paths de domínio.', ''].join('\n');
 
 function marketplace(extra = {}) {
   return JSON.stringify({
@@ -152,6 +152,7 @@ test('description que é só comentário YAML conta como vazia', () => {
 test('description em scalar multilinha (>) junta só as linhas indentadas contíguas', () => {
   const skill = [
     '---',
+    'name: observe',
     'description: >-',
     '  Use quando o usuário pedir a fixture de teste, rodar a validação de manifesto,',
     '  ou conferir o frontmatter multilinha — três gatilhos concretos.',
@@ -175,7 +176,7 @@ test('description acima de 1024 chars é erro; abaixo de 60 é aviso (não erro)
   const r1 = fixture({ ...BASE, 'plugins/demo/skills/observe/SKILL.md': longa });
   assert.equal(r1.status, 1);
   assert.match(r1.out, /description com \d+ chars \(máx 1024\)/);
-  const curta = '---\ndescription: "Write demo."\n---\n';
+  const curta = '---\nname: observe\ndescription: "Write demo."\n---\n';
   const r2 = fixture({ ...BASE, 'plugins/demo/skills/observe/SKILL.md': curta });
   assert.equal(r2.status, 0, r2.out);
   assert.match(r2.out, /AVISO .*description curta \(11 chars\)/);
@@ -225,4 +226,27 @@ test('entrada sem description/category/tags e plugin.json sem author/license/key
   for (const aviso of ['entrada sem description', 'entrada sem category', 'entrada sem tags', 'sem author', 'sem license', 'sem keywords', 'sem homepage nem repository']) {
     assert.match(r.out, new RegExp(aviso), aviso);
   }
+});
+
+test('name explícito da skill precisa ser kebab-case e igual ao diretório', () => {
+  for (const nome of ['Outro Nome', 'outro', '""', 'observe # comentário']) {
+    const skill = SKILL_OK.replace('name: observe', `name: ${nome}`);
+    const r = fixture({ ...BASE, 'plugins/demo/skills/observe/SKILL.md': skill });
+    // Comentário YAML depois do nome é válido e não faz parte do identificador.
+    assert.equal(r.status, nome.includes('#') ? 0 : 1, `${nome}: ${r.out}`);
+  }
+});
+
+test('name explícito admite aspas', () => {
+  for (const nome of ['observe', '"observe"', "'observe'"]) {
+    const r = fixture({ ...BASE, 'plugins/demo/skills/observe/SKILL.md': SKILL_OK.replace('name: observe', `name: ${nome}`) });
+    assert.equal(r.status, 0, r.out);
+  }
+  assert.equal(fixture(BASE).status, 0);
+});
+
+test('skill sem name é erro obrigatório mesmo com description válida', () => {
+ const r=fixture({...BASE,'plugins/demo/skills/observe/SKILL.md':SKILL_OK.replace('name: observe\n','')});
+ assert.equal(r.status,1,r.out);
+ assert.match(r.out,/sem campo name/);
 });

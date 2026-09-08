@@ -88,7 +88,8 @@
       "limite_media_mais_1_desvio": "5.73",
       "media": "4.00",
       "produto": "Cerveja Heineken 350ml",
-      "ultima_quantidade": "6.00"
+      "ultima_quantidade": "6.00",
+      "unidade_base": "un"
     },
     {
       "acima_do_padrao": true,
@@ -96,7 +97,8 @@
       "limite_media_mais_1_desvio": "2.91",
       "media": "2.33",
       "produto": "Leite Itambé 1L",
-      "ultima_quantidade": "3.00"
+      "ultima_quantidade": "3.00",
+      "unidade_base": "l"
     }
   ],
   "quantidade_no_padrao": [],

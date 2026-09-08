@@ -2,6 +2,7 @@
 import sys
 from pathlib import Path
 
+import pytest
 from bs4 import BeautifulSoup
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
@@ -72,3 +73,91 @@ def test_process_course_skips_index_and_preserves_analytics_nav(tmp_path: Path):
     # preserva a subpage-nav (analytics)
     soup = BeautifulSoup((tmp_path / "modulo-2" / "a.html").read_text(encoding="utf-8"), "html.parser")
     assert soup.select_one(".subpage-nav .next[rel='next']") is not None
+
+
+@pytest.mark.parametrize(
+    "href",
+    [
+        "/tmp/capitulo.html",
+        "https://example.com/capitulo.html",
+        "javascript:evil.html",
+        "../capitulo.html",
+        "%2e%2e%2fcapitulo.html",
+        "javascript%3aevil.html",
+        "subdir/capitulo.html",
+        "index.html?capitulo=1",
+    ],
+)
+def test_process_course_rejects_non_plain_chapter_paths_before_writing(tmp_path: Path, href: str):
+    mod = _make_module(tmp_path)
+    original = (mod / "a.html").read_text(encoding="utf-8")
+    (mod / "index.html").write_text(MODULE_INDEX.replace('href="b.html"', f'href="{href}"'), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="link de capítulo inseguro"):
+        process_course(str(tmp_path))
+
+    assert (mod / "a.html").read_text(encoding="utf-8") == original
+
+
+def test_process_course_rejects_symlink_escape_before_writing(tmp_path: Path):
+    mod = _make_module(tmp_path)
+    outside = tmp_path / "sentinela.html"
+    outside.write_text(CHAPTER, encoding="utf-8")
+    (mod / "b.html").unlink()
+    (mod / "b.html").symlink_to(outside)
+    original_a = (mod / "a.html").read_text(encoding="utf-8")
+    original_outside = outside.read_text(encoding="utf-8")
+
+    with pytest.raises(ValueError, match="escapa do módulo"):
+        process_course(str(tmp_path))
+
+    assert (mod / "a.html").read_text(encoding="utf-8") == original_a
+    assert outside.read_text(encoding="utf-8") == original_outside
+
+
+def test_process_course_rejects_module_directory_symlink_outside_course(tmp_path: Path):
+    course = tmp_path / "curso"
+    course.mkdir()
+    outside = tmp_path / "fora"
+    outside.mkdir()
+    (outside / "index.html").write_text(MODULE_INDEX, encoding="utf-8")
+    (outside / "a.html").write_text(CHAPTER, encoding="utf-8")
+    (outside / "b.html").write_text(CHAPTER, encoding="utf-8")
+    before = (outside / "a.html").read_text(encoding="utf-8")
+    (course / "modulo-1").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="módulo escapa do curso"):
+        process_course(str(course))
+
+    assert (outside / "a.html").read_text(encoding="utf-8") == before
+
+
+def test_process_course_rejects_module_index_symlink_outside_course(tmp_path: Path):
+    course = tmp_path / "curso"
+    module = course / "modulo-1"
+    module.mkdir(parents=True)
+    outside_index = tmp_path / "indice-externo.html"
+    outside_index.write_text(MODULE_INDEX, encoding="utf-8")
+    (module / "index.html").symlink_to(outside_index)
+    (module / "a.html").write_text(CHAPTER, encoding="utf-8")
+    (module / "b.html").write_text(CHAPTER, encoding="utf-8")
+    before = (module / "a.html").read_text(encoding="utf-8")
+
+    with pytest.raises(ValueError, match="índice escapa do módulo"):
+        process_course(str(course))
+
+    assert (module / "a.html").read_text(encoding="utf-8") == before
+
+
+def test_process_course_preflights_every_module_before_any_write(tmp_path: Path):
+    first = _make_module(tmp_path)
+    second = tmp_path / "modulo-3"
+    second.mkdir()
+    (second / "index.html").write_text(MODULE_INDEX.replace("modulo-2", "modulo-3").replace('href="b.html"', 'href="../fora.html"'), encoding="utf-8")
+    (second / "a.html").write_text(CHAPTER, encoding="utf-8")
+    before = (first / "a.html").read_text(encoding="utf-8")
+
+    with pytest.raises(ValueError, match="link de capítulo inseguro"):
+        process_course(str(tmp_path))
+
+    assert (first / "a.html").read_text(encoding="utf-8") == before

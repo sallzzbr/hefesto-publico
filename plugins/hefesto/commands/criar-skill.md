@@ -1,6 +1,6 @@
 ---
 description: Scaffoldar uma skill nova (SKILL.md) num plugin
-argument-hint: [plugin] [nome da skill] [o que ela faz]
+argument-hint: "[plugin] [nome da skill] [o que ela faz]"
 ---
 
 # /criar-skill

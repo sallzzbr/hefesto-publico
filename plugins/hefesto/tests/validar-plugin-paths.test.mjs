@@ -56,6 +56,7 @@ test('validar-plugin flags absolute OS paths in non-markdown text files', () => 
       ),
       'plugins/demo/skills/observe/SKILL.md': [
         '---',
+        'name: observe',
         'description: "Write demo behavior. Use when you need a test fixture that routes correctly."',
         '---',
         '',
@@ -115,6 +116,7 @@ test('validar-plugin flags drift between root docs inventory and marketplace.jso
       ),
       'plugins/demo/skills/observe/SKILL.md': [
         '---',
+        'name: observe',
         'description: "Write demo behavior. Use when you need a test fixture that routes correctly."',
         '---',
         '',
@@ -186,6 +188,7 @@ test('validar-plugin flags drift between plugin README inventory and on-disk plu
       ),
       'plugins/demo/skills/observe/SKILL.md': [
         '---',
+        'name: observe',
         'description: "Write demo behavior. Use when you need a test fixture that routes correctly."',
         '---',
         '',
@@ -254,6 +257,7 @@ test('validar-plugin flags drift between plugin README structure and on-disk plu
       ),
       'plugins/demo/skills/observe/SKILL.md': [
         '---',
+        'name: observe',
         'description: "Write demo behavior. Use when you need a test fixture that routes correctly."',
         '---',
         '',

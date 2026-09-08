@@ -1,0 +1,23 @@
+{
+  "name": "mimyr",
+  "version": "0.1.3",
+  "description": "Cursos e didática: gerar mini-cursos HTML, módulos e capítulos na voz do autor, com harness multi-agente de geração de curso (capítulos em paralelo + revisão adversarial), revisão pedagógica, análise de aulas e scripts de transcrição e checagens.",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Mimyr",
+    "shortDescription": "Cursos e capítulos com revisão pedagógica",
+    "longDescription": "Cursos e didática: gerar mini-cursos HTML, módulos e capítulos na voz do autor, com harness multi-agente de geração de curso (capítulos em paralelo + revisão adversarial), revisão pedagógica, análise de aulas e scripts de transcrição e checagens.",
+    "developerName": "Antonio Salgado",
+    "category": "Productivity",
+    "defaultPrompt": [
+      "Planeje um curso com um módulo e dois capítulos."
+    ],
+    "capabilities": []
+  },
+  "license": "MIT",
+  "repository": "https://github.com/sallzzbr/hefesto-publico"
+}

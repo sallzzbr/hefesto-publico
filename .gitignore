@@ -28,3 +28,7 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
+
+# Checkouts isolados de desenvolvimento
+.worktrees/
+.superpowers/

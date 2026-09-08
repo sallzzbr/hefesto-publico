@@ -3,6 +3,15 @@
 > Histórico anterior à 0.12.2 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 0.12.4 — 2026-09-06 (correções dos testes Codex)
+
+- Análise de mercado exclui linhas sem quantidade/preço unitário das comparações e informa os campos ausentes, preservando o gasto. Quantidades e desvios usam a unidade-base do catálogo, explicitada no resultado. Quantidades pequenas preservam precisão suficiente para não aparecerem como zero.
+
+## 0.12.3 — 2026-09-05 (preparação para teste Claude)
+
+- Abertura de mês confirma o efeito completo e registra estados antes/depois em journal para detectar e reconciliar gravações parciais. Os CSVs existentes mantêm o formato; o conector continua sem transação entre arquivos.
+- `name` explícito em todas as skills, alinhado ao diretório.
+
 ## 0.12.2 — 2026-09-02 (milhar com ponto sem centavos)
 
 Correção da auditoria adversarial de 2026-09-01, reproduzida pelos dois revisores.

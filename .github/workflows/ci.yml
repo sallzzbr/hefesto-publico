@@ -40,6 +40,18 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  codex:
+    name: Distribuição Codex
+    # A distribuição Codex é verificada no desenvolvimento e no espelho público.
+    # Ausência da pasta falha no comando, não desliga o check.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix codex test
+
   validar:
     name: Validador de marketplace e plugins
     runs-on: ubuntu-latest
@@ -156,7 +168,7 @@ jobs:
     # validar.mjs, então o filtro precisaria acertar os dois lados e erra fácil; (2) `paths:` no
     # GitHub só existe em nível de workflow, e um required check que é filtrado fora nunca
     # reporta — o PR fica esperando para sempre. Minuto de CI é mais barato que gate furado.
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

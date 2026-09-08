@@ -45,7 +45,8 @@ function baseFixture(skillBody) {
     }, null, 2),
     'plugins/demo/skills/observe/SKILL.md': [
       '---',
-      'description: "Write demo behavior. Use when you need a test fixture that routes correctly."',
+      'name: observe',
+        'description: "Write demo behavior. Use when you need a test fixture that routes correctly."',
       '---',
       '',
       '# Observe',

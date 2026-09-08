@@ -1,6 +1,6 @@
 ---
 description: Bump semver sincronizado de plugin + marketplace
-argument-hint: [plugin] [patch|minor|major (opcional)]
+argument-hint: "[plugin] [patch|minor|major (opcional)]"
 ---
 
 # /versionar-plugin

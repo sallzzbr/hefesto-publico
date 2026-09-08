@@ -1,5 +1,15 @@
 # Changelog — hermes
 
+## 1.3.4 — 2026-09-08
+
+- Preflight com falha operacional de script encerra o fluxo com erro e preserva o diagnóstico, inclusive sem artefato. Falhas visuais continuam pelo ciclo de correção.
+
+## 1.3.3 — 2026-09-05 (preparação para teste Claude)
+
+- Corrigido YAML de metadados detectado por `claude plugin validate`: campos com colchetes ou dois-pontos passam a ser strings entre aspas.
+- Preflight somente leitura verifica os arquivos exigidos por capacidade antes de gerar criativos; contrato sintético documenta os scripts que o workspace consumidor precisa fornecer. Não valida credenciais ou qualidade visual.
+- `name` explícito em todas as skills, alinhado ao diretório.
+
 ## 1.3.2 — 2026-09-02 (redação de réguas reais no histórico)
 
 Patch de higiene, achado da auditoria adversarial de 2026-09-01: a entrada 1.0.0 deste

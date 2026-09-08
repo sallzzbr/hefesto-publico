@@ -1,0 +1,23 @@
+{
+  "name": "hefesto",
+  "version": "0.1.2",
+  "description": "A forja de plugins do Antonio: criar-plugin (scaffold de plugin/marketplace), criar-skill (SKILL.md no padrão), validar-plugin (validação determinística) e versionar-plugin (bump semver sincronizado).",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hefesto",
+    "shortDescription": "Criar e validar plugins e skills Codex",
+    "longDescription": "A forja de plugins do Antonio: criar-plugin (scaffold de plugin/marketplace), criar-skill (SKILL.md no padrão), validar-plugin (validação determinística) e versionar-plugin (bump semver sincronizado).",
+    "developerName": "Antonio Salgado",
+    "category": "Productivity",
+    "defaultPrompt": [
+      "Crie um plugin Codex com uma skill de saudação."
+    ],
+    "capabilities": []
+  },
+  "license": "MIT",
+  "repository": "https://github.com/sallzzbr/hefesto-publico"
+}

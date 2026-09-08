@@ -2,13 +2,26 @@
 
 [![CI](https://github.com/sallzzbr/hefesto-publico/actions/workflows/ci.yml/badge.svg)](https://github.com/sallzzbr/hefesto-publico/actions/workflows/ci.yml)
 
-> Forja pessoal de skills do Antonio para Claude Code. O nome vem do deus grego da metalurgia e do artesanato — este repo é onde as ferramentas são marteladas, afiadas e distribuídas.
+> Forja pessoal de skills do Antonio para Claude Code e Codex. O nome vem do deus grego da metalurgia e do artesanato — este repo é onde as ferramentas são marteladas, afiadas e distribuídas.
 
 O repo é um **marketplace** que publica seis plugins: **hefesto** (a forja de plugins), **bragir** (voz, escrita e editorial), **mimyr** (cursos e didática), **hestia** (economia doméstica), **hermes** (marketing de performance e criativos) e **odin** (desafios pelo double diamond).
 
 > **Migração v3**: as skills de voz (`escrever-como-antonio`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
 
-## Como instalar (você ou um amigo)
+## Como instalar no Codex
+
+A distribuição nativa Codex contém os mesmos seis plugins e 42 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release aprovada:
+
+```sh
+git clone --branch v3.18.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+cd hefesto-publico
+codex plugin marketplace add ./codex
+codex plugin add hefesto@hefesto
+```
+
+Troque o nome antes de `@` para instalar outro plugin. Bragir é a dependência de voz de Mimyr. Abra uma nova sessão para carregar as skills. [Instalação, dependências e uso Codex](codex/README.md).
+
+## Como instalar no Claude Code
 
 Dentro do Claude Code:
 
@@ -94,7 +107,7 @@ Até a v3.1 do marketplace, essas skills eram locais do repo mimyr; foram promov
 | `orcamento` (skill) | O livro: despesas E receitas em CSVs mensais (`AAAA-MM.csv`, coluna `tipo`) em `Financas/hestia/orcamento/` no Google Drive + cadastro `recorrencias.csv`. Somas do mês e do cadastro por script determinístico (`resumo_mes.py`, `recorrencias.py`), sob golden test. BRL na tela, formato cru no arquivo, confirmação antes de toda escrita, zero conselho de investimento. |
 | `analisar-gastos` (skill) | O entendimento: evolução por categoria, variações fora do padrão (média + desvio), recorrências × realidade — tudo por script determinístico (`scripts/gastos.py`), sob golden test. 100% leitura; descreve, não prescreve. |
 | `/hestia:lancar` | Registra despesa ou receita (evita categorias duplicadas, confirma antes de gravar). |
-| `/hestia:abrir-mes` | Lança as recorrências do mês em lote, com uma confirmação e sem duplicar. |
+| `/hestia:abrir-mes` | Lança recorrências em lote com confirmação única do efeito completo, journal e reconciliação. |
 | `/hestia:recorrencias` | Gerencia contas fixas, assinaturas e parcelamentos. |
 | `/hestia:status` | Receitas, despesas, saldo do mês, quebra por categoria e comprometido restante. |
 | `/hestia:analisar` | Análise histórica dos gastos — só leitura. |

@@ -1,0 +1,80 @@
+{
+  "name": "hefesto",
+  "interface": {
+    "displayName": "Hefesto"
+  },
+  "plugins": [
+    {
+      "name": "hefesto",
+      "source": {
+        "source": "local",
+        "path": "./plugins/hefesto"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "bragir",
+      "source": {
+        "source": "local",
+        "path": "./plugins/bragir"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "mimyr",
+      "source": {
+        "source": "local",
+        "path": "./plugins/mimyr"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "hestia",
+      "source": {
+        "source": "local",
+        "path": "./plugins/hestia"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "hermes",
+      "source": {
+        "source": "local",
+        "path": "./plugins/hermes"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "odin",
+      "source": {
+        "source": "local",
+        "path": "./plugins/odin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

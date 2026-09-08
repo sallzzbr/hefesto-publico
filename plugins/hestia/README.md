@@ -18,7 +18,8 @@ Filosofia da fase atual: **entender antes de controlar**. O plugin registra bem 
 ## Commands
 
 - `/hestia:lancar` — registra despesa ou receita ("352,90 mercado crédito", "receita 5000 salário").
-- `/hestia:abrir-mes` — lança as recorrências do mês em lote, com uma confirmação e sem duplicar.
+- `/hestia:abrir-mes` — lança as recorrências em lote com confirmação única do efeito completo,
+  journal e reconciliação após falhas.
 - `/hestia:recorrencias` — lista/adiciona/edita/remove contas fixas, assinaturas e parcelamentos.
 - `/hestia:status` — receitas, despesas, saldo do mês, quebra por categoria e comprometido restante.
 - `/hestia:analisar` — análise histórica do orçamento (evolução, variações fora do padrão). Só leitura.

@@ -7,9 +7,9 @@
 // bump. Era prosa afirmando processo, a mesma família que o resto do cerco combate. E pegou o
 // próprio autor: o commit afbd9b8 mexeu em `plugins/odin/tests/` sem subir o odin.
 //
-// O que conta como mudança que exige bump: qualquer arquivo sob `plugins/<p>/`, EXCETO
-// `tests/`. Testes não são contrato publicado — quem instala o plugin não os executa —, e
-// exigir bump por teste transformaria o gate em pedágio que se aprende a contornar. A
+// O que conta como mudança que exige bump: qualquer arquivo sob `plugins/<p>/` ou
+// `codex/plugins/<p>/`, EXCETO `tests/`. Testes não são contrato publicado — quem instala o
+// plugin não os executa —, e exigir bump por teste transformaria o gate em pedágio que se aprende a contornar. A
 // fronteira é uma decisão, e está escrita aqui para poder ser discutida em vez de adivinhada.
 //
 // Segunda cobrança (2026-07-31): bump sem entrada de CHANGELOG. O furo real que a motivou:
@@ -46,13 +46,15 @@ try {
   process.exit(1);
 }
 
-// `plugins/<p>/...` sem `tests/` logo abaixo do plugin.
-const tocados = new Set();
+// A raiz completa distingue plugins homônimos das distribuições Claude e Codex.
+// `tests/` só fica isento quando está logo abaixo dessa raiz.
+const tocados = new Map();
 for (const arquivo of alterados) {
-  const m = /^plugins\/([^/]+)\/(.+)$/.exec(arquivo);
+  const m = /^((?:codex\/)?plugins\/[^/]+)\/(.+)$/.exec(arquivo);
   if (!m) continue;
   if (m[2].startsWith('tests/')) continue;
-  tocados.add(m[1]);
+  const manifesto = m[1].startsWith('codex/') ? '.codex-plugin' : '.claude-plugin';
+  tocados.set(m[1], `${m[1]}/${manifesto}/plugin.json`);
 }
 
 if (tocados.size === 0) {
@@ -60,9 +62,9 @@ if (tocados.size === 0) {
   process.exit(0);
 }
 
-function versaoEm(ref, plugin) {
+function versaoEm(ref, manifesto) {
   try {
-    const bruto = git('show', `${ref}:plugins/${plugin}/.claude-plugin/plugin.json`);
+    const bruto = git('show', `${ref}:${manifesto}`);
     return JSON.parse(bruto).version ?? null;
   } catch {
     return null; // plugin novo neste diff, ou removido
@@ -71,11 +73,12 @@ function versaoEm(ref, plugin) {
 
 const faltando = [];
 const semChangelog = [];
-for (const plugin of [...tocados].sort()) {
-  const antes = versaoEm(base, plugin);
+for (const plugin of [...tocados.keys()].sort()) {
+  const manifesto = tocados.get(plugin);
+  const antes = versaoEm(base, manifesto);
   if (antes === null) continue; // plugin novo: não há de onde bumpar
   const agora = JSON.parse(
-    readFileSync(resolve(RAIZ, `plugins/${plugin}/.claude-plugin/plugin.json`), 'utf8'),
+    readFileSync(resolve(RAIZ, manifesto), 'utf8'),
   ).version;
   if (antes === agora) {
     faltando.push({ plugin, versao: agora });
@@ -83,7 +86,7 @@ for (const plugin of [...tocados].sort()) {
   }
   // Bumpou. Se o plugin mantém CHANGELOG.md, a nova versão precisa ter entrada nele —
   // versão cuja explicação vive só na mensagem de merge é histórico que se perde no squash.
-  const changelog = resolve(RAIZ, `plugins/${plugin}/CHANGELOG.md`);
+  const changelog = resolve(RAIZ, `${plugin}/CHANGELOG.md`);
   if (!existsSync(changelog)) continue; // changelog é opt-in por plugin (ver cabeçalho)
   const linhas = readFileSync(changelog, 'utf8');
   const entrada = new RegExp(`^## ${agora.replaceAll('.', '\\.')}(\\s|$)`, 'm');
@@ -102,13 +105,14 @@ if (faltando.length > 0 || semChangelog.length > 0) {
   }
   console.error(
     '\nRegra em AGENTS.md: minor ao adicionar skill, patch pra ajuste, major pra quebra de\n' +
-    'contrato. Bump no `plugin.json` E na entrada correspondente do `marketplace.json`\n' +
-    '(o validar.mjs cobra a sincronia). Mudança só em `tests/` não exige bump — se o seu diff\n' +
-    'é só teste e este gate reprovou, algum arquivo fora de tests/ entrou junto.\n' +
+    'contrato. Bump no `plugin.json`; no Claude, sincronize também a entrada de versão\n' +
+    'do `marketplace.json`. O marketplace Codex não possui essa versão. Mudança só em `tests/`\n' +
+    'não exige bump — se o seu diff é só teste e este gate reprovou, algum arquivo\n' +
+    'fora de tests/ entrou junto.\n' +
     'Plugin que mantém CHANGELOG.md registra toda versão nova nele — a explicação da versão\n' +
     'não pode viver só na mensagem de merge.',
   );
   process.exit(1);
 }
 
-console.log(`plugins tocados: ${[...tocados].sort().join(', ')} — todos com bump. ok.`);
+console.log(`plugins tocados: ${[...tocados.keys()].sort().join(', ')} — todos com bump. ok.`);

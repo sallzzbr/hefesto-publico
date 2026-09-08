@@ -1,0 +1,13 @@
+{
+  "name": "hefesto-codex-checks",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "description": "Verificação de manutenção da distribuição Codex, sem dependências nem build de instalação.",
+  "scripts": {
+    "sync": "node scripts/sync-resources.mjs --write",
+    "validate": "node scripts/check.mjs",
+    "smoke:install": "node scripts/smoke-install.mjs",
+    "test": "npm run validate && node --test tests/*.test.mjs plugins/hefesto/tests/*.test.mjs"
+  }
+}
