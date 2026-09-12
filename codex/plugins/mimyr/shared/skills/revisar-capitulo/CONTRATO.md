@@ -9,6 +9,9 @@ description: "Review a Mimyr course chapter before publication. Use when checkin
 
 
 Review an existing chapter page and return actionable fixes before publication.
+Revisar produz achados e propostas; não altera o capítulo original. Só aplique correções
+quando o usuário já tiver autorizado a escrita. Pedido de revisão, inclusive antes de publicar,
+não autoriza remover `--dry-run` dos checks abaixo.
 
 ## Required reads
 
@@ -41,8 +44,12 @@ Para achados mecânicos em batch, os scripts em `${CLAUDE_PLUGIN_ROOT}/scripts/`
 
 - `corrigir_acentos.py <dir> --dry-run` — palavras sem acento no texto visível;
 - `remover_travessao.py <dir> --dry-run` — travessões na prosa (contrato da voz);
-- `melhorar_a11y.py <arquivo>` — aria-labels de navegação, scopes de tabela, table-wrap;
+- `melhorar_a11y.py <arquivo> --dry-run` — diff proposto de aria-labels de navegação, scopes de tabela e table-wrap, sem gravar;
 - `checar_svg_overflow.py <dir-do-curso>` — texto de SVG estourando o viewBox.
+
+Os dry-runs de correção retornam exit 0 mesmo quando encontram mudanças: leia o diagnóstico,
+não interprete o código como ausência de achados. Aplicar `melhorar_a11y.py <arquivo>` sem
+`--dry-run` grava o HTML e pertence ao caminho de correção autorizada, não ao check de revisão.
 
 ## Output format
 

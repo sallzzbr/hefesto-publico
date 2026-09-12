@@ -4,8 +4,9 @@
 // trava marcadores; aqui cada fix da revisão 1.0.1 é visto rodando.
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { appendFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -48,7 +49,7 @@ async function rodar({ args, overrides = {} }) {
     chamadas.push({ label: opts.label, opts, prompt });
     const fn = responder(opts.label, overrides);
     if (!fn) throw new Error(`label sem resposta no teste: ${opts.label}`);
-    return fn(opts, chamadas);
+    return fn(opts, chamadas, prompt);
   };
   const parallel = async (thunks) => Promise.all(thunks.map((t) => Promise.resolve().then(t).catch(() => null)));
   const fn = new AsyncFunction('args', 'agent', 'parallel', 'phase', 'log', corpoDoScript(FONTE));
@@ -93,9 +94,10 @@ test('rotas: diretor promovido a fable que não retorna cai pro opus e desliga a
   assert.match(resultado.modelos.porStep.rotas.modelo, /^opus/);
 });
 
-test('rotas: nenhum rough gerado escala — sem rough não há escolha visual', async () => {
+test('rotas: nenhum rough gerado interrompe — sem reconciliação não há escolha visual', async () => {
   const { resultado } = await rodar({ args: ROTAS, overrides: { 'rough:': () => ({ ok: false, artefatos: [], falhas: [{ comando: 'x', resumo: 'API caiu' }] }) } });
-  assert.equal(resultado.status, 'escalado');
+  assert.equal(resultado.status, 'erro');
+  assert.equal(resultado.requerReconciliacao, true);
   assert.equal(resultado.fase, 'Roughs');
 });
 
@@ -277,4 +279,93 @@ test('produzir: pacote que não grava é erro reinvocável com o parcial no rela
   assert.equal(resultado.status, 'erro');
   assert.equal(resultado.fase, 'Pacote');
   assert.equal(resultado.parcial.desfecho, 'verde');
+});
+
+// HH-03: o controlador real despacha um executor técnico que grava recibo no disco
+// ANTES de perder a resposta. O recibo é efeito local; não há modelo, API ou imagem.
+for (const estagio of ['rough', 'producao']) {
+  for (const retorno of ['null', 'excecao']) {
+    test(`${estagio}: efeito com ${retorno} não dispara fallback e exige reconciliação`, async t => {
+      const dir = mkdtempSync(join(tmpdir(), 'hermes-efeito-incerto-'));
+      t.after(() => rmSync(dir, { recursive: true, force: true }));
+      const recibo = join(dir, 'recibos.jsonl');
+      const chave = estagio === 'rough' ? 'rough:' : 'producao:';
+      const chamada = estagio === 'rough' ? 'rough:rota1' : 'producao:i1';
+      const { resultado, chamadas } = await rodar({
+        args: estagio === 'rough' ? ROTAS : { ...PRODUZIR, tiering: { modelos: { producao: 'opus' } } },
+        overrides: { [chave]: (opts) => {
+          if (opts.label !== chamada) return DEFAULTS[chave](opts);
+          appendFileSync(recibo, JSON.stringify({ chamada: opts.label, efeito: 'fixture-local' }) + '\n');
+          if (retorno === 'excecao') throw new Error('fixture: resposta perdida depois do efeito');
+          return null;
+        } },
+      });
+      assert.equal(readFileSync(recibo, 'utf8').trim().split('\n').length, 1, 'a perda de resposta não autoriza repetir um efeito');
+      assert.equal(resultado.status, 'erro');
+      assert.equal(resultado.requerReconciliacao, true);
+      assert.match(resultado.acao, /reconciliar/i);
+      assert.equal(chamadas.filter(c => c.label === chamada).length, 1);
+      assert.equal(labels(chamadas, 'selecao:').length, 0);
+      assert.equal(labels(chamadas, 'composicao:').length, 0);
+      assert.equal(labels(chamadas, 'pacote:').length, 0);
+      if (estagio === 'rough') {
+        assert.equal(resultado.parcial.geracoes[0].chamada, 'rough:rota1');
+        assert.equal(resultado.parcial.geracoes[0].comando, 'cmd1');
+        assert.equal(resultado.parcial.geracoes[0].resultado, null);
+        assert.deepEqual(resultado.parcial.geracoes[1].resultado.artefatos, ['rough:rota2.png']);
+      } else {
+        assert.equal(resultado.parcial.geracao.chamada, 'producao:i1');
+        assert.equal(resultado.parcial.geracao.resultado, null);
+        assert.equal(resultado.parcial.rodadasIa, 1);
+      }
+    });
+  }
+}
+
+for (const estagio of ['rough', 'producao']) {
+  test(`${estagio}: falha declarada preserva saídas parciais e interrompe antes da seleção`, async () => {
+    const falhas = [{ comando: 'fixture-gerar saida.png', resumo: 'resultado incerto após timeout' }];
+    const parcial = estagio === 'rough'
+      ? { ok: true, artefatos: ['rough-parcial.png'], falhas }
+      : { ok: true, candidatos: ['candidato-parcial.png'], falhas };
+    const { resultado, chamadas } = await rodar({
+      args: estagio === 'rough' ? ROTAS : PRODUZIR,
+      overrides: { [estagio === 'rough' ? 'rough:' : 'producao:']: () => parcial },
+    });
+    assert.equal(resultado.status, 'erro');
+    assert.equal(resultado.requerReconciliacao, true);
+    assert.deepEqual(estagio === 'rough' ? resultado.parcial.geracoes[0].resultado : resultado.parcial.geracao.resultado, parcial);
+    assert.equal(labels(chamadas, 'selecao:').length, 0);
+    assert.equal(labels(chamadas, 'composicao:').length, 0);
+  });
+
+  test(`${estagio}: falha conhecida sem efeito também não autoriza tentativa extra`, async () => {
+    const parcial = estagio === 'rough'
+      ? { ok: false, artefatos: [], falhas: [{ comando: 'fixture', resumo: 'executável ausente; nenhum processo iniciado' }] }
+      : { ok: false, candidatos: [], falhas: [{ comando: 'fixture', resumo: 'executável ausente; nenhum processo iniciado' }] };
+    const { resultado, chamadas } = await rodar({ args: estagio === 'rough' ? ROTAS : PRODUZIR, overrides: { [estagio === 'rough' ? 'rough:' : 'producao:']: () => parcial } });
+    assert.equal(resultado.status, 'erro');
+    assert.equal(resultado.requerReconciliacao, true);
+    assert.equal(labels(chamadas, estagio === 'rough' ? 'rough:' : 'producao:').length, estagio === 'rough' ? 2 : 1);
+  });
+
+  test(`${estagio}: instrução emitida limita cada comando a uma tentativa, inclusive falha`, async () => {
+    const { chamadas } = await rodar({ args: estagio === 'rough' ? ROTAS : PRODUZIR });
+    for (const chamada of labels(chamadas, estagio === 'rough' ? 'rough:' : 'producao:')) {
+      assert.doesNotMatch(chamada.prompt, /segunda vez|falhar 2x/);
+      assert.match(chamada.prompt, /não repita/i);
+      assert.match(chamada.prompt, /reconcili/i);
+    }
+  });
+}
+
+test('preflight: indisponibilidade mantém fallback seguro sem repetir produção de imagem', async () => {
+  let primeira = true;
+  const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: {
+    'preflight:': () => primeira ? (primeira = false, null) : DEFAULTS['preflight:'](),
+  } });
+  assert.equal(resultado.status, 'verde');
+  assert.equal(labels(chamadas, 'preflight:').length, 2);
+  assert.equal(labels(chamadas, 'producao:').length, 1);
+  assert.ok(resultado.fallbacks.some(f => f.step === 'preflight'));
 });

@@ -29,7 +29,7 @@ hardcode**. A skill `criativo-fluxo` injeta as bases resolvidas no harness via a
 |---|---|---|---|
 | `criativo_diretor` | `fable` \| `opus` | `fable` | Modelo do step `rotas` (diretor de arte). `opus` desliga a promoção a Fable. Fallback fable→opus é automático e desliga a promoção pelo run. |
 | `criativo_haiku` | `ligado` \| `desligado` | `ligado` | `desligado` → steps mecânicos (`roughs`, `composicao`, `preflight`, `pacote`) rodam em sonnet. Rollback de 1 linha se o haiku degradar. |
-| `criativo_produtor` | `sonnet` \| `opus` | `sonnet` | Promoção dos steps `producao`/`correcao` (montagem de prompt e tradução de correção). |
+| `criativo_produtor` | `sonnet` \| `opus` | `sonnet` | Promoção dos steps `producao`/`correcao`. Fallback só em `correcao`; produção sem retorno interrompe para reconciliação. |
 | `criativo_perfil` | `economico` \| `balanceado` \| `maximo` | `balanceado` | Nº de rotas (2/3/3) e de candidatos por rodada (2/3/4). |
 | `criativo_modelo_por_step` | `step=modelo` separados por vírgula | — | Override fino; passa por whitelist em código (`MODELOS_STEP`). Pedido fora do permitido é recusado e registrado em `modelos.recusados`. |
 | `criativo_effort_por_step` | `step=effort` separados por vírgula | — | Idem; steps de julgamento (`rotas`, `selecao`, `crit`, `confirmacao`) têm piso `high` — pedido abaixo do piso é recusado. |
@@ -51,3 +51,7 @@ haiku opt-in) · `producao` (produtor, sonnet→opus) · `selecao` (validador, o
 fixo) · `confirmacao` (validador, opus fixo) · `correcao` (produtor, sonnet→opus) · `pacote`
 (mecânico, haiku). Step desconhecido no override é recusado com registro — nunca aplicado em
 silêncio.
+
+Roughs e produção fazem uma chamada ao executor, sem fallback após falha ou retorno
+incerto. Tiering não autoriza repetir geração; reconciliar efeitos e revisar orçamento
+com o humano precede qualquer nova tentativa.

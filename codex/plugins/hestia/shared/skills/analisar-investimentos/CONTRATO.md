@@ -46,6 +46,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/rendimento.py \
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/meta.py \
   --metas <metas.csv> --acumulado "<nome da meta>=<valor>" [--movimentos <movimentos.csv>]
 
+# ritmo de uma meta em cadastro com varios potes: movimentos JA RECORTADOS para ela
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/meta.py \
+  --metas <metas.csv> --meta "<nome>" --acumulado <valor> \
+  --movimentos <movimentos-da-meta.csv> --movimentos-da-meta "<nome>"
+
 # simulação: projeção ou objetivo, sempre 3 cenários com as taxas que o usuário aceitou
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/juros_compostos.py projecao \
   --inicial <v> --aporte <v> --meses <n> --taxas 8,10,12
@@ -100,6 +105,12 @@ Três coisas que eles fazem e que você não deve desfazer na narração:
   usuário; não preencha o buraco com estimativa.
 - **`meta.py` exige `--acumulado` por meta.** Metas são potes distintos; reaproveitar o valor
   de uma na outra produziria progresso falso, e por isso o script para em vez de adivinhar.
+- **Ritmo também precisa de recorte por meta.** Com várias metas no cadastro, um histórico
+  global não pode ser aplicado integralmente a cada pote: o script mantém o progresso, mas
+  devolve ritmo/projeção indisponíveis. `--meta` apenas seleciona a meta, não filtra movimentos.
+  Use `--movimentos-da-meta "<nome>"` somente após materializar movimentos comprovadamente
+  atribuídos àquela meta; o flag declara o recorte, não o executa nem autoriza rateio inventado.
+  Sem informação para separar os potes, narre a ausência de base.
 - **`juros_compostos.py` não tem taxa default.** Premissa é decisão do usuário — proponha,
   espere o ok e só então rode. Taxa embutida seria a IA prevendo mercado, o que o guardrail
   proíbe.
@@ -116,7 +127,12 @@ Degradação com aviso (padrão da casa):
 - carteira vazia → explique e aponte `/hestia:carteira` para começar.
 
 Rendimento de um período = (saldo final − saldo inicial, via snapshots) − aportes + resgates do
-período. Diga sempre o período usado.
+intervalo efetivo dos snapshots de cada ativo. Diga sempre as datas efetivamente usadas;
+elas podem não cobrir toda a janela pedida. O script informa em `movimentos_fora_do_intervalo`
+os fluxos anteriores ao primeiro snapshot ou posteriores ao último; não os esconda nem some
+ao rendimento. Como os snapshots de prints não guardam horário, fluxo não nulo na mesma data
+de uma fronteira torna a ordem ambígua: o ativo vai para `sem_base_de_calculo` e seus fluxos
+para `fora_do_calculo`. Não presuma fechamento do dia nem recalcule por fora.
 
 ## Saídas
 

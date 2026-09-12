@@ -105,7 +105,10 @@ faz com esse sinal é `if` no script — uma vez sinalizada, a dependência não
 não tem apelação e o arquiteto não pode autorizá-la. Quem quer a dependência **escreve o porquê no
 código** (comentário no manifesto ou no ponto de uso), que é onde a justificativa serve pra quem
 vier depois. Duplicação e abstração de uso único viram findings normais, confirmados antes de
-virar retrabalho — e não são re-julgadas se já receberam veredito numa iteração anterior.
+virar retrabalho. Para o mesmo arquivo, alegação e cenário, o veredito é reaproveitado:
+uma refutação não paga novo confirmador, mas um sinal confirmado continua bloqueante enquanto
+a auditoria atual o apontar. Se o cenário mudar, exige novo veredito; se o sinal desaparecer
+da auditoria atual, deixa de bloquear. O cache não verifica mudança de código por si só.
 
 O **relato de escada** também é cobrado em código: unidade que fecha tocando arquivos e reporta
 `escada` vazia vira bloqueante na auditoria. E **auditoria, lente de revisão ou confirmador de
@@ -122,6 +125,22 @@ Duas ressalvas que o código impõe e a prosa não deve esconder:
 - **P14 tem uma porta lateral:** a rota mecânica nunca transforma fora-de-escopo em retrabalho,
   mas no perfil Máximo a lente R3 revisa o mesmo diff e *pode* reportar o mesmo trecho como
   bloqueante por P1. Se isso acontecer, é julgamento adversarial legítimo — não um bug.
+
+## Inspeção do trabalho sem escrita
+
+Auditoria e lentes recebem o comando concreto `inspecionar-git.mjs diff` em
+`${CLAUDE_PLUGIN_ROOT}/skills/dev-loop/scripts/`. Execute da raiz física do workspace com
+Node já disponível. A saída separa mudanças rastreadas contra HEAD, conteúdo staged e novos
+arquivos relatados pelo operário/testes. `novosNaoIncluidos` lista nomes cujo conteúdo ainda
+não foi lido: confronte com a SPEC e inclua somente arquivos autorizados em nova chamada.
+Resolva também `declaradosNaoInspecionados`: paths relatados ausentes/ignorados não foram lidos.
+Binários exigem inspeção própria. Falha do comando bloqueia a revisão; não equivale a diff
+vazio. O helper não faz staging nem escreve arquivos. Mudanças já commitadas exigem diff
+separado contra a base aprovada quando fizerem parte da entrega.
+
+O helper não prova a autorização dos paths, não detecta efeitos omitidos fora do Git e não
+isola o shell. O revisor nunca corrige, encena ou limpa o índice; o passo de commit pertence
+à `entregar`, que verifica todo o stage antes de prosseguir.
 
 ## 📋 A SPEC
 

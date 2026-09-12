@@ -21,6 +21,9 @@ Uso:
 
 `--acumulado` e o patrimonio ja acumulado para a meta (vem da carteira; meta nao e vinculada a
 ativo, entao quem decide o recorte e o chamador, nao este script).
+Com varias metas no cadastro, o historico global nao define o ritmo de cada pote.
+Para calcular uma meta selecionada, passe movimentos ja recortados e declare esse escopo
+com `--movimentos-da-meta <nome>`. O flag declara o recorte, nao filtra nem aloca dinheiro.
 """
 
 from __future__ import annotations
@@ -179,23 +182,38 @@ def main(argv=None) -> int:
     )
     p.add_argument("--meta", help="restringe a uma meta pelo nome")
     p.add_argument("--movimentos", help="movimentos.csv, para calcular o ritmo real")
+    p.add_argument("--movimentos-da-meta", help="declara que movimentos.csv foi recortado para esta unica meta")
     p.add_argument("--hoje", help="AAAA-MM-DD; default = data do sistema")
     args = p.parse_args(argv)
 
     try:
         hoje = iso(args.hoje, "--hoje") if args.hoje else date.today()
         metas = ler_csv(args.metas, ["meta", "valor_alvo", "data_alvo"], "metas.csv")
+        varias_metas = len(metas) > 1
         if args.meta:
             metas = [m for m in metas if m["meta"] == args.meta]
             if not metas:
                 raise ErroDeEntrada(f"--meta: nenhuma meta chamada {args.meta!r} no arquivo")
 
         acumulados = resolver_acumulados(args.acumulado, metas)
+        if args.movimentos_da_meta and (
+            not args.movimentos or len(metas) != 1 or args.movimentos_da_meta != metas[0]["meta"]
+        ):
+            raise ErroDeEntrada(
+                "recorte --movimentos-da-meta exige --movimentos e uma unica meta selecionada com o mesmo nome"
+            )
 
         ritmo, motivo = (None, "movimentos.csv nao informado")
         if args.movimentos:
             movs = ler_csv(args.movimentos, ["data", "ativo", "operacao", "valor"], "movimentos.csv")
-            ritmo, motivo = ritmo_observado(movs, hoje)
+            if varias_metas and not args.movimentos_da_meta:
+                motivo = (
+                    "cadastro com varias metas: historico sem recorte por meta; "
+                    "--meta so seleciona o pote, nao aloca movimentos. Para calcular ritmo, "
+                    "forneca movimentos recortados e declare --movimentos-da-meta <nome>"
+                )
+            else:
+                ritmo, motivo = ritmo_observado(movs, hoje)
 
         avaliadas = [avaliar(l, acumulados[l["meta"]], ritmo, motivo, hoje) for l in metas]
     except ErroDeEntrada as e:

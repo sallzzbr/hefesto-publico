@@ -53,6 +53,7 @@ A geração usa os contratos das skills nativas escrever-capitulo e revisar-capi
 
 ```json
 {
+  "workspaceRoot": "<raiz absoluta real do workspace>",
   "cursoDir": "<diretório real do curso no workspace>",
   "estruturaPath": "<cursoDir>/estrutura.md",
   "perfil": "balanceado",
@@ -64,7 +65,9 @@ A geração usa os contratos das skills nativas escrever-capitulo e revisar-capi
 
 Expanda todos os marcadores e use cwd do workspace. cursoDir/estruturaPath podem ser relativos ao cwd real, mas prefira absolutos para não perder contexto entre subagentes. Confirme templates de curso/módulo/subpágina, voz local, manifesto e perfis de personas, Bragir e Python/dependências antes de invocar; bootstrap é decisão do workspace e não efeito implícito da skill. Transcrição é dependência distinta com Whisper/ffmpeg.
 
-Aprovação da estrutura é humana e precede prosa. `Status: aprovada` é marca literal obrigatória; cada capítulo tem arquivo único, objetivo, critérios verificáveis, fontes, tom/personas, pré-requisitos e non-goals. Arquivo existente sem `reescrever: true` autorizado bloqueia. Shells compartilhados são criados uma vez fora do harness.
+Aprovação da estrutura é humana e precede prosa. `Status: aprovada` é marca literal obrigatória; cada capítulo tem arquivo único, objetivo, critérios verificáveis, fontes, tom/personas, pré-requisitos e non-goals. Arquivo existente sem `reescrever: true` autorizado bloqueia. O controlador recusa IDs vazios/repetidos, objetivo vazio, critérios vazios e destinos coincidentes antes dos escritores. Shells compartilhados são criados uma vez fora do harness.
+
+`arquivo` é relativo ao curso. Cada escritor relata paths absolutos ou relativos ao workspace; se relatar paths relativos ao curso, deve declarar `baseArquivosTocados: "curso"` na resposta. O padrão é `"workspace"`; não se tenta outra base para fazer o relato coincidir. `workspaceRoot` permite comparar paths relativos com absolutos; sem a base necessária, a validação bloqueia. A comparação exige identidade lexical completa, sem traversal. Antes de despachar, a sessão inspeciona os paths físicos e symlinks. O controlador não tem filesystem: não detecta aliases físicos, corridas ou arquivos omitidos no relato e não constitui sandbox de escrita.
 
 Econômico: capítulos sequenciais e lente didática; balanceado: até 4 simultâneos, didática+voz; máximo acrescenta precisão técnica. Piso de chamadas `1 + iterações × (capítulos + lentes + 1)`, confirmações extras. Máximo 3 iterações; nenhum perfil dispensa portão, checks ou independência. Check/lente/confirmador que não retorna aborta; escrita fora do próprio capítulo é bloqueante automático.
 

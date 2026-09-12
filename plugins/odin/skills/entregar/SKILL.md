@@ -212,12 +212,28 @@ Com as fases aprovadas, rodar em paralelo (após OK): lint, typecheck, testes, b
 
 ### Step 9 — Commit (PEDIR OK — NUNCA sem autorização)
 
-Mostrar a mensagem (`<type>(<scope>): <subject>` + body opcional) via `AskUserQuestion`. Após OK explícito:
+Antes de preparar o commit, inspecione TODO o índice com
+`git diff --cached --no-ext-diff --no-textconv` e a lista de paths. Preserve qualquer conteúdo
+preexistente: se for alheio ao escopo ou a origem de um trecho estiver incerta, pare e resolva
+com o humano. Não remova do stage, sobrescreva ou inclua silenciosamente alterações de outra
+tarefa. Mesmo um path autorizado pode conter trechos anteriores não autorizados.
+
+Mostre a lista exata de arquivos, o diff proposto e a mensagem
+(`<type>(<scope>): <subject>` + body opcional) via `AskUserQuestion`. Após OK explícito,
+substitua os marcadores abaixo por paths literais e JSON com quoting correto. Use lista de
+arquivos, não diretórios/globs; rename exige origem e destino. Exclua o path resolvido de
+pendências, segredos e arquivos alheios. Então:
 
 ```bash
-git add <paths-específicos>   # NUNCA git add -A nem git add .
-git commit -m "<mensagem + Co-Authored-By: Claude <noreply@anthropic.com>>"
+git --literal-pathspecs add -- <paths-específicos>   # NUNCA git add -A nem git add .
+node "${CLAUDE_PLUGIN_ROOT}/skills/dev-loop/scripts/inspecionar-git.mjs" staged '<array JSON dos paths autorizados>' &&
+  git commit -m "<mensagem + Co-Authored-By: Claude <noreply@anthropic.com>>"
 ```
+
+O helper lê todos os paths staged, sem alterar o índice: stage vazio ou arquivo fora da
+lista retorna exit 1 e impede o commit encadeado. Preserve o diagnóstico e resolva a causa;
+não contorne o veto. A conferência de paths complementa a leitura do diff, não aprova seu
+conteúdo. Confira novamente se algum processo alterar o índice entre a revisão e o commit.
 
 Registrar a entrada `[Step 9]` no Log **com o hash curto** do commit — é o que permite casar Log e `git log` numa retomada (mensagem de commit não serve: rebase/squash/amend a reescrevem).
 

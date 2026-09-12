@@ -3,6 +3,10 @@
 > Histórico anterior à 0.12.2 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 0.12.5 — 2026-09-09
+
+- Rendimento usa a janela efetiva de snapshots por ativo, informa fluxos externos e recusa ordem intradiária incerta. Ritmo de metas não replica fluxo global entre potes: cadastro com várias metas exige recorte declarado para uma meta, preservando progresso sem projeção quando ausente.
+
 ## 0.12.4 — 2026-09-06 (correções dos testes Codex)
 
 - Análise de mercado exclui linhas sem quantidade/preço unitário das comparações e informa os campos ausentes, preservando o gasto. Quantidades e desvios usam a unidade-base do catálogo, explicitada no resultado. Quantidades pequenas preservam precisão suficiente para não aparecerem como zero.

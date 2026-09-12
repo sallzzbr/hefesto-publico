@@ -26,17 +26,24 @@ const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PLUGINS = join(RAIZ, 'plugins');
 
 // Pisos anti-regressão, não metas. Suba junto ao adicionar suíte.
-const PISO_ARQUIVOS = 14;
-// hefesto nominalmente: é a suíte comportamental que sustenta o mutation score, e o
-// stryker.conf.json já a nomeia por path literal. Mesma enumeração, não uma segunda.
-const PISO_ARQUIVOS_HEFESTO = 5;
-// Piso EXATAMENTE na contagem atual (161 desde 2026-09-08: inclui dez regressões do gate de bump Claude/Codex), não abaixo dela: diferente do mutation score, que
+const PISO_ARQUIVOS = 16;
+// Suítes da Forja e guards do repositório; arquivos complementam o piso de testes.
+const PISO_ARQUIVOS_HEFESTO = 6;
+// Piso EXATAMENTE na contagem atual (232 na distribuição pública desde 2026-09-11: inclui 19 regressões do guard de mutantes), não abaixo dela: diferente do mutation score, que
 // tem ruído e por isso ganha folga, contagem de teste é determinística — qualquer queda é
 // perda real. Um piso "com margem" reabriria o furo: com piso 25, esvaziar os dois arquivos
 // do odin dava 23 reais + 2 passes de arquivo vazio = 25, e passava. Verificado.
 // Ao adicionar teste, o piso continua satisfeito; ao remover de propósito, baixe aqui no
 // mesmo commit e diga por quê.
-const PISO_TESTES = 161;
+const PISO_TESTES = 232;
+// Publicador e suíte são privados. O package privado solicita a flag; o scrub a
+// remove do package público. Path literal ausente falha, sem skip por existência.
+const PISO_TESTES_PUBLICACAO = 21;
+const argumentos = process.argv.slice(2);
+if (argumentos.length > 1 || (argumentos.length === 1 && argumentos[0] !== '--publicacao')) morrer('uso: testes-node.mjs [--publicacao]');
+const comPublicacao = argumentos.length === 1;
+const pisoArquivos = PISO_ARQUIVOS + (comPublicacao ? 1 : 0);
+const pisoTestes = PISO_TESTES + (comPublicacao ? PISO_TESTES_PUBLICACAO : 0);
 
 function varrer(dir) {
   let achados = [];
@@ -64,11 +71,12 @@ const plugins = readdirSync(PLUGINS, { withFileTypes: true })
   .map((e) => e.name);
 
 const arquivos = plugins.flatMap((p) => varrer(join(PLUGINS, p, 'tests'))).sort();
+if (comPublicacao) arquivos.push(join(RAIZ, 'scripts/tests/publicacao.test.mjs'));
 const doHefesto = arquivos.filter((a) => a.includes(`${join('plugins', 'hefesto')}`));
 
-if (arquivos.length < PISO_ARQUIVOS) {
+if (arquivos.length < pisoArquivos) {
   morrer(
-    `${arquivos.length} arquivo(s) de teste node encontrado(s), piso é ${PISO_ARQUIVOS}. ` +
+    `${arquivos.length} arquivo(s) de teste node encontrado(s), piso é ${pisoArquivos}. ` +
     'Descoberta vazia ou reduzida faria o job passar sem executar as suítes.',
   );
 }
@@ -101,11 +109,11 @@ if (!m) {
   );
 }
 const passaram = Number(m[1]);
-if (passaram < PISO_TESTES) {
+if (passaram < pisoTestes) {
   morrer(
-    `${passaram} teste(s) passaram, piso é ${PISO_TESTES}. Arquivos de teste vazios ou ` +
+    `${passaram} teste(s) passaram, piso é ${pisoTestes}. Arquivos de teste vazios ou ` +
     'esvaziados satisfazem qualquer contagem de arquivo e não executam asserção nenhuma.',
   );
 }
 
-console.log(`\n${arquivos.length} arquivo(s), ${passaram} teste(s) — pisos ${PISO_ARQUIVOS}/${PISO_ARQUIVOS_HEFESTO}/${PISO_TESTES} ok.`);
+console.log(`\n${arquivos.length} arquivo(s), ${passaram} teste(s) — pisos ${pisoArquivos}/${PISO_ARQUIVOS_HEFESTO}/${pisoTestes} ok.`);

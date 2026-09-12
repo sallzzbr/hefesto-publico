@@ -217,6 +217,11 @@ O que este arquivo guarda é a **explicação** — o porquê de cada comando te
   O piso de testes fica **exatamente na contagem atual**, sem folga: contagem de teste é
   determinística, então qualquer queda é perda real. Com folga o furo reabre — no piso 25,
   esvaziar dois arquivos dava 23 reais + 2 passes de arquivo vazio = 25, e passava.
+- **Teste do publicador é privado.** O `test:node` privado passa `--publicacao` ao runner,
+  que acrescenta `scripts/tests/publicacao.test.mjs` por path literal e soma seu piso de
+  execução ao das suítes públicas. Ausência, arquivo vazio ou queda de casos reprova.
+  O scrub retira essa opção somente do package do stage, pois publicador e teste não são
+  distribuídos. Não decidir executar ou pular a suíte pela existência do arquivo-alvo.
 - **Harness tem teste COMPORTAMENTAL, não só grep de marcador.** `plugins/odin/tests/
   harness-dev-loop.test.mjs` embrulha o corpo do `loop.mjs` num `AsyncFunction` com os globals
   do Workflow (`args`, `agent`, `parallel`, `phase`, `log`) e um `agent` falso por `label`;
@@ -231,9 +236,11 @@ O que este arquivo guarda é a **explicação** — o porquê de cada comando te
   lento ou instável em QUALQUER plugin bloqueia PR de todos. Preço aceito.
 - **`npm run mutation` tem guarda antes e depois.** `premutation` checa que o alvo existe;
   `postmutation` (`scripts/verificar-mutantes.mjs`) lê o relatório JSON e cobra um piso de
-  mutantes **contabilizáveis** (≥900 sobre baseline de 1154). O `thresholds.break` protege
-  contra score baixo e **nunca** contra score ausente — as duas portas para `NaN` são o alvo
-  sumir e os mutantes serem ignorados, e cada uma tem a sua guarda.
+  mutantes **contabilizáveis** (≥900 sobre baseline de 1154): somente Killed, Timeout,
+  Survived e NoCoverage. Ignored, CompileError e RuntimeError ficam fora do denominador;
+  Pending, status ausente/desconhecido e estrutura inválida reprovam o relatório. O guard
+  exige score finito e volume, enquanto `thresholds.break` continua responsável por score
+  baixo. Erro operacional não comprova mutation executada, mesmo se Stryker sair 0.
 - **Por que a descoberta aqui é recursiva e no `stryker.conf.json` são paths literais** (os
   dois rodam `node --test`, e a doutrina é oposta de propósito): o runner do CI precisa
   **abrir** — suíte que não entra é cobertura perdida em silêncio. O runner do Stryker precisa
@@ -317,6 +324,12 @@ privado, gerado por `scripts/publicar-espelho.sh`. Regras que o script impõe (n
 3. **Inventário positivo:** `scripts/espelho-publico.json` lista cada arquivo aprovado, os caminhos internos excluídos e os arquivos que o scrub gera. `scripts/espelho.mjs exportar` lê a política e os blobs do commit, recusa arquivo não classificado, entrada ausente, symlink ou submódulo e só então cria o stage. Ao adicionar arquivo publicável, revise seu conteúdo e acrescente o path ao inventário; não gere a lista automaticamente no publicador.
 4. **Scrubs** continuam determinísticos para fixtures, CI e templates. O guard `scripts/espelho.mjs verificar` exige inventário completo e lê todos os arquivos; erro de leitura reprova. A marca de origem do Hermes é retenção deliberada somente no README raiz e no CHANGELOG Hermes. O guard não prova ausência de todo dado pessoal possível: revisar conteúdo de arquivos aprovados e retenções ainda faz parte da publicação.
 5. O stage roda `npm run validar`, `npm test` (todas as suítes Node e Python), `npm --prefix codex test` e o gate de bump das duas distribuições antes de qualquer push. Não instala dependências automaticamente: use o ambiente de desenvolvimento já preparado. Vermelho no stage = nada publicado.
+6. Sem mudança de conteúdo, a retomada confere tags públicas/privadas e Release e conclui
+   somente o que falta. Tags divergentes e falhas operacionais de consulta ou push abortam.
+   O dry-run relata pendências sem alterar refs privadas ou remotas; pode criar commit no
+   clone descartável para o gate de bump. Comparação de conteúdo usa checksum, não apenas
+   tamanho e horário. A retomada requer o mesmo HEAD privado da versão e faz parte de uma
+   publicação autorizada; um dry-run ou teste de fixture não concede essa autorização.
 
 `CLAUDE.md` na raiz só importa este arquivo (`@AGENTS.md`): o Claude Code carrega `CLAUDE.md`,
 não `AGENTS.md`. Não duplique conteúdo lá.

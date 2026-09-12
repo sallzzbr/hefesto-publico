@@ -99,7 +99,9 @@ harness** — capítulo sem critério = portão aberto = nada escreve (o harness
 Por capítulo, registre ANTES de qualquer prosa:
 
 - `id` e `titulo`; `arquivo` (relativo ao curso, ex.: `modulo-1/o-que-e.html` — **disjunto**
-  dos demais, é o que permite escritores em paralelo);
+  dos demais, é o que permite escritores em paralelo). O controlador rejeita IDs repetidos,
+  objetivos/critérios vazios ou em branco, paths absolutos/traversal na estrutura e destinos
+  lexicais repetidos, mesmo quando o extrator informa `ok: true`;
 - **objetivo de aprendizagem** — UM learning job;
 - **critérios verificáveis** — checklist que uma revisão consegue julgar;
 - **pré-requisitos** — o que assume que os capítulos anteriores ensinaram (o contrato entre
@@ -132,7 +134,8 @@ e não monte `tiering`**: os defaults embutidos do script já são o comportamen
 | **Máximo** | curso técnico denso, material novo, muitos módulos | escritores em paralelo · 3 lentes (+ precisão técnica) |
 
 Invariantes que NENHUM perfil remove (estão no script): portão de estrutura fechado, escritor
-não toca arquivo fora do seu capítulo (bloqueante automático em código), teto de 3 iterações,
+tem cada path relatado comparado com o destino completo do seu capítulo (bloqueante automático
+em código), teto de 3 iterações,
 revisor nunca é o autor, checks mecânicos em toda iteração, lente/confirmação/checks que não
 retornam ABORTAM o run (fail-closed, reinvocável), e **Haiku somente nos steps mecânicos
 whitelisted em código** — `checks` por default e `estrutura` (validação de formato) só sob
@@ -157,6 +160,7 @@ Workflow({
   scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/gerar-curso/harness/curso.mjs",
   args: {
     cursoDir: "./courses/<curso>",
+    workspaceRoot: "<cwd absoluto da sessão>",          // necessário para misturar relativo/absoluto
     estruturaPath: "./courses/<curso>/estrutura.md",   // já APROVADA (Status: aprovada)
     perfil: "economico" | "balanceado" | "maximo",
     scriptsDir: "<${CLAUDE_PLUGIN_ROOT}/scripts JÁ EXPANDIDO>",  // o script não tem filesystem/env
@@ -169,6 +173,20 @@ Workflow({
   }
 })
 ```
+
+**Identidade de paths:** `arquivo` na estrutura é relativo ao curso. No relato do escritor,
+`arquivosTocados` usa paths absolutos ou relativos ao workspace por padrão; para usar paths
+relativos ao curso, o escritor declara `baseArquivosTocados: "curso"`. O controlador nunca
+tenta adivinhar entre duas bases. `workspaceRoot` é opcional quando curso e relatos já usam a
+mesma base, mas necessário para comparar curso relativo com relato absoluto, ou o contrário.
+Sem base suficiente, o relato fica bloqueante em vez de ser aceito por sufixo.
+
+A guarda compara identidade **lexical declarada**. O Workflow não tem filesystem: não resolve
+symlinks, não verifica diferenças de capitalização do volume e não descobre arquivos omitidos
+pelo escritor. Antes de despachar, a sessão confere no disco se destinos e pais resolvem dentro
+do curso, se dois paths designam o mesmo arquivo físico e se um arquivo existente tem
+`reescrever: true` autorizado. Repita a inspeção se algum path mudar. Isso é inspeção do
+executor, não confinamento preventivo do harness nem garantia contra corrida de filesystem.
 
 Steps: `estrutura`, `escrever`, `checks`, `lente`, `confirmacao`. Fallbacks são do script:
 chamada promovida (escrever=opus) que não retorna cai pro piso sonnet e desliga a promoção

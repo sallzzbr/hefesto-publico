@@ -182,7 +182,8 @@ const tentar = async (prompt, opts) => { try { return await agent(prompt, opts) 
 // pelo resto do run; chamada rebaixada pra haiku que não retorna repete UMA vez no produtor
 // (Sonnet, piso do papel executor) e desliga o haiku. O registro não afirma culpa —
 // indisponibilidade, schema inválido e timeout são indistinguíveis aqui. Um null JÁ NO PISO
-// segue o tratamento normal do step (fail-closed de quem chamou).
+// segue o tratamento normal do step (fail-closed de quem chamou). Roughs e produção
+// são exceções: podem ter gasto API antes de perder o retorno; nunca recebem fallback.
 const fallbacksModelo = []
 let haikuMorto = false
 let promocaoDiretorMorta = false
@@ -214,6 +215,11 @@ async function chamarDiretor(step, prompt, opts) {
 async function chamarProdutor(step, prompt, opts) {
   const t = TIERING[step]
   const base = { ...PRODUTOR, ...(t.effort ? { effort: t.effort } : {}), ...opts }
+  if (step === 'producao') {
+    // Retorno perdido não distingue indisponibilidade de geração já efetuada.
+    registrarExec(step, t.modelo)
+    return await tentar(prompt, { ...base, ...(t.modelo === 'opus' ? { model: 'opus' } : {}) })
+  }
   if (t.modelo === 'haiku' && !haikuMorto) {
     const r = await tentar(prompt, { ...base, ...MECANICO })
     if (r) { registrarExec(step, 'haiku'); return r }
@@ -237,6 +243,10 @@ async function chamarProdutor(step, prompt, opts) {
 async function chamarMecanico(step, prompt, opts) {
   const t = TIERING[step]
   const base = { ...PRODUTOR, ...(t.effort ? { effort: t.effort } : {}), ...opts }
+  if (step === 'roughs') {
+    registrarExec(step, t.modelo)
+    return await tentar(prompt, { ...base, ...(t.modelo === 'haiku' ? MECANICO : {}) })
+  }
   if (t.modelo === 'haiku' && !haikuMorto) {
     const r = await tentar(prompt, { ...base, ...MECANICO })
     if (r) { registrarExec(step, 'haiku'); return r }
@@ -252,6 +262,21 @@ async function chamarMecanico(step, prompt, opts) {
 
 // Validador é opus SEMPRE (MODELOS_STEP não permite outro modelo) — só o effort é configurável.
 const chamarValidador = (step, prompt, extra) => { registrarExec(step, 'opus'); return tentar(prompt, { ...VALIDADOR, ...(TIERING[step].effort ? { effort: TIERING[step].effort } : {}), ...extra }) }
+
+// Uma tentativa por comando de geração. O controlador não conhece o estado da API;
+// o executor preserva as evidências e o humano reconcilia antes de autorizar outra.
+const POLITICA_GERACAO = `Execute cada comando no máximo UMA vez. Não repita em falha,
+      timeout, resposta vazia ou perda de conexão, mesmo que nenhum arquivo tenha aparecido.
+      Pare de iniciar gerações ao detectar falha; aguarde somente as já iniciadas. Preserve
+      arquivos, logs e recibos disponíveis, sem credenciais. Reporte comandos, saídas parciais
+      e falhas observadas; resultado incerto exige reconciliar antes de qualquer nova tentativa.`
+function falhaGeracao(fase, detalhe, parcial) {
+  return {
+    status: 'erro', fase, detalhe, parcial, requerReconciliacao: true,
+    fallbacks: fallbacksModelo, modelos: relatorioModelos(),
+    acao: 'preservar arquivos, logs, recibos e respostas parciais; reconciliar os efeitos reais com o humano antes de retomar. Não reinvocar geração nem trocar de executor para repetir. Outra tentativa exige decisão humana e orçamento revisto; o harness não oferece transação sobre a API',
+  }
+}
 
 // ── Fase 0: args válidos (falha barata antes de gastar agente) ───────────────
 let ARGS = args
@@ -396,19 +421,25 @@ if (ARGS.estagio === 'rotas') {
       os paths relativos do comando resolvem a partir dele; se não resolverem, reporte falha em
       vez de procurar o workspace em outro lugar.
       ok=true SOMENTE se o arquivo de saída existe. artefatos = [path do arquivo gerado].
-      Se o comando falhar, rode-o UMA segunda vez antes de reportar falha (API de imagem oscila).
+      ${POLITICA_GERACAO}
       Não ajuste flag nenhuma.`,
       { label: `rough:rota${r.n}`, phase: 'Roughs', schema: EXEC_SCHEMA }
     )
   ))
+  const geracoes = dir.rotas.map((r, i) => ({
+    chamada: `rough:rota${r.n}`, comando: r.comandoRough, resultado: roughs[i] || null,
+  }))
+  // O lote já iniciado pode terminar; nenhuma rota segue enquanto existir efeito incerto.
+  if (geracoes.some(({ resultado: r }) => !r || !r.ok || !r.artefatos?.length || r.falhas?.length)) {
+    return falhaGeracao('Roughs', 'rough sem confirmação de sucesso ou com falha declarada', {
+      rotasPath: dir.artefatoPath, geracoes,
+    })
+  }
   const rotasComRough = dir.rotas.map((r, i) => {
     const res = roughs[i]
     const okRough = !!(res && res.ok && res.artefatos && res.artefatos.length > 0)
     return { n: r.n, nome: r.nome, arquetipo: r.arquetipo, referencia: r.referencia, porque: r.porque, rough: okRough ? res.artefatos[0] : null, falha: okRough ? null : (res && res.falhas && res.falhas.length ? res.falhas[0].resumo : 'o mecânico do rough não retornou') }
   })
-  if (rotasComRough.every(r => !r.rough)) {
-    return { status: 'escalado', fase: 'Roughs', detalhe: rotasComRough, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'nenhum rough foi gerado (API de imagem/venv indisponível?) — sem rough não há escolha VISUAL de rota; corrigir o setup com o humano e reinvocar' }
-  }
 
   return {
     status: 'aguardando-rota',
@@ -418,7 +449,7 @@ if (ARGS.estagio === 'rotas') {
     prancheta: dir.prancheta || null,
     rotas: rotasComRough,
     fallbacks: fallbacksModelo, modelos: relatorioModelos(),
-    proximo: `a skill mostra os roughs ao humano (Read nos PNGs), ele escolhe VENDO; a skill grava rota_aprovada: <n> (e aprovada_em: data) no frontmatter de ${dir.artefatoPath} e reinvoca o harness com {estagio: 'produzir', rotasPath}. Rough indisponível de uma rota não impede escolher outra.`,
+    proximo: `a skill mostra os roughs ao humano (Read nos PNGs), ele escolhe VENDO; a skill grava rota_aprovada: <n> (e aprovada_em: data) no frontmatter de ${dir.artefatoPath} e reinvoca o harness com {estagio: 'produzir', rotasPath}. Falhas de geração exigem reconciliação antes de prosseguir.`,
   }
 }
 
@@ -464,7 +495,7 @@ if (!portao.rota || !portao.rota.arquetipo || !portao.rota.slug || !portao.rota.
 // Enforcement da aprovação VISUAL (a headline da fase, antes só em prosa — finding #6, 1.0.1):
 // rota aprovada cujo rough não existe no disco = escolha às cegas; o harness recusa.
 if (portao.roughExiste === false) {
-  return { status: 'bloqueado', fase: 'Portão', detalhe: 'a rota aprovada não tem rough no disco — a escolha de rota é VISUAL, não textual', acao: 'gerar o rough da rota (re-rodar o estágio rotas, ou executar o comando_rough dela à mão) e aprovar VENDO; não existe atalho pra aprovar sem rough — se o rough é impossível no ambiente (ex.: gerador indisponível), troque de rota ou corrija o setup', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+  return { status: 'bloqueado', fase: 'Portão', detalhe: 'a rota aprovada não tem rough no disco — a escolha de rota é VISUAL, não textual', acao: 'conferir arquivos, logs e recibos; se já houve tentativa, reconciliar seu efeito antes de autorizar outra geração com o humano. Só aprovar VENDO o rough; sem ele, trocar de rota ou corrigir o setup. Arquivo ausente não prova ausência de efeito na API', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
 }
 
 const rota = portao.rota
@@ -567,12 +598,16 @@ while (iteracao < MAX_ITERACOES && !verde) {
       REGRA DE CWD: execute tudo a partir do cwd ATUAL da sessão, sem cd — paths relativos
       resolvem a partir dele; se não resolverem, reporte falha em vez de procurar o workspace.
       Execute as ${n} gerações, confirme que cada arquivo existe, e liste em candidatos SÓ os
-      que existem. Comando que falhar 2x → entra em falhas. Texto NUNCA na imagem gerada.`,
+      que existem. ${POLITICA_GERACAO}
+      Texto NUNCA na imagem gerada.`,
       { label: `producao:i${iteracao}`, phase: 'Produzir', schema: PRODUCAO_SCHEMA }
     )
-    if (!prod) return { status: 'erro', fase: 'Produzir', iteracao, detalhe: 'o produtor não retornou', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'reinvocar com resumeFromRunId' }
-    if (!prod.ok || prod.candidatos.length === 0) {
-      return await escaladoComPacote('Produzir', { motivo: prod.motivo, falhas: prod.falhas }, 'nenhum candidato gerado (API de imagem/chave/venv?) — corrigir o setup com o humano e reinvocar')
+    if (!prod || !prod.ok || !prod.candidatos?.length || prod.falhas?.length) {
+      return falhaGeracao('Produzir', 'produção sem confirmação de sucesso ou com falha declarada', {
+        iteracao, rodadasIa, rotasPath: ARGS.rotasPath,
+        geracao: { chamada: `producao:i${iteracao}`, resultado: prod || null },
+        candidatosTodos, baseEscolhida, renderAtual, historico, findingsJulgados,
+      })
     }
     candidatosTodos.push(...prod.candidatos.map(c => ({ iteracao, path: c })))
 

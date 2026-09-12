@@ -218,8 +218,7 @@ def test_csv_com_ponto_e_virgula_entre_aspas_nao_desloca_colunas():
 # --- metas -------------------------------------------------------------------------------
 
 def test_golden_meta():
-    """Reproduz o exemplo escrito no proprio SKILL.md: aporte de R$ 800 -> ~R$ 1.050,
-    chegada em set/2027, 3 meses depois do alvo. Se este golden mudar, a skill mente."""
+    """Progresso de dois potes permanece; historico global nao inventa ritmo por meta."""
     conferir("meta", rodar(
         "meta.py",
         "--metas", str(GOLDEN / "metas.csv"),
@@ -242,6 +241,7 @@ def test_ritmo_exige_tres_meses():
     """Com 3 meses de movimento o ritmo sai; com menos, tem que sair null e dizer o porque."""
     com = rodar("meta.py", "--metas", str(GOLDEN / "metas.csv"), "--meta", "Reserva de emergência",
                 "--acumulado", "18400",
+                "--movimentos-da-meta", "Reserva de emergência",
                 "--movimentos", str(GOLDEN / "movimentos.csv"), "--hoje", "2026-07-28")
     assert com["metas"][0]["ritmo_mensal"] is not None
 
@@ -268,3 +268,116 @@ def test_meta_atingida():
 ])
 def test_entrada_invalida_sai_1(args):
     assert "ERRO" in falhar(args[0], *args[1:])
+
+
+# P1: expectativas calculadas sem usar helpers do produto.
+@pytest.mark.parametrize("dia,esperado", [
+    ("2026-02-03", "0.00"),  # aporte ja incorporado ao saldo inicial
+    ("2026-02-12", "-200.00"),
+    ("2026-02-25", "0.00"),  # aporte ainda fora do saldo final
+])
+def test_p1_rendimento_alinha_fluxos_aos_snapshots(tmp_path, dia, esperado):
+    snaps = tmp_path / "snap.csv"
+    snaps.write_text("data;ativo;saldo\n2026-02-08;Pote;1200,00\n2026-02-20;Pote;1200,00\n")
+    movs = tmp_path / "mov.csv"
+    movs.write_text(f"data;ativo;operacao;valor\n{dia};Pote;aporte;200,00\n")
+    r = rodar("rendimento.py", "--snapshots", str(snaps), "--movimentos", str(movs),
+              "--inicio", "2026-02-01", "--fim", "2026-02-28")
+    assert r["total"]["rendimento"] == esperado
+    assert r["por_ativo"][0]["rendimento"] == esperado
+    if esperado == "0.00":
+        assert r["movimentos_fora_do_intervalo"][0]["aportes"] == "200.00"
+        assert r["movimentos_fora_do_intervalo"][0]["quantidade"] == 1
+
+
+@pytest.mark.parametrize("dia", ["2026-02-08", "2026-02-20"])
+def test_p1_rendimento_nao_inventa_ordem_intradiaria(tmp_path, dia):
+    snaps = tmp_path / "snap.csv"
+    snaps.write_text("data;ativo;saldo\n2026-02-08;Pote;1200,00\n2026-02-20;Pote;1200,00\n")
+    movs = tmp_path / "mov.csv"
+    movs.write_text(f"data;ativo;operacao;valor\n{dia};Pote;aporte;200,00\n")
+    r = rodar("rendimento.py", "--snapshots", str(snaps), "--movimentos", str(movs))
+    assert r["por_ativo"] == []
+    assert r["sem_base_de_calculo"][0]["ativo"] == "Pote"
+    assert "horario" in r["sem_base_de_calculo"][0]["motivo"]
+    assert r["fora_do_calculo"]["aportes"] == "200.00"
+
+
+def test_p1_rendimento_respeita_intervalo_de_cada_ativo(tmp_path):
+    snaps = tmp_path / "snap.csv"
+    snaps.write_text("data;ativo;saldo\n2026-02-08;A;1200,00\n2026-02-20;A;1200,00\n"
+                     "2026-02-01;B;1200,00\n2026-02-28;B;1200,00\n")
+    movs = tmp_path / "mov.csv"
+    movs.write_text("data;ativo;operacao;valor\n2026-02-03;A;aporte;200,00\n2026-02-03;B;aporte;200,00\n")
+    r = rodar("rendimento.py", "--snapshots", str(snaps), "--movimentos", str(movs))
+    assert {a["ativo"]: a["rendimento"] for a in r["por_ativo"]} == {"A": "0.00", "B": "-200.00"}
+    assert r["total"]["rendimento"] == "-200.00"
+
+
+def test_p1_rendimento_preserva_fluxos_excluidos_por_tipo(tmp_path):
+    snaps = tmp_path / "snap.csv"
+    snaps.write_text("data;ativo;saldo\n2026-02-08;A;1200,00\n2026-02-20;A;1200,00\n")
+    movs = tmp_path / "mov.csv"
+    movs.write_text("data;ativo;operacao;valor\n2026-02-03;A;resgate;100,00\n"
+                   "2026-02-25;A;provento;50,00\n2026-02-12;A;resgate;25,00\n")
+    r = rodar("rendimento.py", "--snapshots", str(snaps), "--movimentos", str(movs))
+    assert r["total"]["rendimento"] == "25.00"
+    assert r["total"]["proventos"] == "0.00"
+    excluido = r["movimentos_fora_do_intervalo"][0]
+    assert (excluido["resgates"], excluido["proventos"], excluido["quantidade"]) == ("100.00", "50.00", 2)
+
+
+def arquivos_metas_p1(tmp_path, varias=True):
+    metas = tmp_path / "metas.csv"
+    metas.write_text("meta;valor_alvo;data_alvo\nA;3600,00;2027-12-31\n" +
+                    ("B;3600,00;2027-12-31\n" if varias else ""))
+    movs = tmp_path / "mov.csv"
+    movs.write_text("data;ativo;operacao;valor\n2026-01-05;Fundo;aporte;1200,00\n"
+                   "2026-02-05;Fundo;aporte;1200,00\n2026-03-05;Fundo;aporte;1200,00\n")
+    return metas, movs
+
+
+def test_p1_meta_nao_multiplica_historico_global(tmp_path):
+    metas, movs = arquivos_metas_p1(tmp_path)
+    r = rodar("meta.py", "--metas", str(metas), "--movimentos", str(movs),
+              "--acumulado", "A=0", "--acumulado", "B=0", "--hoje", "2026-09-09")
+    assert len(r["metas"]) == 2
+    for m in r["metas"]:
+        assert m["progresso_pct"] == "0.00"
+        assert m["ritmo_mensal"] is None
+        assert m["projecao_chegada"] is None
+        assert "recorte" in m["ritmo_motivo"]
+
+
+def test_p1_meta_filtro_de_nome_nao_aloca_movimentos(tmp_path):
+    metas, movs = arquivos_metas_p1(tmp_path)
+    r = rodar("meta.py", "--metas", str(metas), "--meta", "A", "--movimentos", str(movs),
+              "--acumulado", "0", "--hoje", "2026-09-09")
+    assert r["metas"][0]["ritmo_mensal"] is None
+
+
+def test_p1_meta_recorte_explicito_preserva_projecao_individual(tmp_path):
+    metas, movs = arquivos_metas_p1(tmp_path)
+    movs.write_text(movs.read_text().replace("1200,00", "300,00"))
+    r = rodar("meta.py", "--metas", str(metas), "--meta", "A", "--movimentos", str(movs),
+              "--movimentos-da-meta", "A", "--acumulado", "0", "--hoje", "2026-09-09")
+    assert r["metas"][0]["ritmo_mensal"] == "300.00"
+    assert r["metas"][0]["meses_no_ritmo"] == 12
+
+
+def test_p1_meta_unica_preserva_historico_existente(tmp_path):
+    metas, movs = arquivos_metas_p1(tmp_path, varias=False)
+    r = rodar("meta.py", "--metas", str(metas), "--movimentos", str(movs),
+              "--acumulado", "0", "--hoje", "2026-09-09")
+    assert r["metas"][0]["ritmo_mensal"] == "1200.00"
+    assert r["metas"][0]["meses_no_ritmo"] == 3
+
+
+@pytest.mark.parametrize("extra", [
+    ["--meta", "A", "--movimentos-da-meta", "B", "--acumulado", "0"],
+    ["--movimentos-da-meta", "A", "--acumulado", "A=0", "--acumulado", "B=0"],
+])
+def test_p1_meta_recorte_incompativel_e_recusado(tmp_path, extra):
+    metas, movs = arquivos_metas_p1(tmp_path)
+    assert "recorte" in falhar("meta.py", "--metas", str(metas), "--movimentos", str(movs),
+                              "--hoje", "2026-09-09", *extra)

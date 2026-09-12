@@ -13,7 +13,7 @@ O repo é um **marketplace** que publica seis plugins: **hefesto** (a forja de p
 A distribuição nativa Codex contém os mesmos seis plugins e 42 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release aprovada:
 
 ```sh
-git clone --branch v3.18.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v3.18.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add ./codex
 codex plugin add hefesto@hefesto

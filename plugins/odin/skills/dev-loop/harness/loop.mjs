@@ -85,13 +85,14 @@ const LENTE_PROMPT = {
   'ponytail-arquitetura': 'Lente R3 — ponytail & arquitetura: código que não precisava existir, duplicação do codebase, abstração prematura, contrato entre unidades quebrado. Código demais tem peso de bug.',
 }
 
-// O harness NUNCA commita: todo o trabalho do loop fica na working tree como mudança não
-// commitada, e arquivos novos ficam untracked. Um `git diff <base>..HEAD` — a leitura NATURAL de
-// "diff da branch" — vem VAZIO nesse modelo e cega quem depende dele: a auditoria reporta 0 deps /
-// 0 linhas e o P10 é desarmado em SILÊNCIO (objeto válido cheio de zeros, que o guard `!aud` não
-// pega). A única leitura que enxerga tudo é encenar o índice primeiro. TODO agente que precisa ver
-// o diff da branch recebe esta instrução — não deixe o agente escolher o comando sozinho.
-const COMO_VER_O_DIFF = 'Para ver o diff COMPLETO da branch: rode primeiro `git add -A` (encena arquivos novos/untracked SEM commitar — o harness nunca commita) e então inspecione `git diff --cached`. NÃO use `git diff <base>..HEAD` nem `git diff <base>`: como não há commits novos na branch, esses vêm VAZIOS e esconderiam todo o trabalho do loop.'
+// Revisores leem mudanças desde HEAD e o índice sem alterá-lo. Novos arquivos são
+// incluídos somente quando relatados no trabalho/testes; demais nomes ficam explícitos
+// para conferir contra a SPEC. Isso não substitui autorização nem revela efeitos omitidos.
+const COMO_VER_O_DIFF = arquivos => `Inspecione o trabalho sem alterar arquivos ou índice, da raiz física do workspace:
+\`\`\`sh
+node ${shellQuote(ARGS.scriptsDir + '/inspecionar-git.mjs')} diff ${shellQuote(JSON.stringify(arquivos))}
+\`\`\`
+Leia rastreados (working tree contra HEAD), staged (índice contra HEAD) e o conteúdo dos novos incluídos. Resolva declaradosNaoInspecionados (paths relatados mas ignorados/ausentes) e confira novosNaoIncluidos contra a SPEC: nome listado não é conteúdo revisado; se houver arquivo novo autorizado faltando, repita a inspeção com sua lista explícita, sem incluir notas locais/segredos. Binário exige inspeção própria. Erro do helper não é diff vazio. Revisão nunca executa staging, commit ou limpeza do índice.`
 
 // ── schemas ──────────────────────────────────────────────────────────────────
 const SPEC_SCHEMA = { type: 'object', additionalProperties: false, required: ['ok', 'criterios', 'unidades', 'pendenciasBloqueadoras'], properties: {
@@ -511,6 +512,7 @@ if (testesDaSpec.length > 0) {
 
 // ── Fases 3-5: loop implementar → validar → revisar ─────────────────────────
 const consultasLog = []
+const arquivosParaRevisao = new Set(testesDaSpec)
 const historicoFalhas = []
 const escadaReportada = []
 const auditoriasLog = []
@@ -635,6 +637,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // ── Auditoria ponytail (todos os perfis, 1 agente) ───────────────────────────
   // Checagem MECÂNICA de sinais no diff — barata, roda sempre. Não confundir com a lente R3
   // (perfil Máximo), que é julgamento adversarial de arquitetura sobre o mesmo diff.
+  for (const r of resultados) for (const p of (r.arquivosTocados || [])) arquivosParaRevisao.add(p)
   phase('Auditar')
   const escadaDaIteracao = resultados.flatMap(r => (r.escada || []).map(e => ({ iteracao, unidade: r.unidade, ...e })))
   escadaReportada.push(...escadaDaIteracao)
@@ -642,7 +645,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // O script não tem SHA base pra recortar o diff por iteração: o agente enxerga a branch
   // inteira. O prompt diz isso na cara em vez de pedir um recorte que ninguém pode fazer.
   const aud = await chamarRevisor('auditoria',
-    `Auditoria ponytail da branch ${ARGS.branch} (iteração ${iteracao}). ${COMO_VER_O_DIFF}
+    `Auditoria ponytail da branch ${ARGS.branch} (iteração ${iteracao}). ${COMO_VER_O_DIFF([...arquivosParaRevisao])}
     Você audita o diff ACUMULADO (a branch inteira, não só a última iteração), contra as regras P1-P18
     (skills/dev-loop/references/escada-ponytail.md). Reporte SINAIS, não opiniões:
     - dependenciasNovas: todo pacote/lib adicionado a manifesto ou lockfile. Para cada um,
@@ -671,7 +674,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // falhando aberto, que o `!aud` não pega. Aborta como erro reinvocável, igual à auditoria que não
   // retorna — senão bastaria a auditoria ler o diff errado pra dependência injustificada passar.
   if (houveTrabalhoNaBranch && auditoria.linhasAdicionadasAcumuladas === 0) {
-    return { status: 'erro', fase: 'Auditar', iteracao, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), acao: 'auditoria ponytail voltou cega: 0 linhas acumuladas com trabalho presente na branch — não enxergou a working tree não-commitada (provável `git diff <base>..HEAD` vazio). Reinvocar com resumeFromRunId; o COMO_VER_O_DIFF do prompt manda encenar o índice antes.' }
+    return { status: 'erro', fase: 'Auditar', iteracao, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), acao: 'auditoria ponytail voltou cega: 0 linhas acumuladas com trabalho presente na branch — não enxergou a working tree não-commitada (provável `git diff <base>..HEAD` vazio). Reinvocar com resumeFromRunId; execute a inspeção somente leitura do prompt e confira os novos não incluídos.' }
   }
   // Auditoria vê a branch toda: o mesmo achado fora de escopo reaparece a cada iteração.
   for (const f of auditoria.forasDeEscopo) {
@@ -734,12 +737,17 @@ while (iteracao < MAX_ITERACOES && !verde) {
   }
 
   // Duplicações e abstrações de uso único: findings NORMAIS — passam pela confirmação abaixo.
-  // A auditoria vê a branch acumulada, então um achado já REFUTADO reapareceria a cada iteração
-  // e pagaria um confirmador (revisor, effort high) de novo pra dar o mesmo veredito.
+  // Reuse o veredito somente para o mesmo arquivo, alegação e cenário. Um sinal confirmado
+  // que reaparece continua bloqueante; desaparecer da auditoria atual é o que o remove.
+  // Refutação da mesma evidência não paga outro confirmador; cenário diferente exige novo juízo.
   const findingsDaAuditoria = [
     ...auditoria.duplicacoes.map(x => ({ arquivo: x.arquivo || '(diff da branch)', linha: x.linha, resumo: `P2: "${x.oQue}" duplica o que já existe em ${x.ondeJaExiste}`, cenario: `A base já resolve isso em ${x.ondeJaExiste}; o diff reintroduz a lógica.`, severidade: 'bloqueante', confianca: 'plausivel', origem: 'auditoria-ponytail' })),
     ...auditoria.abstracoesUsoUnico.map(x => ({ arquivo: x.arquivo || '(diff da branch)', linha: x.linha, resumo: `P11: abstração de uso único "${x.oQue}"`, cenario: `Único chamador: ${x.unicoChamador}. Abstração sem segundo caso de uso.`, severidade: 'bloqueante', confianca: 'plausivel', origem: 'auditoria-ponytail' })),
-  ].filter(f => !duplicacoesEAbstracoesJulgadas.some(j => j.arquivo === f.arquivo && j.resumo === f.resumo))
+  ].flatMap(f => {
+    const julgado = duplicacoesEAbstracoesJulgadas.find(j => j.arquivo === f.arquivo && j.resumo === f.resumo && j.cenario === f.cenario)
+    if (!julgado) return [f]
+    return julgado.confirmado ? [{ ...f, confianca: 'confirmado' }] : []
+  })
 
   phase('Revisar')
   findingsAbertos = [...findingsDaAuditoria]
@@ -749,7 +757,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // reinvocar com resumeFromRunId reaproveita tudo que já completou.
   for (const lente of perfil.lentes) {
     const rev = await chamarRevisor('lente',
-      `${LENTE_PROMPT[lente]}\n${COMO_VER_O_DIFF}\nRevise esse diff da branch ${ARGS.branch} contra a SPEC ${ARGS.specPath}.
+      `${LENTE_PROMPT[lente]}\n${COMO_VER_O_DIFF([...arquivosParaRevisao])}\nRevise esse diff da branch ${ARGS.branch} contra a SPEC ${ARGS.specPath}.
       Tente REFUTAR o trabalho. Finding sem arquivo:linha e cenário concreto não entra.`,
       { label: `rev:${lente}:i${iteracao}`, phase: 'Revisar', schema: REVIEW_SCHEMA }
     )

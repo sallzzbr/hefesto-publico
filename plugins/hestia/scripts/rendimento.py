@@ -47,13 +47,28 @@ def calcular(snapshots: list[dict], movimentos: list[dict]) -> dict:
     agrupado = por_ativo(snapshots)
 
     movs = defaultdict(lambda: {APORTE: Decimal(0), RESGATE: Decimal(0), PROVENTO: Decimal(0)})
+    fora_intervalo = {}
+    ordem_ambigua = set()
     desconhecidas = set()
     for m in movimentos:
         op = (m.get("operacao") or "").lower()
         if op not in (APORTE, RESGATE, PROVENTO):
             desconhecidas.add(op or "(vazia)")
             continue
-        movs[m["ativo"]][op] += brl(m["valor"], f"movimentos.valor ({m.get('ativo')})")
+        valor = brl(m["valor"], f"movimentos.valor ({m.get('ativo')})")
+        serie = agrupado.get(m["ativo"], [])
+        # Prints guardam data, sem horario: nao presumir se um fluxo na fronteira
+        # ja esta no saldo. Fora das datas efetivas, o movimento nao participa.
+        if len(serie) >= 2 and not (serie[0]["data"] <= m["data"] <= serie[-1]["data"]):
+            fora = fora_intervalo.setdefault(m["ativo"], {
+                APORTE: Decimal(0), RESGATE: Decimal(0), PROVENTO: Decimal(0), "quantidade": 0,
+            })
+            fora[op] += valor
+            fora["quantidade"] += 1
+            continue
+        if len(serie) >= 2 and valor and m["data"] in (serie[0]["data"], serie[-1]["data"]):
+            ordem_ambigua.add(m["ativo"])
+        movs[m["ativo"]][op] += valor
 
     detalhe, sem_base = [], []
     tot_ini = tot_fim = tot_ap = tot_res = tot_prov = Decimal(0)
@@ -64,7 +79,7 @@ def calcular(snapshots: list[dict], movimentos: list[dict]) -> dict:
         res = movs[ativo][RESGATE]
         prov = movs[ativo][PROVENTO]
 
-        if len(serie) < 2:
+        if len(serie) < 2 or ativo in ordem_ambigua:
             # NAO soma nos totais. Esta linha e o conserto de um bug que o golden test pegou na
             # primeira leitura: os aportes do ativo sem base entravam em `tot_ap`, mas o saldo
             # dele nao entrava em `tot_ini`/`tot_fim` — aporte subtraido sem o saldo
@@ -74,7 +89,10 @@ def calcular(snapshots: list[dict], movimentos: list[dict]) -> dict:
             sem_base.append({
                 "ativo": ativo,
                 "snapshots_no_periodo": len(serie),
-                "motivo": "rendimento exige 2+ snapshots do ativo no periodo",
+                "motivo": (
+                    "movimento na data de snapshot sem horario: ordem intradiaria nao verificavel"
+                    if ativo in ordem_ambigua else "rendimento exige 2+ snapshots do ativo no periodo"
+                ),
                 "aportes": dinheiro(ap),
                 "resgates": dinheiro(res),
                 "proventos": dinheiro(prov),
@@ -124,7 +142,8 @@ def calcular(snapshots: list[dict], movimentos: list[dict]) -> dict:
         "formula": "rendimento = (saldo_final - saldo_inicial) - aportes + resgates",
     }
     saida["total"]["cobertura"] = (
-        "so ativos com 2+ snapshots no periodo; o resto esta em fora_do_calculo"
+        "so ativos com 2+ snapshots e ordem temporal verificavel; o resto esta em fora_do_calculo"
+        if ordem_ambigua else "so ativos com 2+ snapshots no periodo; o resto esta em fora_do_calculo"
     )
     if sem_base:
         saida["sem_base_de_calculo"] = sem_base
@@ -137,6 +156,14 @@ def calcular(snapshots: list[dict], movimentos: list[dict]) -> dict:
     if desconhecidas:
         saida["avisos"] = [
             f"operacao nao reconhecida ignorada: {o}" for o in sorted(desconhecidas)
+        ]
+    if fora_intervalo:
+        saida["movimentos_fora_do_intervalo"] = [
+            {"ativo": ativo, "aportes": dinheiro(fluxos[APORTE]),
+             "resgates": dinheiro(fluxos[RESGATE]), "proventos": dinheiro(fluxos[PROVENTO]),
+             "quantidade": fluxos["quantidade"],
+             "motivo": "antes do primeiro snapshot ou depois do ultimo; excluido do rendimento"}
+            for ativo, fluxos in sorted(fora_intervalo.items())
         ]
     return saida
 

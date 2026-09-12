@@ -28,8 +28,10 @@ const RELATORIO = resolve(RAIZ, 'reports/mutation/mutation.json');
 // Baseline 2026-07-28: 1154 mutantes. Piso anti-regressão com folga para refactor honesto do
 // validar.mjs; o que ele barra é a queda para perto de zero, que é como o gate morre calado.
 const PISO_MUTANTES = 900;
-// Mutantes que não contam para o score. `Ignored` é o efeito de `// Stryker disable`.
-const NAO_CONTABILIZAVEIS = new Set(['Ignored', 'CompileError']);
+// Mesma população válida do mutation-testing-metrics usado pelo Stryker. Uma lista
+// positiva impede que erro operacional, estado novo ou resultado pendente infle o piso.
+const CONTABILIZAVEIS = new Set(['Killed', 'Timeout', 'Survived', 'NoCoverage']);
+const EXCLUIDOS = new Set(['Ignored', 'CompileError', 'RuntimeError']);
 
 function morrer(msg) {
   console.error(`ERRO: ${msg}`);
@@ -46,26 +48,41 @@ try {
   );
 }
 
-const arquivos = Object.entries(relatorio.files ?? {});
+const objeto = valor => valor !== null && typeof valor === 'object' && !Array.isArray(valor);
+if (!objeto(relatorio) || !objeto(relatorio.files)) morrer('estrutura inválida: files precisa ser um objeto.');
+const arquivos = Object.entries(relatorio.files);
 if (arquivos.length === 0) morrer('o relatório não tem nenhum arquivo mutado.');
 
 let contabilizaveis = 0;
-let ignorados = 0;
+let excluidos = 0;
+let detectados = 0;
 for (const [, dados] of arquivos) {
-  for (const mutante of dados.mutants ?? []) {
-    if (NAO_CONTABILIZAVEIS.has(mutante.status)) ignorados += 1;
-    else contabilizaveis += 1;
+  if (!objeto(dados) || !Array.isArray(dados.mutants)) morrer('estrutura inválida: cada arquivo precisa de uma lista mutants.');
+  for (const mutante of dados.mutants) {
+    if (CONTABILIZAVEIS.has(mutante?.status)) {
+      contabilizaveis += 1;
+      if (mutante.status === 'Killed' || mutante.status === 'Timeout') detectados += 1;
+    } else if (EXCLUIDOS.has(mutante?.status)) {
+      excluidos += 1;
+    } else {
+      morrer('relatório incompleto ou inválido: status de mutante ausente, desconhecido ou pendente.');
+    }
   }
 }
+
+// Não repetir thresholds.break: aqui se exige medição finita e volume; score baixo
+// continua sendo responsabilidade do Stryker. Sem mutantes detectados, 0% ainda é finito.
+const score = contabilizaveis > 0 ? 100 * detectados / contabilizaveis : NaN;
+if (!Number.isFinite(score)) morrer(`score ausente: ${contabilizaveis} mutantes válidos (${excluidos} excluídos).`);
 
 if (contabilizaveis < PISO_MUTANTES) {
   morrer(
     `${contabilizaveis} mutante(s) contabilizável(is), piso é ${PISO_MUTANTES} ` +
-    `(${ignorados} ignorado(s)). Com poucos ou nenhum mutante o score perde sentido — em ` +
+    `(${excluidos} excluído(s)). Com poucos ou nenhum mutante o score perde sentido — em ` +
     'zero ele vira NaN, e `NaN < break` é falso, então o Stryker sairia 0 sem ter medido ' +
     'nada. Se a queda for legítima (o validar.mjs encolheu de verdade), ajuste o piso no ' +
     'mesmo commit que a causou, e diga por quê.',
   );
 }
 
-console.log(`mutantes contabilizáveis: ${contabilizaveis} (ignorados: ${ignorados}) — piso ${PISO_MUTANTES} ok.`);
+console.log(`mutantes contabilizáveis: ${contabilizaveis} (excluídos: ${excluidos}; score: ${score.toFixed(2)}%) — piso ${PISO_MUTANTES} ok.`);

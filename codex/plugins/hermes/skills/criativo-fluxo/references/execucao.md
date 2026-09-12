@@ -56,6 +56,8 @@ Passe ao preflight os caminhos absolutos resolvidos via `--workspace`, `--market
 
 Antes de iniciar rotas, exija ficha de ideia de oito campos aprovada e consolidada no brief. Sem aprovada_em não há rough, mockup ou geração. Perfil econômico/balanceado/máximo: 2/3/3 rotas e 2/3/4 candidatos. Roughs IA = 1 por rota; candidatos iniciais=N, regenerações=N−1 (mínimo 2), até 3 rodadas/iterações. Estime chamadas e orçamento, sem equivaler perfis a preços Codex. Estágio A usa 1 diretor+1 mecânico/rota; B usa portão, produtor/seleção quando gerar, composição/preflight/crítica por iteração, confirmações/correções necessárias e pacote final. Texto tem zero chamadas de imagem, sempre.
 
+Rough e produção usam uma tentativa por comando de geração. Não repita por timeout, exceção, resposta perdida ou arquivo ainda ausente, nem use fallback de executor para gerar novamente. Pare novas gerações após falha, aguarde as já iniciadas e preserve saídas, recibos e logs sem credenciais. Retorno parcial ou incerto exige reconciliação do efeito existente antes de decisão humana sobre nova tentativa e orçamento. `proximo` recupera estado; não autoriza repetir efeito não persistido. Os demais fallbacks do domínio não autorizam gasto adicional.
+
 ## Args do estágio A
 
 ```json
@@ -88,8 +90,8 @@ Preserve `{{BASE}}` no comando de overlay IA: o controlador faz a substituição
 
 - `verde`: apresente render, roughs/candidatos, rationale de seleção, copy e não-bloqueantes. Verde não autoriza publicação; registry canônico só recebe aprovado após OK humano no pacote.
 - `bloqueado`: brief/rota/aprovação/render existente sem autorização; resolva causa com o dono.
-- `escalado`: teto, impossibilidade de geração/composição ou rough zero; preserve pacote/diagnóstico e aguarde decisão.
-- `erro`: preserve evidência e identifique solicitação que falhou; não esconda como ausência de achado.
+- `escalado`: teto ou impossibilidade de composição; preserve pacote/diagnóstico e aguarde decisão.
+- `erro`: preserve evidência e identifique solicitação que falhou; não esconda como ausência de achado. Rough/produção sem saída, com falha ou resposta parcial exigem reconciliação antes de nova geração; preserve também os resultados das outras rotas já iniciadas.
 
 Reports de iteração são obrigatórios em verde/escalado quando houve iteração, incluindo _validacoes.csv. Aprendizado só vira regra com amostra/variância, variantes e contraexemplo checado, senão OBSERVAÇÃO. A saída inclui ficha/headline, rota, iterações/rodadas, veredito, pacote/render e execuções/modelo real. Upload aponta para playbook específico do objetivo no workspace; sem payloads/credenciais inventados nem publicação automática.
 

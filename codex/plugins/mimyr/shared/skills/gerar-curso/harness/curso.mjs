@@ -18,6 +18,8 @@ export const meta = {
 // ── args esperados (montados pela skill gerar-curso) ─────────────────────────
 // {
 //   cursoDir:      string — diretório do curso relativo ao cwd do workspace (./courses/<curso>)
+//   workspaceRoot?: string — cwd absoluto da sessão; necessário ao misturar paths do workspace
+//                  relativos e absolutos. Não é obtido pelo sandbox nem prova identidade física.
 //   estruturaPath: string — path da estrutura APROVADA (./courses/<curso>/estrutura.md).
 //                  Autoria/aprovação são da skill com o humano — o harness só valida (espelho
 //                  do odin: SPEC autorada na entregar, harness valida).
@@ -96,6 +98,7 @@ const ESCREVER_SCHEMA = { type: 'object', additionalProperties: false, required:
   status: { enum: ['concluido', 'bloqueado'] },
   resumo: { type: 'string' }, motivo: { type: 'string' },
   arquivosTocados: { type: 'array', items: { type: 'string' } },
+  baseArquivosTocados: { enum: ['workspace', 'curso'] },  // padrão: workspace; absolutos independem da base
   criteriosAtendidos: { type: 'array', items: { type: 'string' } },
   tempoLeituraMin: { type: 'number' },
   pendencias: { type: 'array', items: { type: 'string' } },
@@ -122,6 +125,35 @@ const REVIEW_SCHEMA = { type: 'object', additionalProperties: false, required: [
 const VEREDITO_SCHEMA = { type: 'object', additionalProperties: false, required: ['real'], properties: { real: { type: 'boolean' }, porque: { type: 'string' } } }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+// Identidade LEXICAL: o Workflow não lê o filesystem. Rejeita escape e compara o path
+// completo declarado; symlinks, capitalização do volume e arquivos omitidos no relato
+// precisam de inspeção da sessão. Não é sandbox de escrita nem prova de identidade física.
+const absoluto = p => p.startsWith('/') || /^[A-Za-z]:\//.test(p)
+function pathCanonico(valor, semTraversal = false) {
+  if (typeof valor !== 'string' || !valor.trim() || valor !== valor.trim() || /[\x00-\x1f]/.test(valor)) return null
+  let p = valor.replace(/\\/g, '/')
+  if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(p) && !/^[A-Za-z]:\//.test(p)) return null
+  let raiz = ''
+  if (/^[A-Za-z]:\//.test(p)) { raiz = `${p[0].toUpperCase()}:/`; p = p.slice(3) }
+  else if (p.startsWith('//')) { raiz = '//'; p = p.slice(2) }
+  else if (p.startsWith('/')) { raiz = '/'; p = p.slice(1) }
+  const partes = []
+  for (const parte of p.split('/')) {
+    if (!parte || parte === '.') continue
+    if (parte === '..') {
+      if (semTraversal) return null
+      if (partes.length && partes[partes.length - 1] !== '..') partes.pop()
+      else if (raiz) return null
+      else partes.push(parte)
+    } else partes.push(parte)
+  }
+  return raiz + partes.join('/') || '.'
+}
+function arquivoRelativo(valor) {
+  const p = pathCanonico(valor, true)
+  return p && p !== '.' && !absoluto(p) ? p : null
+}
+
 const ESCRITOR = { agentType: 'mimyr:escritor-de-capitulo' }   // sonnet no frontmatter (piso do papel)
 const REVISOR = { agentType: 'mimyr:revisor-de-curso' }        // opus no frontmatter
 const MECANICO = { agentType: 'mimyr:mecanico-de-curso' }      // haiku — só steps whitelisted chegam aqui
@@ -207,6 +239,25 @@ if (!ARGS || typeof ARGS !== 'object' || Array.isArray(ARGS)) {
 const argsFaltando = ['cursoDir', 'estruturaPath', 'perfil', 'scriptsDir', 'python'].filter(k => !ARGS[k])
 if (argsFaltando.length > 0) {
   return { status: 'erro', fase: 'Args', detalhe: `args obrigatórios ausentes: ${argsFaltando.join(', ')}`, acao: 'reinvocar o Workflow com args completos: {cursoDir, estruturaPath, perfil, scriptsDir, python, hoje} — scriptsDir e python são a skill quem resolve (venv validado antes)' }
+}
+
+const workspaceRoot = ARGS.workspaceRoot == null ? null : pathCanonico(ARGS.workspaceRoot)
+if (ARGS.workspaceRoot != null && (!workspaceRoot || !absoluto(workspaceRoot))) {
+  return { status: 'erro', fase: 'Args', detalhe: 'workspaceRoot precisa ser um path absoluto válido, obtido pela sessão' }
+}
+const cursoInformado = pathCanonico(ARGS.cursoDir)
+const cursoCanonico = cursoInformado && workspaceRoot && !absoluto(cursoInformado)
+  ? pathCanonico(`${workspaceRoot}/${cursoInformado}`) : cursoInformado
+if (!cursoCanonico) return { status: 'erro', fase: 'Args', detalhe: 'cursoDir precisa ser um path válido' }
+const destinoDoCapitulo = cap => pathCanonico(`${cursoCanonico}/${arquivoRelativo(cap.arquivo)}`)
+const arquivoDoCapitulo = (valor, cap, base = 'workspace') => {
+  const p = pathCanonico(valor, true)
+  if (!p) return false
+  if (base !== 'curso' && base !== 'workspace') return false
+  // Uma só base por relato: tentar as duas aceitaria outro arquivo quando os textos coincidem.
+  const raiz = base === 'curso' ? cursoCanonico : workspaceRoot
+  const resolvido = !absoluto(p) && raiz ? pathCanonico(`${raiz}/${p}`) : p
+  return resolvido === destinoDoCapitulo(cap)
 }
 
 // Resolução do tiering: defaults da tabela + pedido dos args, com a whitelist decidindo. Pedido
@@ -296,8 +347,31 @@ if (est.capitulosComArquivoExistente.length > 0) {
   return { status: 'bloqueado', fase: 'Estrutura', detalhe: `capítulo(s) com arquivo já existente sem reescrever:true — ${est.capitulosComArquivoExistente.join(', ')}`, acao: 'marcar reescrever: true na estrutura (com OK do humano) ou remover o capítulo do escopo do run', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
 }
 
+// ok=true do extrator não substitui validação dos próprios dados que ele devolveu.
+const textoPreenchido = valor => typeof valor === 'string' && valor.trim().length > 0
+const errosEstrutura = []
+const ids = new Set()
+const destinos = new Set()
+for (const cap of est.capitulos) {
+  if (!textoPreenchido(cap.id)) errosEstrutura.push('capítulo sem id')
+  else {
+    const id = cap.id.trim()
+    if (ids.has(id)) errosEstrutura.push(`id de capítulo repetido: ${id}`)
+    ids.add(id)
+  }
+  if (!textoPreenchido(cap.objetivo)) errosEstrutura.push(`capítulo ${cap.id}: objetivo vazio`)
+  if (!Array.isArray(cap.criterios) || cap.criterios.length === 0 || !cap.criterios.every(textoPreenchido)) errosEstrutura.push(`capítulo ${cap.id}: critérios vazios ou em branco`)
+  if (!arquivoRelativo(cap.arquivo)) errosEstrutura.push(`capítulo ${cap.id}: arquivo precisa ser relativo ao curso, não vazio e sem traversal`)
+  else {
+    const destino = destinoDoCapitulo(cap)
+    if (destinos.has(destino)) errosEstrutura.push(`destino de capítulo repetido: ${destino}`)
+    destinos.add(destino)
+  }
+}
+if (errosEstrutura.length > 0) return { status: 'bloqueado', fase: 'Estrutura', detalhe: errosEstrutura.join('; '), acao: 'corrigir a estrutura com o humano antes de escrever', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+
 const perfil = PERFIS[ARGS.perfil] || PERFIS.economico
-const capitulos = est.capitulos
+const capitulos = est.capitulos.map(c => ({ ...c, id: c.id.trim(), arquivo: arquivoRelativo(c.arquivo) }))
 log(`Portão de estrutura fechado: ${capitulos.length} capítulo(s) com critérios — nada foi escrito antes disso`)
 
 // ── Fases 2-4: loop escrever → checks → revisar ──────────────────────────────
@@ -343,7 +417,12 @@ while (iteracao < MAX_ITERACOES && !verde) {
         Siga o padrão de conteúdo da skill mimyr:escrever-capitulo (template ./templates/subpage.html,
         hook → conceito → exemplo → mini-exercício → checagem rápida) e a prosa final na voz do
         autor via bragir:escrever-como-antonio. NUNCA toque em outro capítulo, shell, template,
-        sidebar ou styles — sidebar/índice/SEO rodam fora do harness, depois do verde.${correcoes}`,
+        sidebar ou styles — sidebar/índice/SEO rodam fora do harness, depois do verde.
+        Em arquivosTocados, informe paths absolutos ou relativos ao cwd do workspace (padrão).
+        Para paths relativos AO CURSO, declare baseArquivosTocados="curso". Não use traversal
+        nem apenas o nome final. Absolutos precisam da mesma base de cursoDir/workspaceRoot.
+        Confira symlinks e destino físico antes de escrever; a comparação do controlador é só
+        lexical sobre o relato, não uma barreira de filesystem.${correcoes}`,
         { label: `escrever:${cap.id}`, phase: 'Escrever', schema: ESCREVER_SCHEMA }
       )
       if (!r) return { capitulo: cap.id, status: 'erro', motivo: 'o escritor não retornou' }
@@ -366,18 +445,17 @@ while (iteracao < MAX_ITERACOES && !verde) {
     return { status: 'escalado', fase: 'Escrever', iteracao, detalhe: problemas, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'decisão humana necessária (fonte ausente, contrato impossível) — o harness não improvisa' }
   }
 
-  // ESCOPO ESTRITO decidido em código (análogo do P14 como bloqueante automático): escritor que
-  // tocou arquivo fora do seu capítulo quebra a disjunção que torna o paralelo seguro. Sem
-  // apelação — não passa por confirmação.
+  // ESCOPO ESTRITO do relato, decidido em código: path fora do capítulo autorizado é
+  // bloqueante sem confirmação. O controlador não verifica efeitos omitidos nem symlinks.
   const bloqueantesAutomaticos = []
   for (const r of resultados) {
     const cap = capitulos.find(c => c.id === r.capitulo)
-    const foraDoEscopo = (r.arquivosTocados || []).filter(a => !a.endsWith(cap.arquivo))
+    const foraDoEscopo = (r.arquivosTocados || []).filter(a => !arquivoDoCapitulo(a, cap, r.baseArquivosTocados))
     if (foraDoEscopo.length > 0) {
       bloqueantesAutomaticos.push({
         capitulo: cap.id, arquivo: foraDoEscopo.join(', '),
-        resumo: `escopo estrito violado: o escritor de ${cap.id} tocou arquivo(s) fora do seu capítulo`,
-        cenario: `Arquivos fora de ${cap.arquivo}: ${foraDoEscopo.join(', ')}. A disjunção por capítulo é o que permite escritores em paralelo sem conflito; a correção é reverter o que está fora e reescrever só o próprio arquivo.`,
+        resumo: `escopo estrito violado: o escritor de ${cap.id} relatou arquivo(s) fora do seu capítulo ou sem base inequívoca`,
+        cenario: `Paths declarados que não identificam ${destinoDoCapitulo(cap)}: ${foraDoEscopo.join(', ')}. A disjunção por capítulo é o que permite escritores em paralelo sem conflito; a correção é reverter o que está fora e reescrever só o próprio arquivo.`,
         severidade: 'bloqueante', confianca: 'confirmado', origem: 'escopo-estrito',
       })
     }

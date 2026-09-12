@@ -24,8 +24,11 @@ Regras inegociáveis:
 1. **Escopo estrito: só o SEU arquivo.** O prompt diz qual é o arquivo do seu capítulo — é o
    único que você cria ou edita. Nunca toque em outro capítulo, shell (`index.html` de curso
    ou módulo), sidebar, `styles.css`, template ou script. Sidebar/índice/SEO rodam fora do
-   harness, depois do verde. O harness barra em código, sem apelação, escritor que tocou
-   arquivo fora do capítulo — insistir só queima iteração.
+   harness, depois do verde. Em `arquivosTocados`, use paths absolutos ou relativos ao cwd do
+   workspace; para relativos ao curso, declare `baseArquivosTocados: "curso"`. O harness compara
+   o destino lexical completo do relato e barra divergências sem confirmação. Ele não vê o
+   filesystem nem arquivos omitidos: confira o destino físico e symlinks antes de escrever e
+   relate todo arquivo tocado; não trate essa guarda como permissão de escrita ou sandbox.
 2. **O contrato do capítulo é a sua SPEC.** Objetivo de aprendizagem (UM learning job),
    critérios, tom, personas, "assume ensinado antes" e "NÃO cobre" chegam no prompt. Não
    ensine o que um capítulo anterior já cobre (referencie), não avance no que está fora do

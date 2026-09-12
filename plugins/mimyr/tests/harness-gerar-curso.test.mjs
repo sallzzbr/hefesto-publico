@@ -156,3 +156,90 @@ test('perfil balanceado escreve em paralelo com teto de 4 escritores simultâneo
   assert.equal(resultado.status, 'verde');
   assert.ok(maxAtivos > 1 && maxAtivos <= 4, `concorrência observada: ${maxAtivos}`);
 });
+
+// OM-03: ok/aprovada não substituem a consistência dos dados extraídos.
+const ESTRUTURA = (caps) => ({ ok: true, aprovada: true, capitulos: caps, capitulosComArquivoExistente: [] });
+for (const [nome, caps] of [
+  ['objetivo vazio', [{ ...CAP('c1', 'a.html'), objetivo: '' }]],
+  ['objetivo em branco', [{ ...CAP('c1', 'a.html'), objetivo: ' \t ' }]],
+  ['critérios vazios', [{ ...CAP('c1', 'a.html'), criterios: [] }]],
+  ['critério em branco', [{ ...CAP('c1', 'a.html'), criterios: ['explica X', '  '] }]],
+  ['id vazio', [CAP(' ', 'a.html')]],
+  ['ids repetidos', [CAP('c1', 'a.html'), CAP('c1', 'b.html')]],
+  ['ids equivalentes após trim', [CAP('c1', 'a.html'), CAP(' c1 ', 'b.html')]],
+  ['arquivos iguais', [CAP('c1', 'a.html'), CAP('c2', 'a.html')]],
+  ['arquivos equivalentes', [CAP('c1', 'modulo-1/a.html'), CAP('c2', './modulo-1//a.html')]],
+  ['arquivo vazio', [CAP('c1', '')]],
+  ['arquivo absoluto', [CAP('c1', '/courses/fora/a.html')]],
+  ['escape de arquivo', [CAP('c1', '../fora/a.html')]],
+  ['traversal mesmo dentro do curso', [CAP('c1', 'modulo-1/../a.html')]],
+]) {
+  test(`OM-03: ${nome} bloqueia antes de despachar qualquer escritor`, async () => {
+    const { resultado, chamadas } = await rodar({ args: { ...ARGS, perfil: 'balanceado' }, overrides: {
+      'estrutura:validar': () => ESTRUTURA(caps),
+    } });
+    assert.equal(resultado.status, 'bloqueado');
+    assert.equal(resultado.fase, 'Estrutura');
+    assert.ok(!chamadas.some(c => c.label.startsWith('escrever:')));
+  });
+}
+
+test('OM-03: dois capítulos disjuntos preservam seus destinos e critérios', async () => {
+  const caps = [CAP('c1', 'modulo-1/a.html'), CAP('c2', 'modulo-1/b.html')];
+  const { resultado, chamadas } = await rodar({ args: { ...ARGS, perfil: 'balanceado' }, overrides: {
+    'estrutura:validar': () => ESTRUTURA(caps),
+    'escrever:': (opts) => ({ status: 'concluido', resumo: 'ok', arquivosTocados: [`./courses/x/${caps.find(c => `escrever:${c.id}` === opts.label).arquivo}`] }),
+  } });
+  assert.equal(resultado.status, 'verde');
+  assert.deepEqual(resultado.capitulos.map(c => c.arquivo), caps.map(c => `./courses/x/${c.arquivo}`));
+  assert.equal(chamadas.filter(c => c.label.startsWith('escrever:')).length, 2);
+});
+
+// OM-02: identidade lexical completa, sem fingir acesso a filesystem do Workflow.
+for (const [nome, arquivo] of [
+  ['outro curso', './courses/outro/modulo-1/a.html'],
+  ['prefixo enganoso', './courses/x/evilmodulo-1/a.html'],
+  ['traversal para outro curso', './courses/x/../outro/modulo-1/a.html'],
+  ['relato absoluto sem base conhecida', '/outro/workspace/courses/x/modulo-1/a.html'],
+]) {
+  test(`OM-02: ${nome} não é o capítulo autorizado`, async () => {
+    const { resultado } = await rodar({ args: ARGS, overrides: {
+      'escrever:': () => ({ status: 'concluido', resumo: 'ok', arquivosTocados: [arquivo] }),
+    } });
+    assert.equal(resultado.status, 'escalado');
+    assert.equal(resultado.fase, 'Loop');
+    assert.ok(resultado.historico.every(h => h.findings.some(f => f.origem === 'escopo-estrito')));
+  });
+}
+for (const [nome, args, arquivo, baseArquivosTocados] of [
+  ['relativo ao curso', ARGS, 'modulo-1/a.html', 'curso'],
+  ['relativo ao workspace', ARGS, 'courses/x/modulo-1/a.html'],
+  ['absoluto no curso absoluto', { ...ARGS, cursoDir: '/workspace/courses/x' }, '/workspace/courses/x/modulo-1/a.html'],
+  ['absoluto com workspace explícito', { ...ARGS, workspaceRoot: '/workspace' }, '/workspace/courses/x/modulo-1/a.html'],
+  ['relativo com curso absoluto e workspace explícito', { ...ARGS, cursoDir: '/workspace/courses/x', workspaceRoot: '/workspace' }, './courses/x/modulo-1/a.html'],
+  ['Windows absoluto', { ...ARGS, cursoDir: 'C:\\workspace\\courses\\x' }, 'C:\\workspace\\courses\\x\\modulo-1\\a.html'],
+]) {
+  test(`OM-02: aceita identidade inequívoca ${nome}`, async () => {
+    const { resultado } = await rodar({ args, overrides: {
+      'escrever:': () => ({ status: 'concluido', resumo: 'ok', arquivosTocados: [arquivo], ...(baseArquivosTocados ? { baseArquivosTocados } : {}) }),
+    } });
+    assert.equal(resultado.status, 'verde');
+  });
+}
+
+test('OM-02: relato relativo não troca de base para coincidir com outro arquivo', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'estrutura:validar': () => ESTRUTURA([CAP('c1', 'courses/x/a.html')]),
+    'escrever:': () => ({ status: 'concluido', resumo: 'ok', arquivosTocados: ['courses/x/a.html'] }),
+  } });
+  assert.equal(resultado.status, 'escalado');
+  assert.equal(resultado.fase, 'Loop');
+});
+
+test('OM-02: base curso explícita resolve o mesmo relato dentro do curso', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'estrutura:validar': () => ESTRUTURA([CAP('c1', 'courses/x/a.html')]),
+    'escrever:': () => ({ status: 'concluido', resumo: 'ok', arquivosTocados: ['courses/x/a.html'], baseArquivosTocados: 'curso' }),
+  } });
+  assert.equal(resultado.status, 'verde');
+});

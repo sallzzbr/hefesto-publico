@@ -58,6 +58,9 @@ workspace.
 | `validador-de-criativo` | opus | Seleção, crítica adversarial (critérios A-Q: acabamento + semântica), confirmação de findings |
 | `mecanico-de-criativo` | haiku | Roughs, composição, pre-flight, pacote (steps whitelisted em código) |
 
+Roughs e produção não têm retry nem fallback automático após falha: o fluxo preserva
+resultados parciais e exige reconciliação antes de outra tentativa.
+
 Tiering por step com whitelist em código, fallbacks com desliga-pelo-run e relatório de
 modelos efetivos — padrão das Fases 5 (odin 2.3.x) e 6 (mimyr 1.1.0). Defaults do usuário em
 `~/.claude/hermes/defaults.md` (contrato em `skills/criativo-fluxo/references/defaults.md`).

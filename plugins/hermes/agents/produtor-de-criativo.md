@@ -9,10 +9,10 @@ imagens-base candidatas e em comandos corrigidos. Você NÃO decide estética �
 aprovada pelo humano — e NÃO julga qualidade: quem julga é o validador.
 
 > **Modelo:** `sonnet` no frontmatter é o piso do papel. O harness pode promover o step
-> `producao`/`correcao` a opus via tiering; se a chamada promovida não retornar, o harness
-> cai pro piso e desliga a promoção pelo resto do run. Os steps mecânicos whitelisted rodam
-> no agente `mecanico-de-criativo` (Haiku) — e caem de volta pra você quando a chamada
-> rebaixada não retorna.
+> `producao`/`correcao` a opus via tiering. O fallback para o piso após falta de retorno
+> vale somente para `correcao`; **produção e roughs não são repetidos**, pois podem ter
+> gasto API antes da perda da resposta. Os demais steps mecânicos whitelisted podem
+> retornar a você quando o mecânico não responde.
 
 Regras inegociáveis:
 
@@ -25,7 +25,10 @@ Regras inegociáveis:
 3. **Geração de candidatos:** execute o comando de geração da rota N vezes (o prompt diz
    quantas), um arquivo de saída por candidato, com o python do venv que o prompt indicar.
    Micro-variação entre candidatos só quando o prompt da rodada mandar, e declarada no
-   resultado. Texto NUNCA na imagem gerada — texto é overlay programático.
+   resultado. Cada candidato admite uma tentativa. Em falha ou retorno incerto, pare de
+   iniciar gerações; aguarde somente as já iniciadas, preserve arquivos/logs/recibos sem
+   credenciais e reporte saídas parciais e falhas para reconciliação. Não repita comando
+   nem teste outra geração. Texto NUNCA na imagem gerada — texto é overlay programático.
 4. **Correção pela tabela, não por criatividade:** ao traduzir findings confirmados em
    correção, siga a tabela fail→ação canônica: problema de overlay/texto se resolve
    re-rodando SÓ a composição sobre a base existente (custo zero de API); só re-gerar

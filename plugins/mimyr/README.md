@@ -86,7 +86,7 @@ Ferramentas determinísticas usadas pelas skills, referenciadas via `${CLAUDE_PL
 | `extract_docx.py` | Extrai texto de `.docx` (stdlib, sem deps). |
 | `corrigir_acentos.py` | Restaura acentos no texto visível usando o próprio corpus do curso como dicionário. |
 | `remover_travessao.py` | Remove travessões da prosa visível (contrato da voz do autor). |
-| `melhorar_a11y.py` | Melhorias a11y em batch: aria-labels de navegação, scopes de tabela, table-wrap. |
+| `melhorar_a11y.py` | Melhorias a11y em batch: aria-labels de navegação, scopes de tabela, table-wrap. Com `--dry-run`, mostra o diff sem gravar; sem a flag, aplica a correção autorizada. |
 | `atualizar_seo.py` | Injeta meta tags/JSON-LD a partir do `seo.json` do curso. |
 | `checar_svg_overflow.py` | Detecta texto de SVG estourando o viewBox, medindo com as métricas reais das fontes do curso. |
 | `injetar_sidebar.py` | Regenera a sidebar (`nav.chapter-toc`) de todos os capítulos de um curso. |

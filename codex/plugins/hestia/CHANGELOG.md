@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4 — 2026-09-09
+
+- Rendimento usa a janela efetiva de snapshots por ativo, informa fluxos externos e recusa ordem intradiária incerta. Ritmo de metas não replica fluxo global entre potes: cadastro com várias metas exige recorte declarado para uma meta, preservando progresso sem projeção quando ausente.
+
 ## 0.1.3
 
 Distribuição pública inicial no marketplace v3.18.0. Metadados apontam para o repositório público; pacote autocontido e política nativa de modelos preservados.

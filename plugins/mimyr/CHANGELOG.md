@@ -3,6 +3,14 @@
 > Histórico anterior à 1.1.6 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 1.1.10 — 2026-09-11
+
+- Revisão de acessibilidade usa melhorar_a11y.py --dry-run: mostra alterações propostas sem escrever no original. A aplicação explícita mantém o modo de correção e idempotência; opção inválida é recusada antes de escrever.
+
+## 1.1.9 — 2026-09-09
+
+- Geração valida objetivo, critérios, IDs e destinos disjuntos antes dos escritores. Relatos de escrita exigem path lexical completo e base explícita; workspaceRoot resolve bases relativas/absolutas. Limite físico de symlinks e efeitos omitidos permanece explícito.
+
 ## 1.1.8 — 2026-09-06 (correções dos testes Codex)
 
 - Sincronização do índice preserva a duração de cursos curtos, sem arredondar tempo positivo para zero; reaplicação permanece idempotente.

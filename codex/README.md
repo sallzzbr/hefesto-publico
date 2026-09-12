@@ -16,7 +16,7 @@ Seis plugins e 42 skills nativas Codex, distribuídos no [marketplace público H
 Com Git e a CLI Codex disponíveis, obtenha a release pública e registre a pasta do marketplace:
 
 ```sh
-git clone --branch v3.18.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v3.18.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add ./codex
 codex plugin add hefesto@hefesto

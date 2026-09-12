@@ -1,7 +1,9 @@
 """Tests for melhorar_a11y.py."""
 import sys
+import subprocess
 from pathlib import Path
 
+import pytest
 from bs4 import BeautifulSoup
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
@@ -110,3 +112,92 @@ def test_improve_tree_returns_changed_files(tmp_path: Path):
     changed = improve_tree(str(tmp_path))
     assert tmp_path / "a.html" in changed
     assert tmp_path / "b.html" not in changed
+
+
+def run_cli(*args):
+    script = Path(__file__).parent.parent / "scripts" / "melhorar_a11y.py"
+    return subprocess.run(
+        [sys.executable, "-B", str(script), *map(str, args)],
+        capture_output=True, text=True, timeout=15,
+    )
+
+
+def disk_state(path):
+    stat = path.stat()
+    return path.read_bytes(), stat.st_mtime_ns, stat.st_ino
+
+
+@pytest.mark.parametrize("flag_first", [False, True])
+def test_cli_dry_run_reports_proposed_attributes_without_writing(tmp_path, flag_first):
+    """Ignorar a flag ou escrevê-la tarde demais altera bytes/mtime do capítulo."""
+    chapter = tmp_path / "capitulo.html"
+    chapter.write_text(NAV_HTML, encoding="utf-8")
+    before = disk_state(chapter)
+    args = ["--dry-run", chapter] if flag_first else [chapter, "--dry-run"]
+
+    result = run_cli(*args)
+
+    assert disk_state(chapter) == before
+    assert result.returncode == 0, result.stderr
+    assert 'aria-label="Anterior: REST, GraphQL e os verbos HTTP"' in result.stdout
+    assert str(chapter) in result.stdout
+    assert set(tmp_path.iterdir()) == {chapter}
+
+
+def test_cli_dry_run_directory_preserves_nested_and_symlink_targets(tmp_path):
+    """A recursão deve propagar dry_run, inclusive a HTML acessível via symlink."""
+    course = tmp_path / "curso"
+    module = course / "modulo"
+    module.mkdir(parents=True)
+    chapter = module / "capitulo.html"
+    chapter.write_text(TABLE_HTML, encoding="utf-8")
+    outside = tmp_path / "externo.html"
+    outside.write_text(NAV_HTML, encoding="utf-8")
+    link = course / "link.html"
+    link.symlink_to(outside)
+    notes = course / "notas.txt"
+    notes.write_text(TABLE_HTML, encoding="utf-8")
+    before = {p: disk_state(p) for p in (chapter, outside, notes)}
+    entries = set(tmp_path.rglob("*"))
+
+    result = run_cli(course, "--dry-run")
+
+    assert {p: disk_state(p) for p in before} == before
+    assert link.is_symlink()
+    assert set(tmp_path.rglob("*")) == entries
+    assert result.returncode == 0, result.stderr
+    assert 'scope="col"' in result.stdout
+    assert 'scope="row"' in result.stdout
+    assert 'role="region"' in result.stdout
+    assert str(chapter) in result.stdout and str(link) in result.stdout
+    assert str(notes) not in result.stdout
+
+
+def test_cli_explicit_correction_still_writes_and_is_idempotent(tmp_path):
+    """Evita tornar a ferramenta inteira somente leitura para esconder o defeito."""
+    chapter = tmp_path / "capitulo.html"
+    chapter.write_text(TABLE_HTML, encoding="utf-8")
+
+    result = run_cli(chapter)
+
+    assert result.returncode == 0, result.stderr
+    soup = BeautifulSoup(chapter.read_text(encoding="utf-8"), "html.parser")
+    assert soup.select_one("thead th")["scope"] == "col"
+    assert soup.select_one("tbody th")["scope"] == "row"
+    assert soup.select_one("div.table-wrap")["role"] == "region"
+    corrected = disk_state(chapter)
+    again = run_cli(chapter)
+    assert again.returncode == 0, again.stderr
+    assert disk_state(chapter) == corrected
+
+
+def test_cli_invalid_dry_run_option_does_not_fall_back_to_writing(tmp_path):
+    """Flag desconhecida precisa abortar antes de qualquer transformação no disco."""
+    chapter = tmp_path / "capitulo.html"
+    chapter.write_text(NAV_HTML, encoding="utf-8")
+    before = disk_state(chapter)
+
+    result = run_cli(chapter, "--dry-rnu")
+
+    assert disk_state(chapter) == before
+    assert result.returncode != 0

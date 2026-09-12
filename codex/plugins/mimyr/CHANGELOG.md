@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5 — 2026-09-11
+
+- Revisão de acessibilidade usa melhorar_a11y.py --dry-run: mostra alterações propostas sem escrever no original. A aplicação explícita mantém o modo de correção e idempotência; opção inválida é recusada antes de escrever.
+
+## 0.1.4 — 2026-09-09
+
+- Geração valida objetivo, critérios, IDs e destinos disjuntos antes dos escritores. Relatos de escrita exigem path lexical completo e base explícita; workspaceRoot resolve bases relativas/absolutas. Limite físico de symlinks e efeitos omitidos permanece explícito.
+
 ## 0.1.3
 
 Distribuição pública inicial no marketplace v3.18.0. Metadados apontam para o repositório público; pacote autocontido e política nativa de modelos preservados.

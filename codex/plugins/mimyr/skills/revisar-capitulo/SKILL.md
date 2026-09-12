@@ -11,7 +11,7 @@ Na primeira utilização, leia [RUNTIME.md](../../RUNTIME.md). Antes de executar
 
 1. Leia HTML alvo, perfil de voz, manifesto/personas, vizinhos e styles.css. Review por padrão produz achados; não altere arquivos quando o pedido é somente leitura.
 2. Verifique voz/ritmo, personas, Hook/Conceito/exemplos/mini-exercício, exercício seguro sem setup, todos os hrefs, headings/alt/aria/skip link, tabelas, SEO específico, navegação/progresso/breadcrumb e IDs/placeholders/classes.
-3. Complemente com shared/scripts/corrigir_acentos.py <dir> --dry-run, remover_travessao.py <dir> --dry-run e checar_svg_overflow.py <curso>, usando venv existente. melhorar_a11y.py é transformador que escreve: só execute com pedido de correção; em revisão pura inspecione semanticamente ou teste cópia temporária autorizada.
+3. Complemente com shared/scripts/corrigir_acentos.py <dir> --dry-run, remover_travessao.py <dir> --dry-run, melhorar_a11y.py <arquivo> --dry-run e checar_svg_overflow.py <curso>, usando venv existente. Os dry-runs de correção mostram mudanças propostas sem gravar e retornam exit 0 mesmo com achados: leia a saída. Remover --dry-run de melhorar_a11y.py grava o HTML e exige autorização de correção; pedido de revisão não a concede.
 4. Reporte nesta ordem: Bloqueadores, Melhorias recomendadas, Ajustes editoriais, Checks OK. Cada achado tem arquivo, linha ou marcador e correção concreta; liste verificações indisponíveis e risco residual. Ausência de achados não equivale a publicação aprovada.
 
 ## Dependências e saída

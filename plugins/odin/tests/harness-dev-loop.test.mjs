@@ -16,7 +16,7 @@
 // Isso é contrato do runtime; aqui se testa a lógica do script sob esse contrato.
 
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync, realpathSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
@@ -371,4 +371,94 @@ test('comandos transportados executam os helpers reais com espaços e aspas no c
   } });
   assert.equal(comandos, 3);
   assert.equal(resultado.status, 'verde', JSON.stringify(resultado));
+});
+
+// OM-01: o cache reaproveita o veredito, não apaga bloqueante ainda observado.
+for (const [tipo, sinal] of [
+  ['duplicacoes', { arquivo: 'src/a.js', linha: 12, oQue: 'calculo', ondeJaExiste: 'src/base.js' }],
+  ['abstracoesUsoUnico', { arquivo: 'src/a.js', linha: 12, oQue: 'Wrapper', unicoChamador: 'src/cliente.js' }],
+]) {
+  test(`OM-01: ${tipo} confirmada e persistente continua bloqueante até o teto`, async () => {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), [tipo]: [sinal] }),
+      'confirmar:': () => ({ real: true, porque: 'cenário reproduzido' }),
+    } });
+    assert.equal(resultado.status, 'escalado');
+    assert.equal(resultado.fase, 'Loop');
+    assert.equal(resultado.historico.length, 3);
+    assert.ok(resultado.historico.every(h => h.findings.some(f => f.origem === 'auditoria-ponytail')));
+    assert.equal(chamadas.filter(c => c.label.startsWith('confirmar:')).length, 1);
+  });
+
+  test(`OM-01: ${tipo} confirmada deixa de bloquear quando desaparece da auditoria`, async () => {
+    let vez = 0;
+    const { resultado } = await rodar({ args: ARGS, overrides: {
+      'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), [tipo]: vez++ === 0 ? [sinal] : [] }),
+      'confirmar:': () => ({ real: true, porque: 'cenário reproduzido' }),
+    } });
+    assert.equal(resultado.status, 'verde');
+    assert.equal(resultado.iteracoes, 2);
+  });
+
+  test(`OM-01: ${tipo} refutada reaproveita o veredito na mesma evidência`, async () => {
+    let vez = 0;
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), [tipo]: [sinal] }),
+      'validar:': () => ({ ...DEFAULTS['validar:'](), verde: vez++ > 0 }),
+    } });
+    assert.equal(resultado.status, 'verde');
+    assert.equal(resultado.iteracoes, 2);
+    assert.equal(chamadas.filter(c => c.label.startsWith('confirmar:')).length, 1);
+  });
+}
+
+test('OM-01: cenário de abstração alterado exige novo veredito', async () => {
+  let vez = 0;
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), abstracoesUsoUnico: [{ arquivo: 'src/a.js', oQue: 'Wrapper', unicoChamador: vez++ === 0 ? 'src/antigo.js' : 'src/novo.js' }] }),
+    'validar:': () => ({ ...DEFAULTS['validar:'](), verde: vez > 0 }),
+    'confirmar:': (opts, chamadas) => ({ real: chamadas.filter(c => c.label.startsWith('confirmar:')).length > 1, porque: 'cenário mudou' }),
+  } });
+  assert.equal(resultado.status, 'escalado');
+  assert.equal(chamadas.filter(c => c.label.startsWith('confirmar:')).length, 2);
+});
+
+// OM-07: executar a receita emitida contra Git real, sem simular o índice.
+// O executor abaixo é uma fixture técnica; não mede obediência de modelo.
+test('OM-07: revisão inclui arquivo novo relatado sem encenar notas ou alterar índice', async () => {
+  const dir = realpathSync(mkdtempSync(resolve(tmpdir(), 'odin-review-index-')));
+  const env = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_OPTIONAL_LOCKS: '0' };
+  const git = (...args) => {
+    const r = spawnSync('git', args, { cwd: dir, env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(r.status, 0, r.stderr); return r.stdout;
+  };
+  try {
+    git('init', '-q'); mkdirSync(resolve(dir, 'src')); mkdirSync(resolve(dir, 'docs'));
+    writeFileSync(resolve(dir, 'src/a.js'), 'export const a = 1;\n');
+    git('add', '--', 'src/a.js');
+    git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgSign=false', '-c', 'core.hooksPath=/dev/null', 'commit', '-qm', 'baseline fixture');
+    writeFileSync(resolve(dir, 'src/a.js'), 'export const a = 2;\n');
+    writeFileSync(resolve(dir, 'src/new.js'), 'export const novoAutorizado = 3;\n');
+    writeFileSync(resolve(dir, 'docs/pendencias.md'), 'NOTA_LOCAL_FORA_DO_ESCOPO\n');
+    const before = readFileSync(resolve(dir, '.git/index'));
+    let observed = '';
+    const { resultado } = await rodar({ args: { ...ARGS, workspaceRoot: dir, scriptsDir: resolve(HARNESS, '../../scripts') }, overrides: {
+      'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: ['src/a.js', 'src/new.js'] }),
+      'ponytail:': (opts, calls, prompt) => {
+        // Receita antiga: duas chamadas literais que causavam o vazamento.
+        // Receita corrigida: único bloco sh, produzido pelo harness com argumentos concretos.
+        const block = prompt.match(/```sh\n([\s\S]*?)\n```/);
+        const commands = block ? block[1] : [...prompt.matchAll(/`([^`]+)`/g)].slice(0, 2).map(x => x[1]).join('\n');
+        const r = spawnSync('sh', ['-c', commands], { cwd: dir, env, encoding: 'utf8', timeout: 10000 });
+        assert.equal(r.status, 0, r.stderr); observed = r.stdout;
+        return DEFAULTS['ponytail:']();
+      },
+    } });
+    assert.equal(resultado.status, 'verde');
+    assert.deepEqual(readFileSync(resolve(dir, '.git/index')), before, 'auditoria não pode modificar o índice');
+    assert.match(observed, /novoAutorizado/);
+    assert.ok(!observed.includes('NOTA_LOCAL_FORA_DO_ESCOPO'));
+    git('add', '--', 'src/a.js');
+    assert.equal(git('diff', '--cached', '--name-only').trim(), 'src/a.js');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

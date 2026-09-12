@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — 2026-09-09
+
+- Rough e produção deixam de repetir geração por fallback ou erro. Falha, ausência de saída ou resposta parcial encerram para reconciliação, preservando parciais; nova tentativa depende de decisão humana e orçamento. Fallbacks sem geração continuam disponíveis.
+
 ## 0.1.2
 
 Distribuição pública inicial no marketplace v3.18.0. Metadados apontam para o repositório público; pacote autocontido e política nativa de modelos preservados.

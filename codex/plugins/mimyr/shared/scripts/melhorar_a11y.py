@@ -13,9 +13,14 @@ Aplica três transformações idempotentes:
    vem do `<caption>` ou do heading anterior.
 
 Uso:
-    python melhorar_a11y.py <arquivo_ou_diretorio>
+    python melhorar_a11y.py <arquivo_ou_diretorio> [--dry-run]
+
+--dry-run mostra o diff proposto sem gravar. Encontrar mudanças não é erro:
+o diagnóstico termina com código 0, assim como os demais dry-runs do plugin.
 """
+import argparse
 import sys
+from difflib import unified_diff
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -32,24 +37,30 @@ def improve_html(html: str) -> str:
     return str(soup)
 
 
-def improve_file(path: Path) -> bool:
-    """Aplica as melhorias a um arquivo. Retorna True se o conteúdo mudou."""
+def improve_file(path: Path, dry_run: bool = False) -> bool:
+    """Aplica ou mostra as melhorias. Retorna True se há conteúdo a alterar."""
     original = path.read_text(encoding="utf-8")
     improved = improve_html(original)
     if improved != original:
-        path.write_text(improved, encoding="utf-8")
+        if dry_run:
+            print("\n".join(unified_diff(
+                original.splitlines(), improved.splitlines(),
+                fromfile=str(path), tofile=f"{path} (proposto)", lineterm="",
+            )))
+        else:
+            path.write_text(improved, encoding="utf-8")
         return True
     return False
 
 
-def improve_tree(target_path: str) -> list[Path]:
+def improve_tree(target_path: str, dry_run: bool = False) -> list[Path]:
     """Aplica a um arquivo ou a todos os .html sob um diretório.
 
-    Retorna a lista de arquivos efetivamente alterados.
+    Retorna a lista de arquivos alterados ou com mudanças propostas no dry-run.
     """
     target = Path(target_path)
     files = [target] if target.is_file() else sorted(target.rglob("*.html"))
-    return [f for f in files if improve_file(f)]
+    return [f for f in files if improve_file(f, dry_run=dry_run)]
 
 
 def _label_nav_links(soup) -> None:
@@ -124,10 +135,18 @@ def _table_label(table) -> str:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python melhorar_a11y.py <arquivo_ou_diretorio>")
+        print("Usage: python melhorar_a11y.py <arquivo_ou_diretorio> [--dry-run]")
         sys.exit(1)
 
-    changed = improve_tree(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Melhorias de acessibilidade nos HTMLs de curso.")
+    parser.add_argument("target", help="Arquivo HTML ou diretório de curso.")
+    parser.add_argument("--dry-run", action="store_true", help="Mostra o diff proposto, sem gravar.")
+    args = parser.parse_args()
+
+    changed = improve_tree(args.target, dry_run=args.dry_run)
     for path in changed:
-        print(f"a11y atualizado: {path}")
-    print(f"{len(changed)} arquivo(s) alterado(s).")
+        print(f"a11y {'proposto' if args.dry_run else 'atualizado'}: {path}")
+    if args.dry_run:
+        print(f"(dry-run) {len(changed)} arquivo(s) com mudanças propostas; nenhum gravado.")
+    else:
+        print(f"{len(changed)} arquivo(s) alterado(s).")

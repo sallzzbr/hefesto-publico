@@ -152,7 +152,11 @@ sonnet, validador opus·high, mecânicos haiku·low, perfil balanceado).
 
 Custo de imagem por run (arquétipo IA): roughs = 1 por rota; candidatos = N na rodada
 inicial e N-1 (mín. 2) nas re-gerações — com o teto de 3 iterações, o teto de rodadas de
-geração coincide com o de iterações. Estime e diga. Agentes: estágio A = 1 diretor + 1
+geração coincide com o de iterações. Cada comando tem **uma tentativa**, sem retry
+automático. Falha ou retorno incerto interrompe o fluxo; preserve recibos, logs e arquivos,
+reconcilie o efeito real com o humano e revise a estimativa antes de autorizar outra
+tentativa. Re-geração por crítica é uma rodada distinta, dentro do teto e orçamento
+autorizados; não é retry de comando falho. Isso vale também no modo Solo. Estime e diga. Agentes: estágio A = 1 diretor + 1
 mecânico por rota; estágio B = 1 portão + por iteração (até 3): [1 produtor + 1 seleção
 SOMENTE quando a iteração gera candidatos — iteração de correção só-overlay não os chama] +
 2 mecânicos (composição + pre-flight) + 1 crit (+1 confirmação por finding plausível) +
@@ -239,8 +243,10 @@ Workflow({
 
 Steps: `portao`, `producao`, `selecao`, `composicao`, `preflight`, `crit`, `confirmacao`,
 `correcao`, `pacote` (estágio A: `rotas`, `roughs`). Fallbacks são do script: fable→opus no
-diretor, promoção→piso no produtor, haiku→sonnet nos mecânicos — tudo registrado em
-`fallbacks`, com desliga-pelo-run. **Não trate você o fallback** e não faça probe de modelo.
+diretor, promoção→piso na correção, haiku→sonnet nos demais steps mecânicos.
+**Roughs e produção não recebem fallback**, pois a ausência de retorno pode esconder uma
+geração já paga. Os fallbacks permitidos ficam registrados em `fallbacks`, com
+desliga-pelo-run. **Não trate você o fallback** e não faça probe de modelo.
 
 Trate os desfechos:
 
@@ -249,11 +255,15 @@ Trate os desfechos:
 - **`bloqueado`** → brief incompleto, rota não aprovada, ou render existente sem
   `reproduzir: true` no artefato. Resolva COM o humano e reinvoque — o harness não improvisa
   (e não gastou API de imagem).
-- **`escalado`** → teto de iterações/rodadas de IA, geração/composição impossível (setup), ou
-  rough zero. Apresente o pacote/diagnóstico e espere decisão — loop que não converge é sinal
+- **`escalado`** → teto de iterações/rodadas de IA, estado de geração inválido ou
+  composição impossível. Apresente o pacote/diagnóstico e espere decisão — loop que não converge é sinal
   de rota/brief errado, não de falta de força bruta.
-- **`erro`** → falha de infraestrutura de um agente (fail-closed); reinvocar com
-  `resumeFromRunId` aproveita tudo que já completou.
+- **`erro`** → preserve o relatório e os artefatos. Com `requerReconciliacao: true`,
+  examine `parcial` e confronte comandos, arquivos e recibos com o efeito real antes de
+  retomar. Não reenvie geração pela falta de arquivo ou resposta, nem troque o executor
+  para contornar a interrupção. Só uma decisão humana após reconciliação e revisão de
+  orçamento permite outra tentativa. Nos demais erros, `resumeFromRunId` aproveita
+  respostas já concluídas; nunca presume que uma chamada sem resposta não teve efeito.
 
 ## Pós-verde (fora do harness)
 

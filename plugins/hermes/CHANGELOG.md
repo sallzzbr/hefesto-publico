@@ -1,5 +1,9 @@
 # Changelog — hermes
 
+## 1.3.5 — 2026-09-09
+
+- Rough e produção deixam de repetir geração por fallback ou erro. Falha, ausência de saída ou resposta parcial encerram para reconciliação, preservando parciais; nova tentativa depende de decisão humana e orçamento. Fallbacks sem geração continuam disponíveis.
+
 ## 1.3.4 — 2026-09-08
 
 - Preflight com falha operacional de script encerra o fluxo com erro e preserva o diagnóstico, inclusive sem artefato. Falhas visuais continuam pelo ciclo de correção.

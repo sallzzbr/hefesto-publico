@@ -497,6 +497,10 @@
       "target": "plugins/odin/shared/skills/dev-loop/scripts/hashes-testes.mjs"
     },
     {
+      "source": "plugins/odin/skills/dev-loop/scripts/inspecionar-git.mjs",
+      "target": "plugins/odin/shared/skills/dev-loop/scripts/inspecionar-git.mjs"
+    },
+    {
       "source": "plugins/odin/skills/dev-loop/scripts/spec-ids.mjs",
       "target": "plugins/odin/shared/skills/dev-loop/scripts/spec-ids.mjs"
     },

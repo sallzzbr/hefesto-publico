@@ -50,6 +50,16 @@ Controlador: [loop.mjs](../../../shared/skills/dev-loop/harness/loop.mjs).
 
 O planejador trabalha como arquiteto Codex; fonte com identidade/modelo fixo só fornece responsabilidades de domínio. Leia [SPEC](../../../shared/skills/dev-loop/references/spec-template.md), [ponytail](../../../shared/skills/dev-loop/references/escada-ponytail.md) e [revisão adversarial](../../../shared/skills/dev-loop/references/protocolo-revisao-adversarial.md).
 
+## Inspeção Git somente leitura
+
+Auditoria e lentes executam o comando emitido com
+`<PLUGIN_ROOT>/shared/skills/dev-loop/scripts/inspecionar-git.mjs diff`, da raiz física do
+workspace. Ele separa working tree rastreada contra HEAD, índice e novos arquivos relatados.
+Resolva `declaradosNaoInspecionados` (relatados ausentes/ignorados) e confira `novosNaoIncluidos` contra a SPEC antes de declarar leitura completa; selecione paths
+novos autorizados explicitamente, sem ler notas locais/segredos por conveniência. Binários
+exigem inspeção própria. Falha não é diff vazio. Nunca prepare ou limpe stage durante revisão.
+Commits anteriores integrantes do escopo exigem leitura separada contra a base aprovada.
+
 ## Args e pré-condições
 
 ```json
