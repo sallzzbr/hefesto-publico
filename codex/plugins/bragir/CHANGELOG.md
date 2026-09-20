@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 — 2026-09-20
+
+- Seis skills de carreira e comunicação: perfil profissional, vagas, LinkedIn, portfólio, candidatura e direção visual.
+- Contrato de fontes, versões e continuidade do workspace; propostas separadas de efeitos externos.
+- Escrita, voz, personas e fluxo editorial existentes preservados; carreira é opcional.
+- Esta versão requer nova instalação/recarga para disponibilizar as skills; validação registrada no plano interno, sem alegar efeitos em contas reais.
+
 ## 0.1.2
 
 Distribuição pública inicial no marketplace v3.18.0. Metadados apontam para o repositório público; pacote autocontido e política nativa de modelos preservados.

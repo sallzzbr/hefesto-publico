@@ -4,7 +4,7 @@
 
 ## Propósito do repo
 
-`hefesto` é um **marketplace Claude Code** que publica seis **plugins**: `hefesto` (forja de plugins: criar, validar e versionar plugins e skills), `bragir` (escrita/voz e editorial: escrever-como-antonio, analisar-voz, gerenciar-personas, planejar-agenda, analisar-metricas), `mimyr` (cursos e didática: 5 skills + scripts Python + harness gerar-curso), `hestia` (economia doméstica: orçamento, análise de gastos, mercado e investimentos com dados no Google Drive do usuário), `hermes` (marketing de performance e criativos: 16 skills + 4 agents + harness criativo.mjs) e `odin` (desafios pelo double diamond: 6 skills + 9 comandos). O objetivo é ser instalável com dois comandos, funcionar em qualquer SO e ser compartilhável com amigos sem precisar de setup manual.
+`hefesto` é um **marketplace Claude Code** que publica seis **plugins**: `hefesto` (forja de plugins: criar, validar e versionar plugins e skills), `bragir` (11 skills: escrita/voz, editorial, carreira e comunicação visual; catálogo no README do plugin), `mimyr` (cursos e didática: 5 skills + scripts Python + harness gerar-curso), `hestia` (economia doméstica: orçamento, análise de gastos, mercado e investimentos com dados no Google Drive do usuário), `hermes` (marketing de performance e criativos: 16 skills + 4 agents + harness criativo.mjs) e `odin` (desafios pelo double diamond: 6 skills + 9 comandos). O objetivo é ser instalável com dois comandos, funcionar em qualquer SO e ser compartilhável com amigos sem precisar de setup manual.
 
 > Rumo do repo: o backlog mestre da reorganização do ecossistema (forja, bragir, mimyr, hestia, odin v2.3, hermes) está em `docs/superpowers/specs/2026-07-22-megaplano-ecossistema-plugins.md`.
 
@@ -165,7 +165,7 @@ Tipos comuns: `feat`, `fix`, `docs`, `restructure`, `chore`, `refactor`. Mensage
 
 Prefira usar a forja: `criar-skill` scaffolda, `versionar-plugin` faz o bump, `validar-plugin` confere. O passo a passo manual equivalente:
 
-1. Crie `plugins/<plugin>/skills/<nome>/SKILL.md` com frontmatter válido (no plugin certo: `hefesto` = forja; `bragir` = escrita/voz; `mimyr` = cursos/didática; `hestia` = economia doméstica; `hermes` = marketing/criativos; `odin` = desafios).
+1. Crie `plugins/<plugin>/skills/<nome>/SKILL.md` com frontmatter válido (no plugin certo: `hefesto` = forja; `bragir` = escrita/voz, carreira e comunicação; `mimyr` = cursos/didática; `hestia` = economia doméstica; `hermes` = marketing/criativos; `odin` = desafios).
 2. Atualize a tabela de skills no `README.md` (raiz) e, no caso do odin, no `plugins/odin/README.md`.
 3. Bump `version` no `plugin.json` do plugin + na entrada correspondente de `marketplace.json.plugins[]` + em `marketplace.json.metadata.version` (minor bump).
 4. Se a skill lê/escreve recursos do plugin, coloque-os em `plugins/<plugin>/<recurso>` e referencie via `${CLAUDE_PLUGIN_ROOT}`.

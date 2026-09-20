@@ -567,6 +567,34 @@
     {
       "source": "codex/runtime/MODELOS.md",
       "target": "plugins/hermes/MODELOS.md"
+    },
+    {
+      "source": "plugins/bragir/skills/mapear-perfil-profissional/SKILL.md",
+      "target": "plugins/bragir/shared/skills/mapear-perfil-profissional/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/avaliar-vagas/SKILL.md",
+      "target": "plugins/bragir/shared/skills/avaliar-vagas/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/revisar-linkedin/SKILL.md",
+      "target": "plugins/bragir/shared/skills/revisar-linkedin/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/curar-portfolio/SKILL.md",
+      "target": "plugins/bragir/shared/skills/curar-portfolio/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/preparar-candidatura/SKILL.md",
+      "target": "plugins/bragir/shared/skills/preparar-candidatura/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/direcionar-comunicacao-visual/SKILL.md",
+      "target": "plugins/bragir/shared/skills/direcionar-comunicacao-visual/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/mapear-perfil-profissional/references/carreira.md",
+      "target": "plugins/bragir/shared/skills/mapear-perfil-profissional/references/carreira.md"
     }
   ]
 }

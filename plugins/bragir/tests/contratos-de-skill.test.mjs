@@ -27,8 +27,8 @@ function arquivosDoPlugin(dir = PLUGIN) {
   return out;
 }
 
-test('as cinco skills existem e cada description tem gatilho de uso e tamanho de roteamento', () => {
-  assert.deepEqual(SKILLS.sort(), ['analisar-metricas', 'analisar-voz', 'escrever-como-antonio', 'gerenciar-personas', 'planejar-agenda']);
+test('as onze skills existem e cada description tem gatilho de uso e tamanho de roteamento', () => {
+  assert.deepEqual(SKILLS.sort(), ['analisar-metricas', 'analisar-voz', 'avaliar-vagas', 'curar-portfolio', 'direcionar-comunicacao-visual', 'escrever-como-antonio', 'gerenciar-personas', 'mapear-perfil-profissional', 'planejar-agenda', 'preparar-candidatura', 'revisar-linkedin']);
   for (const s of SKILLS) {
     const d = descricao(skill(s));
     assert.ok(d.length >= 80, `${s}: description curta demais para rotear (${d.length})`);

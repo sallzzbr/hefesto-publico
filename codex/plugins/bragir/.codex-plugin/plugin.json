@@ -1,7 +1,7 @@
 {
   "name": "bragir",
-  "version": "0.1.2",
-  "description": "Bragir — voz e escrita: escrever-como-antonio (voz do autor), analisar-voz (extrai perfil-de-voz.md de documentos) e gerenciar-personas (calibra audiência por projeto).",
+  "version": "0.2.0",
+  "description": "Bragir — voz, escrita e carreira: comunicação na voz do autor, perfil profissional, vagas, LinkedIn, portfólio, candidaturas e direção visual.",
   "author": {
     "name": "Antonio Salgado",
     "url": "https://github.com/sallzzbr"
@@ -9,12 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Bragir",
-    "shortDescription": "Escrita, voz, personas e conteúdo",
-    "longDescription": "Bragir — voz e escrita: escrever-como-antonio (voz do autor), analisar-voz (extrai perfil-de-voz.md de documentos) e gerenciar-personas (calibra audiência por projeto).",
+    "shortDescription": "Voz, comunicação e carreira",
+    "longDescription": "Bragir — voz, escrita e carreira: comunicação na voz do autor, perfil profissional, vagas, LinkedIn, portfólio, candidaturas e direção visual.",
     "developerName": "Antonio Salgado",
     "category": "Productivity",
     "defaultPrompt": [
-      "Escreva um texto na minha voz."
+      "Escreva um texto na minha voz.",
+      "Retome meus materiais de carreira e a próxima ação."
     ],
     "capabilities": []
   },

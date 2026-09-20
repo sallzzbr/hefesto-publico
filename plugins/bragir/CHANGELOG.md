@@ -3,6 +3,13 @@
 > Histórico anterior à 1.2.4 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 1.3.0 — 2026-09-20
+
+- Seis skills de carreira e comunicação: perfil profissional, vagas, LinkedIn, portfólio, candidatura e direção visual.
+- Contrato de fontes, versões e continuidade do workspace; propostas separadas de efeitos externos.
+- Escrita, voz, personas e fluxo editorial existentes preservados; carreira é opcional.
+- Esta versão requer nova instalação/recarga para disponibilizar as skills; validação registrada no plano interno, sem alegar efeitos em contas reais.
+
 ## 1.2.5 — 2026-09-05 (preparação para teste Claude)
 
 - Perfil de voz selecionado passa a governar toda a composição, audiência e formato, sem regras pessoais misturadas ao perfil do projeto. Fallback privado preservado.

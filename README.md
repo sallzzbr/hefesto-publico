@@ -8,12 +8,14 @@ O repo é um **marketplace** que publica seis plugins: **hefesto** (a forja de p
 
 > **Migração v3**: as skills de voz (`escrever-como-antonio`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
 
+> Esta versão reúne 48 skills em seis plugins. Bragir Claude 1.3.0/Codex 0.2.0 acrescenta seis skills de carreira e comunicação. Os comandos abaixo usam a tag v3.19.0 da release correspondente a esta árvore.
+
 ## Como instalar no Codex
 
-A distribuição nativa Codex contém os mesmos seis plugins e 42 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release aprovada:
+A distribuição nativa Codex contém os mesmos seis plugins e 48 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release correspondente:
 
 ```sh
-git clone --branch v3.18.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v3.19.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add ./codex
 codex plugin add hefesto@hefesto
@@ -55,6 +57,12 @@ Cada skill tem um command atalho homônimo: `/criar-plugin`, `/criar-skill`, `/v
 | `gerenciar-personas` | Cria, lista e edita personas de audiência em `./personas/` do projeto atual. |
 | `planejar-agenda` | Planeja o ciclo do calendário editorial (12 slots, 3 posts/semana) a partir de ideias e rascunhos do workspace. Sem a estrutura no cwd, PARA. |
 | `analisar-metricas` | Analisa o CSV de métricas do workspace, ranqueia posts e gera relatório datado; propõe aprendizados para o perfil de voz. Só leitura no CSV. |
+| `mapear-perfil-profissional` | Mapear Perfil Profissional. |
+| `avaliar-vagas` | Avaliar Vagas. |
+| `revisar-linkedin` | Revisar LinkedIn. |
+| `curar-portfolio` | Curar Portfólio. |
+| `preparar-candidatura` | Preparar Candidatura. |
+| `direcionar-comunicacao-visual` | Direcionar Comunicação Visual. |
 
 ### Como usar
 
@@ -208,7 +216,7 @@ daqui.
     │   │       ├── criar-skill/           # + references/convencoes-skill.md
     │   │       ├── validar-plugin/        # + scripts/validar.mjs
     │   │       └── versionar-plugin/
-    │   ├── bragir/                        # voz, escrita e editorial (5 skills)
+    │   ├── bragir/                        # voz, escrita, editorial e carreira (11 skills)
     │   │   ├── .claude-plugin/plugin.json
     │   │   ├── perfil-de-voz.md           # perfil de voz canônico do Antonio (fallback)
     │   │   └── skills/                    # escrever-como-antonio, analisar-voz, gerenciar-personas,

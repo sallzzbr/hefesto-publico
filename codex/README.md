@@ -1,22 +1,24 @@
 # Hefesto para Codex
 
-Seis plugins e 42 skills nativas Codex, distribuídos no [marketplace público Hefesto](https://github.com/sallzzbr/hefesto-publico). Esta pasta é a raiz do marketplace Codex; a distribuição Claude Code fica em `../plugins/`.
+Seis plugins e 48 skills nativas Codex, distribuídos no [marketplace público Hefesto](https://github.com/sallzzbr/hefesto-publico). Esta pasta é a raiz do marketplace Codex; a distribuição Claude Code fica em `../plugins/`.
 
 | Plugin | Skills | Função |
 |---|---:|---|
 | Hefesto | 4 | Criar, validar e versionar plugins e skills Codex |
-| Bragir | 5 | Voz, personas, escrita e planejamento editorial |
+| Bragir | 11 | Voz, escrita, editorial, carreira e comunicação visual |
 | Hestia | 6 | Orçamento, gastos, compras e investimentos |
 | Odin | 6 | Investigar, definir e entregar desafios com SPEC e TDD |
 | Mimyr | 5 | Planejar, escrever e revisar cursos |
 | Hermes | 16 | Diagnóstico de marketing e produção de criativos |
+
+> Esta versão reúne 48 skills em seis plugins. Bragir Claude 1.3.0/Codex 0.2.0 acrescenta seis skills de carreira e comunicação. Os comandos abaixo usam a tag v3.19.0 da release correspondente a esta árvore.
 
 ## Instalação
 
 Com Git e a CLI Codex disponíveis, obtenha a release pública e registre a pasta do marketplace:
 
 ```sh
-git clone --branch v3.18.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v3.19.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add ./codex
 codex plugin add hefesto@hefesto
@@ -44,9 +46,9 @@ O replay preserva respostas salvas, mas não oferece transação sobre ferrament
 
 ## Validação e limites
 
-As 42 skills foram avaliadas na etapa de testes comportamentais, com sessões reais e dados sintéticos, incluindo integração de teste com Drive e produção de imagem sob orçamento autorizado. Casos de controlador também usam fixtures técnicas e injeção de falhas identificadas. Essas evidências são internas e não integram este espelho público.
+As 42 skills da distribuição inicial foram avaliadas na etapa de testes comportamentais, com sessões reais e dados sintéticos, incluindo integração de teste com Drive e produção de imagem sob orçamento autorizado. Casos de controlador também usam fixtures técnicas e injeção de falhas identificadas. Essas evidências são internas e não integram este espelho público.
 
-Os comandos abaixo verificam empacotamento, contratos e controles determinísticos. O smoke instala seis plugins, descobre as 42 skills e verifica o veto de argumentos do controlador Hermes em perfil temporário; não faz chamadas de modelo, não testa a qualidade de respostas nem comprova acesso aos seus conectores.
+Os comandos abaixo verificam empacotamento, contratos e controles determinísticos. O smoke instala seis plugins, descobre as 48 skills e verifica o veto de argumentos do controlador Hermes em perfil temporário; não faz chamadas de modelo, não testa a qualidade de respostas nem comprova acesso aos seus conectores.
 
 ```sh
 npm --prefix codex test
@@ -74,3 +76,5 @@ npm --prefix codex test
 Os pacotes instalados já contêm os recursos; não há build, dependência npm ou symlink necessário ao consumidor. CI e estágio de publicação verificam ambas as distribuições. Cada plugin mantém sua versão no manifesto e seu CHANGELOG; a tag do marketplace identifica o snapshot público conjunto.
 
 Formato nativo baseado na [documentação oficial de plugins](https://developers.openai.com/plugins/build/plugins). Marketplace: `.agents/plugins/marketplace.json`. Manifesto por pacote: `.codex-plugin/plugin.json`.
+
+As seis skills de carreira/comunicação acrescentadas no Bragir 0.2.0 têm validação separada da rodada inicial. Testes de pacote não comprovam edição de LinkedIn, envio de candidatura ou publicação de portfólio.
