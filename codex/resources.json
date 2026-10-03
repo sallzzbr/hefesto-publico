@@ -93,6 +93,22 @@
       "target": "plugins/hermes/shared/skills/analisar-criativos/CONTRATO.md"
     },
     {
+      "source": "plugins/hermes/skills/analisar-produto/SKILL.md",
+      "target": "plugins/hermes/shared/skills/analisar-produto/CONTRATO.md"
+    },
+    {
+      "source": "plugins/hermes/skills/analisar-produto/references/contrato.md",
+      "target": "plugins/hermes/shared/skills/analisar-produto/references/contrato.md"
+    },
+    {
+      "source": "plugins/hermes/skills/analisar-produto/references/template-relatorio.md",
+      "target": "plugins/hermes/shared/skills/analisar-produto/references/template-relatorio.md"
+    },
+    {
+      "source": "plugins/hermes/skills/analisar-produto/scripts/analisar-produto.mjs",
+      "target": "plugins/hermes/shared/skills/analisar-produto/scripts/analisar-produto.mjs"
+    },
+    {
       "source": "plugins/hermes/skills/analise-diaria/SKILL.md",
       "target": "plugins/hermes/shared/skills/analise-diaria/CONTRATO.md"
     },

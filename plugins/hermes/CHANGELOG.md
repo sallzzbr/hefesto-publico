@@ -1,5 +1,12 @@
 # Changelog — hermes
 
+## 1.4.0 — 2026-10-02
+
+- Skill nova `analisar-produto`: qual ESTAMPA vende e por que. Script Node sem dependências (`scripts/analisar-produto.mjs`) recebe o agregado por estampa já sem PII e entrega relatório `.md` e `.csv`: três lentes (vitrine, atenção, compra), teste de duas proporções com poder, raça comparada dentro de cada estilo com controle de confusão (inclui a reversão do paradoxo de Simpson), junção de nomes com auditoria de colisões e lista de aproximados, concentração da vitrine e recomendações em Produzir, Investir e Rever só com evidência estatística. Raça e estilo vêm da tabela de catálogo, nunca do ledger. Recusa entrada com PII e entrada incoerente (compras acima de views).
+- Fluxo criativo: rota com `semGeracao: true` segue o caminho sem geração em qualquer arquétipo; `flagSobrescrever` (validada, checada por token) é anexada nas iterações de correção e no reuso de render existente; `args.reproduzir` e `args.headline` definem a reexecução depois de decisão humana, e a troca da headline preserva body e descrição; `headlineTravada` transforma finding de redação sobre a headline em sinalização ao humano (`sinalizacoes[]`) e proíbe a reescrita automática da copy.
+- `criativo-fluxo/SKILL.md`: Catalog Sales deixa de prescrever clonagem de conjunto (cria-se do zero; clonar herda o produto promovido, imutável) e documenta como invocar o harness sem cópia quando o `scriptPath` do cache é recusado.
+- `analisar-produto`: relatório ganha a seção `## Sugestão de conjunto` (só sugestão; a skill nunca cria nada). Campo opcional `conjuntos` na entrada (fornecido pelo workspace); antes de sugerir um conjunto novo, confere se um existente já cobre a estampa (`reusar`) e lista só `candidatas a um conjunto novo`; sem a lista, avisa que não deu para checar. stdout ganha `sugestao_conjunto`; o CSV não muda.
+
 ## 1.3.5 — 2026-09-09
 
 - Rough e produção deixam de repetir geração por fallback ou erro. Falha, ausência de saída ou resposta parcial encerram para reconciliação, preservando parciais; nova tentativa depende de decisão humana e orçamento. Fallbacks sem geração continuam disponíveis.

@@ -1,6 +1,6 @@
 # Hefesto para Codex
 
-Seis plugins e 48 skills nativas Codex, distribuídos no [marketplace público Hefesto](https://github.com/sallzzbr/hefesto-publico). Esta pasta é a raiz do marketplace Codex; a distribuição Claude Code fica em `../plugins/`.
+Seis plugins e 49 skills nativas Codex, distribuídos no [marketplace público Hefesto](https://github.com/sallzzbr/hefesto-publico). Esta pasta é a raiz do marketplace Codex; a distribuição Claude Code fica em `../plugins/`.
 
 | Plugin | Skills | Função |
 |---|---:|---|
@@ -9,9 +9,9 @@ Seis plugins e 48 skills nativas Codex, distribuídos no [marketplace público H
 | Hestia | 6 | Orçamento, gastos, compras e investimentos |
 | Odin | 6 | Investigar, definir e entregar desafios com SPEC e TDD |
 | Mimyr | 5 | Planejar, escrever e revisar cursos |
-| Hermes | 16 | Diagnóstico de marketing e produção de criativos |
+| Hermes | 17 | Diagnóstico de marketing e produção de criativos |
 
-> Esta versão reúne 48 skills em seis plugins. Bragir Claude 1.3.0/Codex 0.2.0 acrescenta seis skills de carreira e comunicação. Os comandos abaixo usam a tag v3.19.0 da release correspondente a esta árvore.
+> Esta versão reúne 49 skills em seis plugins. Bragir Claude 1.3.0/Codex 0.2.0 acrescenta seis skills de carreira e comunicação. Os comandos abaixo usam a tag v3.19.0 da release correspondente a esta árvore.
 
 ## Instalação
 
@@ -48,7 +48,7 @@ O replay preserva respostas salvas, mas não oferece transação sobre ferrament
 
 As 42 skills da distribuição inicial foram avaliadas na etapa de testes comportamentais, com sessões reais e dados sintéticos, incluindo integração de teste com Drive e produção de imagem sob orçamento autorizado. Casos de controlador também usam fixtures técnicas e injeção de falhas identificadas. Essas evidências são internas e não integram este espelho público.
 
-Os comandos abaixo verificam empacotamento, contratos e controles determinísticos. O smoke instala seis plugins, descobre as 48 skills e verifica o veto de argumentos do controlador Hermes em perfil temporário; não faz chamadas de modelo, não testa a qualidade de respostas nem comprova acesso aos seus conectores.
+Os comandos abaixo verificam empacotamento, contratos e controles determinísticos. O smoke instala seis plugins, descobre as 49 skills e verifica o veto de argumentos do controlador Hermes em perfil temporário; não faz chamadas de modelo, não testa a qualidade de respostas nem comprova acesso aos seus conectores.
 
 ```sh
 npm --prefix codex test

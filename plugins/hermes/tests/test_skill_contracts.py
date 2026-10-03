@@ -19,6 +19,8 @@ EXPECTED_SKILLS = [
     "auditoria-de-estrutura", "auditoria-cro",
     # rituais promovidos do workspace (Fase 8)
     "analise-diaria", "saude-do-funil", "sintese-semanal", "diagnostico-site-funil",
+    # hermes 1.4.0
+    "analisar-produto",
 ]
 
 
@@ -140,3 +142,41 @@ def test_analise_diaria_preserves_the_snapshot_contract() -> None:
         "dados insuficientes",
     ):
         assert marker in text, f"analise-diaria lost snapshot contract marker: {marker}"
+
+
+# ── hermes 1.4.0: skill analisar-produto (B9) ────────────────────────────────
+
+ANALISAR_PRODUTO = PLUGIN_DIR / "skills" / "analisar-produto"
+REPO_ROOT = PLUGIN_DIR.parent.parent
+
+
+def test_analisar_produto_is_listed_and_has_valid_frontmatter() -> None:
+    assert "analisar-produto" in EXPECTED_SKILLS
+    assert len(EXPECTED_SKILLS) == 17
+    skill = ANALISAR_PRODUTO / "SKILL.md"
+    assert skill.is_file(), "skills/analisar-produto/SKILL.md missing"
+    text = skill.read_text(encoding="utf-8")
+    fm = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
+    assert fm
+    assert re.search(r"^name: analisar-produto$", fm.group(1), re.MULTILINE)
+    desc = re.search(r'^description: "(.+?)"$', fm.group(1), re.MULTILINE)
+    assert desc and len(desc.group(1)) > 80
+    assert "Use when" in desc.group(1)
+    assert "Somente leitura" in desc.group(1), "description must close with the read-only marker"
+
+
+def test_analisar_produto_skill_has_no_emoji_and_points_to_its_script() -> None:
+    text = (ANALISAR_PRODUTO / "SKILL.md").read_text(encoding="utf-8")
+    assert not re.search("[\U0001F300-\U0001FAFF☀-➿⭐✅❌]", text), "SKILL.md must not carry emoji"
+    assert "${CLAUDE_PLUGIN_ROOT}/skills/analisar-produto/scripts/analisar-produto.mjs" in text
+    assert (ANALISAR_PRODUTO / "scripts" / "analisar-produto.mjs").is_file()
+    assert (ANALISAR_PRODUTO / "references").is_dir()
+
+
+def test_analisar_produto_is_in_both_readmes() -> None:
+    plugin_readme = (PLUGIN_DIR / "README.md").read_text(encoding="utf-8")
+    assert re.search(r"^\| `analisar-produto` \|", plugin_readme, re.MULTILINE), "plugin README needs a table row"
+    root = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    assert "49 skills" in root, "root README must count 49 skills"
+    assert "48 skills" not in root, "stale 48-skills count left in root README"
+    assert re.search(r"hermes/.*\(17 skills", root), "root README tree must list hermes with 17 skills"

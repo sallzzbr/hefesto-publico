@@ -369,3 +369,287 @@ test('preflight: indisponibilidade mantém fallback seguro sem repetir produçã
   assert.equal(labels(chamadas, 'producao:').length, 1);
   assert.ok(resultado.fallbacks.some(f => f.step === 'preflight'));
 });
+
+// ── hermes 1.4.0 (A1-A4): semGeracao, flagSobrescrever, reproduzir/headline, headlineTravada ──
+// Comportamento via agente falso por label; marcador de schema só onde o contrato é o schema.
+
+const bloco = (nome) => {
+  const m = FONTE.match(new RegExp(`const ${nome} = [\\s\\S]*?\\n\\n`));
+  assert.ok(m, `${nome} não encontrado no harness`);
+  return m[0];
+};
+const ROTA_PRODUTO = { ...ROTA, arquetipo: 'produtotexto', promptIa: null, comandoOverlay: 'python compor_produto.py out.png', semGeracao: true };
+const portaoCom = (rota, extra = {}) => ({ 'portao:validar': () => ({ ...DEFAULTS['portao:validar'](), rota, ...extra }) });
+const FINDING_BASE = { evidencia: 'e', cenario: 'c', severidade: 'bloqueante', confianca: 'confirmado' };
+
+test('A1: produtotexto com semGeracao:true chega a verde sem producao e o pre-flight recebe --arquetipo produtotexto', async () => {
+  const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: portaoCom(ROTA_PRODUTO) });
+  assert.equal(resultado.status, 'verde');
+  assert.equal(resultado.rodadasIa, 0);
+  assert.equal(labels(chamadas, 'producao:').length, 0);
+  assert.equal(labels(chamadas, 'selecao:').length, 0);
+  assert.ok(labels(chamadas, 'preflight:')[0].prompt.includes('--arquetipo produtotexto'));
+});
+
+test('A1: rota não-texto sem semGeracao e sem {{BASE}} continua bloqueada', async () => {
+  const { semGeracao, ...semFlag } = ROTA_PRODUTO;
+  const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: portaoCom(semFlag) });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.match(resultado.detalhe, /\{\{BASE\}\}/);
+  assert.equal(labels(chamadas, 'producao:').length, 0);
+});
+
+test('A1: schema de rota do diretor e o do portão aceitam semGeracao', () => {
+  assert.match(bloco('ROTAS_SCHEMA'), /semGeracao/);
+  assert.match(bloco('PORTAO_SCHEMA'), /semGeracao/);
+});
+
+test('A2: flagSobrescrever só entra na composição da iteração >= 2, uma única vez', async () => {
+  const rota = { ...ROTA_TEXTO, flagSobrescrever: '--sobrescrever' };
+  let vez = 0;
+  const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: {
+    ...portaoCom(rota),
+    'crit:': () => (vez++ === 0 ? { findings: [{ ...FINDING_BASE, criterio: 'legibilidade_thumbnail', resumo: 'ilegível', custoCorrecao: 'overlay' }] } : { findings: [] }),
+    'correcao:': () => ({ resumo: 'recompõe', comandoOverlay: 'python compor_texto.py --v2 out.png', promptIa: null, copyCorrigida: null }),
+  } });
+  assert.equal(resultado.status, 'verde');
+  const comps = labels(chamadas, 'composicao:');
+  assert.equal(comps.length, 2);
+  assert.ok(!comps[0].prompt.includes('--sobrescrever'), 'iteração 1 roda o comando como está');
+  assert.equal(comps[1].prompt.split('--sobrescrever').length - 1, 1, 'iteração 2 leva a flag uma única vez');
+});
+
+test('A2: comando que já contém a flag não a duplica na iteração >= 2', async () => {
+  const rota = { ...ROTA_TEXTO, flagSobrescrever: '--sobrescrever' };
+  let vez = 0;
+  const { chamadas } = await rodar({ args: PRODUZIR, overrides: {
+    ...portaoCom(rota),
+    'crit:': () => (vez++ === 0 ? { findings: [{ ...FINDING_BASE, criterio: 'legibilidade_thumbnail', resumo: 'ilegível', custoCorrecao: 'overlay' }] } : { findings: [] }),
+    'correcao:': () => ({ resumo: 'recompõe', comandoOverlay: 'python compor_texto.py --sobrescrever --v2 out.png', promptIa: null, copyCorrigida: null }),
+  } });
+  const comps = labels(chamadas, 'composicao:');
+  assert.equal(comps.length, 2);
+  assert.equal(comps[1].prompt.split('--sobrescrever').length - 1, 1);
+});
+
+test('A2: sem flagSobrescrever o comportamento é idêntico ao atual', async () => {
+  let vez = 0;
+  const { chamadas } = await rodar({ args: PRODUZIR, overrides: {
+    ...portaoCom(ROTA_TEXTO),
+    'crit:': () => (vez++ === 0 ? { findings: [{ ...FINDING_BASE, criterio: 'legibilidade_thumbnail', resumo: 'ilegível', custoCorrecao: 'overlay' }] } : { findings: [] }),
+    'correcao:': () => ({ resumo: 'recompõe', comandoOverlay: 'python compor_texto.py --v2 out.png', promptIa: null, copyCorrigida: null }),
+  } });
+  const comps = labels(chamadas, 'composicao:');
+  assert.equal(comps.length, 2);
+  assert.ok(comps.every((c) => !c.prompt.includes('--sobrescrever')));
+  assert.ok(comps[1].prompt.includes('python compor_texto.py --v2 out.png'));
+});
+
+test('A2: schemas aceitam flagSobrescrever', () => {
+  assert.match(bloco('ROTAS_SCHEMA'), /flagSobrescrever/);
+  assert.match(bloco('PORTAO_SCHEMA'), /flagSobrescrever/);
+});
+
+const RENDER_EXISTE = { renderJaExiste: true, reproduzir: false };
+
+test('A3: args.reproduzir:true libera render existente; sem ele segue bloqueando', async () => {
+  const com = await rodar({ args: { ...PRODUZIR, reproduzir: true }, overrides: portaoCom(ROTA, RENDER_EXISTE) });
+  assert.equal(com.resultado.status, 'verde');
+  const sem = await rodar({ args: PRODUZIR, overrides: portaoCom(ROTA, RENDER_EXISTE) });
+  assert.equal(sem.resultado.status, 'bloqueado');
+  assert.match(sem.resultado.detalhe, /reproduzir/);
+});
+
+test('A3: args.headline substitui a copy do run (crit, pacote e resultado)', async () => {
+  const rota = { ...ROTA, copy: 'copy-original-xyz' };
+  const { resultado, chamadas } = await rodar({ args: { ...PRODUZIR, headline: 'headline-nova-abc' }, overrides: portaoCom(rota) });
+  assert.equal(resultado.status, 'verde');
+  assert.equal(resultado.copy, 'headline-nova-abc');
+  assert.ok(labels(chamadas, 'crit:')[0].prompt.includes('headline-nova-abc'));
+  assert.ok(!labels(chamadas, 'crit:')[0].prompt.includes('copy-original-xyz'));
+  assert.ok(labels(chamadas, 'pacote:')[0].prompt.includes('headline-nova-abc'));
+});
+
+test('A3: sem args.headline a copy da rota é mantida', async () => {
+  const rota = { ...ROTA, copy: 'copy-original-xyz' };
+  const { resultado } = await rodar({ args: PRODUZIR, overrides: portaoCom(rota) });
+  assert.equal(resultado.copy, 'copy-original-xyz');
+});
+
+const F_HEADLINE = { ...FINDING_BASE, criterio: 'voz_da_marca', resumo: 'headline-fraca-marcador', alvo: 'headline', custoCorrecao: 'copy' };
+
+test('A4: finding alvo headline com headlineTravada na rota não bloqueia; vai a sinalizacoes (resultado e pacote)', async () => {
+  const rota = { ...ROTA, copy: 'copy-travada', headlineTravada: true };
+  const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: {
+    ...portaoCom(rota),
+    'crit:': () => ({ findings: [F_HEADLINE] }),
+  } });
+  assert.equal(resultado.status, 'verde');
+  assert.equal(resultado.iteracoes, 1);
+  assert.equal(labels(chamadas, 'correcao:').length, 0);
+  assert.ok(Array.isArray(resultado.sinalizacoes) && resultado.sinalizacoes.length === 1);
+  assert.ok(JSON.stringify(resultado.sinalizacoes).includes('headline-fraca-marcador'));
+  assert.ok(labels(chamadas, 'pacote:')[0].prompt.includes('headline-fraca-marcador'));
+});
+
+test('A4: headlineTravada via args tem o mesmo efeito', async () => {
+  const { resultado } = await rodar({ args: { ...PRODUZIR, headlineTravada: true }, overrides: { 'crit:': () => ({ findings: [F_HEADLINE] }) } });
+  assert.equal(resultado.status, 'verde');
+  assert.equal(resultado.sinalizacoes.length, 1);
+});
+
+test('A4: copyCorrigida devolvida com a trava é descartada com registro; copy final inalterada', async () => {
+  const rota = { ...ROTA_TEXTO, copy: 'copy-travada', headlineTravada: true };
+  let vez = 0;
+  const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: {
+    ...portaoCom(rota),
+    'crit:': () => (vez++ === 0
+      ? { findings: [F_HEADLINE, { ...FINDING_BASE, criterio: 'legibilidade_thumbnail', resumo: 'ilegível', custoCorrecao: 'overlay' }] }
+      : { findings: [] }),
+    'correcao:': () => ({ resumo: 'recompõe', comandoOverlay: 'python compor_texto.py --v2 out.png', promptIa: null, copyCorrigida: 'copy-reescrita-proibida' }),
+  } });
+  assert.equal(resultado.status, 'verde');
+  assert.equal(resultado.copy, 'copy-travada');
+  assert.equal(resultado.copyFoiCorrigida, false);
+  assert.ok(!labels(chamadas, 'pacote:')[0].prompt.includes('Copy final: copy-reescrita-proibida'));
+  const registro = JSON.stringify(resultado) + labels(chamadas, 'pacote:')[0].prompt;
+  assert.match(registro, /descartad/i);
+});
+
+test('A4: sem a trava, finding de headline bloqueia como hoje', async () => {
+  const { resultado } = await rodar({ args: PRODUZIR, overrides: { 'crit:': () => ({ findings: [F_HEADLINE] }) } });
+  assert.notEqual(resultado.status, 'verde');
+  assert.ok(!resultado.sinalizacoes || resultado.sinalizacoes.length === 0);
+});
+
+test('A4: schema de finding aceita alvo e o portão aceita headlineTravada', () => {
+  assert.match(bloco('CRIT_SCHEMA'), /alvo/);
+  assert.match(bloco('PORTAO_SCHEMA'), /headlineTravada/);
+});
+
+// ── hermes 1.4.0 (correção pós-revisão da U1) ────────────────────────────────
+
+// Item 1: args.headline troca SÓ o valor do rótulo Headline, ancorado, preservando o resto.
+const copiaFinal = async (copy, headline = 'NOVA') => {
+  const { resultado } = await rodar({ args: { ...PRODUZIR, headline }, overrides: portaoCom({ ...ROTA, copy }) });
+  assert.equal(resultado.status, 'verde');
+  return resultado.copy;
+};
+
+test('A3: args.headline em copy estruturada preserva body e descricao (4 formatos)', async () => {
+  assert.equal(await copiaFinal('Headline: Velho. Body: corpo. Descricao: frete'), 'Headline: NOVA. Body: corpo. Descricao: frete');
+  assert.equal(await copiaFinal('Headline: Velho / Body: corpo / Descricao: desc'), 'Headline: NOVA / Body: corpo / Descricao: desc');
+  assert.equal(await copiaFinal('Headline: Velho | Body: corpo | Descrição: desc'), 'Headline: NOVA | Body: corpo | Descrição: desc');
+  assert.equal(await copiaFinal('Headline: Velho\nBody: corpo\nCTA: Compre'), 'Headline: NOVA\nBody: corpo\nCTA: Compre');
+});
+
+test('A3: args.headline nunca troca a Subheadline e não deixa espaço sobrando', async () => {
+  assert.equal(await copiaFinal('Subheadline: Sub | Headline: Velha | CTA: Compre'), 'Subheadline: Sub | Headline: NOVA | CTA: Compre');
+  assert.equal(await copiaFinal('Subheadline: Sub\nHeadline: Velha\nBody: x'), 'Subheadline: Sub\nHeadline: NOVA\nBody: x');
+  assert.equal(await copiaFinal('Headline: Velha   \nBody: x'), 'Headline: NOVA\nBody: x');
+});
+
+test('A3: args.headline em copy sem rótulo reconhecido substitui tudo; com rótulos mas sem Headline, antepõe', async () => {
+  assert.equal(await copiaFinal('frase solta. Com ponto e / barra'), 'NOVA');
+  assert.equal(await copiaFinal('Body: corpo | CTA: Compre'), 'Headline: NOVA | Body: corpo | CTA: Compre');
+});
+
+// Item 2: o descarte da copyCorrigida precisa deixar registro CONCRETO (não texto fixo do prompt).
+const CRIT_OVERLAY = { ...FINDING_BASE, criterio: 'legibilidade_thumbnail', resumo: 'ilegível', custoCorrecao: 'overlay' };
+
+test('A4: descarte da copyCorrigida registra a entrada concreta em sinalizacoes do resultado', async () => {
+  const rota = { ...ROTA_TEXTO, copy: 'copy-travada', headlineTravada: true };
+  let vez = 0;
+  const { resultado } = await rodar({ args: PRODUZIR, overrides: {
+    ...portaoCom(rota),
+    'crit:': () => (vez++ === 0 ? { findings: [CRIT_OVERLAY] } : { findings: [] }),
+    'correcao:': () => ({ resumo: 'r', comandoOverlay: 'python compor_texto.py --v2 out.png', promptIa: null, copyCorrigida: 'copy-reescrita-proibida' }),
+  } });
+  const entrada = resultado.sinalizacoes.find((s) => s.tipo === 'copyCorrigida');
+  assert.ok(entrada, 'sinalizacoes deve conter a entrada do descarte');
+  assert.equal(entrada.descartada, 'copy-reescrita-proibida');
+  assert.equal(entrada.iteracao, 1);
+});
+
+test('A4: descarte da copyCorrigida entra nos avisos da correção (visíveis no escalado)', async () => {
+  const rota = { ...ROTA_TEXTO, copy: 'copy-travada', headlineTravada: true };
+  const { resultado } = await rodar({ args: PRODUZIR, overrides: {
+    ...portaoCom(rota),
+    'crit:': () => ({ findings: [CRIT_OVERLAY] }),
+    'correcao:': () => ({ resumo: 'só copy', comandoOverlay: null, promptIa: null, copyCorrigida: 'copy-reescrita-proibida' }),
+  } });
+  assert.equal(resultado.status, 'escalado');
+  assert.ok(resultado.detalhe.avisos.some((a) => /copyCorrigida descartada/.test(a)));
+});
+
+// Item 3: a trava protege a REDAÇÃO; defeito de render com alvo headline continua entrando no fluxo.
+test('A4: com a trava, finding de render (overlay) com alvo headline segue bloqueante e corrigível', async () => {
+  const rota = { ...ROTA_TEXTO, copy: 'copy-travada', headlineTravada: true };
+  const F_RENDER = { ...FINDING_BASE, criterio: 'texto_correto', resumo: 'headline cortada no render', alvo: 'headline', custoCorrecao: 'overlay' };
+  let vez = 0;
+  const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: {
+    ...portaoCom(rota),
+    'crit:': () => (vez++ === 0 ? { findings: [F_RENDER] } : { findings: [] }),
+    'correcao:': () => ({ resumo: 'recompõe', comandoOverlay: 'python compor_texto.py --v2 out.png', promptIa: null, copyCorrigida: null }),
+  } });
+  assert.equal(resultado.status, 'verde');
+  assert.equal(resultado.iteracoes, 2, 'o defeito de render forçou correção');
+  assert.equal(labels(chamadas, 'correcao:').length, 1);
+  assert.equal(resultado.sinalizacoes.length, 0);
+});
+
+test('A4: com a trava, finding de redação (criterio mensagem_completa) com alvo headline é só sinalizado', async () => {
+  const rota = { ...ROTA, copy: 'copy-travada', headlineTravada: true };
+  const { resultado } = await rodar({ args: PRODUZIR, overrides: {
+    ...portaoCom(rota),
+    'crit:': () => ({ findings: [{ ...FINDING_BASE, criterio: 'mensagem_completa', resumo: 'msg-incompleta', alvo: 'headline', custoCorrecao: 'overlay' }] }),
+  } });
+  assert.equal(resultado.status, 'verde');
+  assert.equal(resultado.sinalizacoes.length, 1);
+});
+
+// Item 4: flagSobrescrever validada, por token, sem pipe/redirect.
+const REUSO = { renderJaExiste: true, reproduzir: true };
+const tokensDe = (prompt, t) => prompt.split(/\s+/).filter((x) => x === t).length;
+
+test('A2: no reuso (render existente liberado) a flag entra já na iteração 1', async () => {
+  const rota = { ...ROTA_TEXTO, flagSobrescrever: '--sobrescrever' };
+  const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: portaoCom(rota, REUSO) });
+  assert.equal(resultado.status, 'verde');
+  const comps = labels(chamadas, 'composicao:');
+  assert.equal(comps.length, 1);
+  assert.equal(tokensDe(comps[0].prompt, '--sobrescrever'), 1);
+});
+
+test('A2: flagSobrescrever fora do formato de flag bloqueia no Portão com mensagem, sem composição', async () => {
+  for (const ruim of ['rm -rf x', '--x; rm y', '$(id)', 'sobrescrever', '--']) {
+    const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: portaoCom({ ...ROTA_TEXTO, flagSobrescrever: ruim }, REUSO) });
+    assert.equal(resultado.status, 'bloqueado', ruim);
+    assert.equal(resultado.fase, 'Portão');
+    assert.match(resultado.detalhe, /flagSobrescrever/);
+    assert.equal(labels(chamadas, 'composicao:').length, 0);
+  }
+});
+
+test('A2: "já contém a flag" é por token — --force-rgb não impede --force, --formato não impede -f', async () => {
+  const a = await rodar({ args: PRODUZIR, overrides: portaoCom({ ...ROTA_TEXTO, comandoOverlay: 'python compor.py --force-rgb out.png', flagSobrescrever: '--force' }, REUSO) });
+  assert.equal(tokensDe(labels(a.chamadas, 'composicao:')[0].prompt, '--force'), 1);
+  const b = await rodar({ args: PRODUZIR, overrides: portaoCom({ ...ROTA_TEXTO, comandoOverlay: 'python compor.py --formato feed out.png', flagSobrescrever: '-f' }, REUSO) });
+  assert.equal(tokensDe(labels(b.chamadas, 'composicao:')[0].prompt, '-f'), 1);
+});
+
+test('A2: comando com pipe/redirect/&& + flag a anexar é recusado (escalado com mensagem), sem composição', async () => {
+  for (const cmd of ['python compor.py out.png | tee log.txt', 'python compor.py out.png > log.txt', 'cd x && python compor.py out.png']) {
+    const { resultado, chamadas } = await rodar({ args: PRODUZIR, overrides: portaoCom({ ...ROTA_TEXTO, comandoOverlay: cmd, flagSobrescrever: '--sobrescrever' }, REUSO) });
+    assert.equal(resultado.status, 'escalado', cmd);
+    assert.match(JSON.stringify(resultado.detalhe), /pipe|redirect/i);
+    assert.equal(labels(chamadas, 'composicao:').length, 0);
+  }
+});
+
+// Item 5: rota semGeracao fora do arquétipo texto não pode pedir gerar_imagem.py no rough.
+test('A1: prompt do diretor proíbe gerar_imagem.py no comandoRough de rota semGeracao', async () => {
+  const { chamadas } = await rodar({ args: ROTAS });
+  const prompt = labels(chamadas, 'rotas:dirigir')[0].prompt;
+  assert.match(prompt, /semGeracao: true[^.]*comandoRough[^.]*NÃO pode chamar gerar_imagem\.py/);
+});

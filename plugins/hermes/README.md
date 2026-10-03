@@ -35,6 +35,7 @@ workspace.
 |---|---|
 | `unit-economics` | Margens, CAC breakeven/alvo, ROAS alvo + cenários de verba — a **fonte canônica das réguas** (as demais skills fazem lookup daqui, nunca usam número de memória) |
 | `pnl-mensal` | DRE simplificada do mês + CAC/ROAS reais confrontados com a régua |
+| `analisar-produto` | Estilo ou raça decide a venda? Teste estatístico com controle de confusão, junção de nomes e blocos Produzir/Investir/Rever (script Node, sem PII) |
 | `fadiga-criativa` | Fadiga (audience-side → ITERATE) × fraqueza (concept-side → KILL), com as 3 condições operacionais e plano por anúncio |
 | `otimizar-verba` | Efficiency Score por campanha, plano de realocação com a matemática à mostra, pacing do mês |
 | `auditoria-de-estrutura` | Scorecard de 9 dimensões da ESTRUTURA da conta (não performance) |

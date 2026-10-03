@@ -248,12 +248,54 @@ diretor, promoção→piso na correção, haiku→sonnet nos demais steps mecân
 geração já paga. Os fallbacks permitidos ficam registrados em `fallbacks`, com
 desliga-pelo-run. **Não trate você o fallback** e não faça probe de modelo.
 
+### Invocação sem cópia do cache (scriptPath recusado)
+
+Se o `scriptPath` apontando para o cache do plugin for recusado pela tool Workflow, não copie o
+harness para o workspace: ler o `.mjs` (Read em
+`${CLAUDE_PLUGIN_ROOT}/skills/criativo-fluxo/harness/criativo.mjs`) e passar o conteúdo
+inteiro em `script` no lugar de `scriptPath`, com os mesmos `args`. O harness é autocontido
+(começa com `export const meta`, sem `import`/`require`), então roda assim sem ajuste.
+
+### Roteiro de reexecução (render já existe, rota ou headline mudam)
+
+Reexecutar o estágio B sobre um slug que já tem render exige decisão humana, nunca é padrão:
+
+- **Trocar de rota:** grave a nova `rota_aprovada: <n>` no frontmatter de `<slug>__rotas.md`
+  (o humano escolhe vendo os roughs) e reinvoque o estágio B com `args.reproduzir: true`;
+  sem ele o portão bloqueia o render existente.
+- **Headline nova:** reinvoque com `args.headline: "<texto>"`. Copy estruturada (rótulos
+  `Headline`, `Subheadline`, `Body`/`Corpo`, `Descrição`, `CTA`): o harness troca SÓ o valor do rótulo
+  `Headline` (ancorado no início ou após `|`, `/`, quebra de linha ou ". "; nunca dentro de
+  `Subheadline`), até o próximo rótulo, `|` ou quebra de linha, e preserva o resto. Copy SEM nenhum
+  rótulo reconhecido é só a headline e é trocada inteira. Copy com rótulos mas sem `Headline` ganha
+  `Headline: <texto> | ` na frente. Vale para todo o run (crit, correção, pacote e resultado).
+  Combine com `args.reproduzir: true` se o render do slug já existe.
+- **Headline que não pode mudar:** `headlineTravada: true` na rota (ou em `args`). Finding do
+  crit com `alvo: 'headline'` de REDAÇÃO (`custoCorrecao: 'copy'` ou critério `voz_da_marca` /
+  `mensagem_completa`) deixa de bloquear e vai para `sinalizacoes` (resultado e pacote);
+  `copyCorrigida` da correção é descartada com registro (entrada `tipo: 'copyCorrigida'` em
+  `sinalizacoes` e aviso na correção) e a copy final fica como está. Defeito de RENDER com alvo
+  headline (ex.: "headline cortada", `texto_correto`/`legibilidade_thumbnail` com custo overlay)
+  NÃO é suprimido: segue o fluxo normal. **Limitação:** a trava protege a copy, não o texto já
+  embutido no `comandoOverlay` — uma correção de overlay pode reescrever `--headline` no comando; o
+  pre-flight `--texto-esperado` é a única barreira.
+- **Rota sem geração de imagem fora do arquétipo `texto`** (ex.: `produtotexto` sobre mockup):
+  `semGeracao: true` e `promptIa: null` na rota; o `comandoRough` dela NÃO chama `gerar_imagem.py`
+  (rough determinístico do mockup, custo zero); sem o campo, rota não-texto sem `{{BASE}}`
+  continua bloqueada.
+- **Composição que só regrava com flag:** `flagSobrescrever: "<flag>"` na rota (formato
+  `--nome` ou `-n`; outro valor bloqueia no Portão). O harness a anexa ao `comandoOverlay` uma única
+  vez, a partir da iteração 2 e, no reuso de render existente (liberado por `reproduzir`), já na
+  iteração 1. "Já contém a flag" é checado por token (`--force-rgb` não conta como `--force`). A flag
+  é anexada ao fim do comando; comando com pipe, redirect ou `&&` é recusado (escalado com
+  mensagem) em vez de reposicionar a flag — inclua a flag no próprio comando nesses casos.
+
 Trate os desfechos:
 
 - **`verde`** → pacote pronto. Retome o pós-verde (abaixo).
 - **`aguardando-rota`** (estágio A) → apresentar roughs, gravar `rota_aprovada`, estágio B.
 - **`bloqueado`** → brief incompleto, rota não aprovada, ou render existente sem
-  `reproduzir: true` no artefato. Resolva COM o humano e reinvoque — o harness não improvisa
+  `reproduzir: true` no artefato nem `args.reproduzir`. Resolva COM o humano e reinvoque — o harness não improvisa
   (e não gastou API de imagem).
 - **`escalado`** → teto de iterações/rodadas de IA, estado de geração inválido ou
   composição impossível. Apresente o pacote/diagnóstico e espere decisão — loop que não converge é sinal
@@ -285,7 +327,8 @@ Trate os desfechos:
 
 **Subida tem regra própria por objetivo de campanha.** Subir o criativo aprovado via API não
 é um POST genérico: cada objetivo de campanha tem exigências próprias (ex.: Catalog Sales
-exige formato específico de creative e clonagem de conjunto, em vez de criação direta). O
+exige formato específico de creative, e o conjunto de anúncios se cria do zero: clonar um
+conjunto herda o produto promovido, que é imutável). O
 pacote final deve **apontar para o playbook de subida do workspace** — o plugin não carrega
 payloads, endpoints nem credenciais de subida.
 

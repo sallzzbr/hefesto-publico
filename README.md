@@ -8,11 +8,11 @@ O repo é um **marketplace** que publica seis plugins: **hefesto** (a forja de p
 
 > **Migração v3**: as skills de voz (`escrever-como-antonio`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
 
-> Esta versão reúne 48 skills em seis plugins. Bragir Claude 1.3.0/Codex 0.2.0 acrescenta seis skills de carreira e comunicação. Os comandos abaixo usam a tag v3.19.0 da release correspondente a esta árvore.
+> Esta versão reúne 49 skills em seis plugins. Bragir Claude 1.3.0/Codex 0.2.0 acrescenta seis skills de carreira e comunicação. Os comandos abaixo usam a tag v3.19.0 da release correspondente a esta árvore.
 
 ## Como instalar no Codex
 
-A distribuição nativa Codex contém os mesmos seis plugins e 48 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release correspondente:
+A distribuição nativa Codex contém os mesmos seis plugins e 49 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release correspondente:
 
 ```sh
 git clone --branch v3.19.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
@@ -158,6 +158,7 @@ plugin; a operação acoplada a dados/credenciais ficou no workspace.
 | `saude-do-funil` | Funil topo/meio/fundo com benchmark citado e gargalo nomeado. |
 | `sintese-semanal` | Fecha o briefing semanal: 3 ações ranqueadas com número-prova e próximo passo. |
 | `diagnostico-site-funil` | SITE ou ANÚNCIO? Comportamento × custo × registry × ledger, veredito por destino + AOV. |
+| `analisar-produto` | Estilo ou raça decide a venda? Teste de proporções com controle de confusão, junção de nomes e blocos Produzir/Investir/Rever. |
 
 4 agents de papel fixo (`diretor-de-arte` fable, `produtor-de-criativo`, `validador-de-criativo`,
 `mecanico-de-criativo`) com tiering por step whitelisted em código, no padrão odin/mimyr. Sem
@@ -237,10 +238,10 @@ daqui.
     │   │   │                              #   investimentos, analisar-investimentos
     │   │   ├── scripts/                   # as contas de dinheiro (Decimal, sob golden test)
     │   │   └── tests/                     # golden tests (pytest, piso de cobertura no CI)
-    │   ├── hermes/                        # marketing e criativos (16 skills, 4 agents, harness criativo.mjs)
+    │   ├── hermes/                        # marketing e criativos (17 skills, 4 agents, harness criativo.mjs)
     │   │   ├── .claude-plugin/plugin.json
     │   │   ├── agents/                    # diretor-de-arte, produtor, validador, mecanico
-    │   │   ├── skills/                    # criativo-fluxo (+harness), direcao-de-arte, ... (16)
+    │   │   ├── skills/                    # criativo-fluxo (+harness), direcao-de-arte, ... (17)
     │   │   └── tests/                     # contratos do harness e das skills (pytest)
     │   └── odin/                          # double diamond de desafios (6 skills, 9 comandos, 4 agents, harness loop.mjs)
     ├── AGENTS.md                          # contrato de manutenção do repo (IAs e humanos)

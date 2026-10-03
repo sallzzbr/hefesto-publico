@@ -217,3 +217,80 @@ def test_design_principles_mirrored_in_agent_and_skill() -> None:
     for marcador in ("uma mensagem por pe", "hierarquia", "respiro", "thumbnail", "proximidade"):
         assert marcador in agent, f"diretor agent lost principle marker '{marcador}'"
         assert marcador in skill, f"direcao-de-arte skill lost principle marker '{marcador}'"
+
+
+# ── hermes 1.4.0 (A3, A5, A6) ────────────────────────────────────────────────
+
+def _skill_text() -> str:
+    return SKILL.read_text(encoding="utf-8")
+
+
+def test_a3_harness_reads_reproduzir_and_headline_args() -> None:
+    text = HARNESS.read_text(encoding="utf-8")
+    assert "ARGS.reproduzir" in text, "args.reproduzir must release an existing render at the gate"
+    assert "ARGS.headline" in text, "args.headline must override the copy of the run"
+
+
+def test_a3_skill_documents_the_reexecution_roteiro() -> None:
+    text = _skill_text()
+    assert "args.reproduzir" in text, "SKILL must teach args.reproduzir"
+    assert "args.headline" in text, "SKILL must teach args.headline"
+    assert "reexecu" in text.lower(), "SKILL must carry the re-execution roteiro"
+    assert "rota_aprovada" in text and "reproduzir" in text
+
+
+def test_a5_catalog_sales_text_does_not_prescribe_cloning() -> None:
+    text = _skill_text()
+    assert "clonagem de conjunto" not in text, "SKILL must not prescribe adset cloning for Catalog Sales"
+    assert "Catalog Sales" in text
+    assert "do zero" in text, "SKILL must say the adset is created from scratch"
+    assert "imutável" in text, "SKILL must say the promoted product is immutable when cloning"
+    assert "herda" in text, "SKILL must say cloning inherits the promoted product"
+
+
+def test_a5_historic_changelog_stays_intact() -> None:
+    changelog = (PLUGIN_DIR / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "exige formato de creative e clonagem de conjunto" in changelog, "historic entry must not be rewritten"
+
+
+def test_a6_skill_documents_invocation_without_cache_copy() -> None:
+    text = _skill_text()
+    assert "recusad" in text, "SKILL must cover a refused scriptPath"
+    assert re.search(r"`script`", text), "SKILL must tell to pass the .mjs source in `script`"
+    assert "ler o `.mjs`" in text or "ler o .mjs" in text, "SKILL must tell to read the .mjs"
+
+
+def test_a6_harness_is_self_contained_and_parses() -> None:
+    import shutil
+    import subprocess
+    import tempfile
+
+    text = HARNESS.read_text(encoding="utf-8")
+    assert not re.search(r"^\s*import\s", text, re.MULTILINE), "harness must not import"
+    assert not re.search(r"\brequire\(", text), "harness must not require"
+    node = shutil.which("node")
+    if node is None:
+        import pytest
+        pytest.skip("node not available")
+    lines = text.split("\n")
+    meta_end = next(i for i, line in enumerate(lines) if line == "}")
+    wrapped = (
+        "\n".join(lines[: meta_end + 1])
+        + "\nconst args = {}; const agent = async () => {}; const parallel = async () => {};"
+        + " const log = () => {}; const phase = () => {};\nasync function __check() {\n"
+        + "\n".join(lines[meta_end + 1 :])
+        + "\n}\n"
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".mjs", delete=False) as handle:
+        handle.write(wrapped)
+        tmp = handle.name
+    result = subprocess.run([node, "--check", tmp], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_u1_skill_documents_real_headline_trava_and_flag_behavior() -> None:
+    text = _skill_text()
+    assert "Subheadline" in text, "SKILL must say args.headline never replaces the Subheadline"
+    assert "Limitação" in text and "comandoOverlay" in text, "SKILL must state the honest limit of headlineTravada"
+    assert "por token" in text, "SKILL must say flagSobrescrever is checked by token"
+    assert "gerar_imagem.py" in text and "semGeracao" in text

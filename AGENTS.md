@@ -4,7 +4,7 @@
 
 ## Propósito do repo
 
-`hefesto` é um **marketplace Claude Code** que publica seis **plugins**: `hefesto` (forja de plugins: criar, validar e versionar plugins e skills), `bragir` (11 skills: escrita/voz, editorial, carreira e comunicação visual; catálogo no README do plugin), `mimyr` (cursos e didática: 5 skills + scripts Python + harness gerar-curso), `hestia` (economia doméstica: orçamento, análise de gastos, mercado e investimentos com dados no Google Drive do usuário), `hermes` (marketing de performance e criativos: 16 skills + 4 agents + harness criativo.mjs) e `odin` (desafios pelo double diamond: 6 skills + 9 comandos). O objetivo é ser instalável com dois comandos, funcionar em qualquer SO e ser compartilhável com amigos sem precisar de setup manual.
+`hefesto` é um **marketplace Claude Code** que publica seis **plugins**: `hefesto` (forja de plugins: criar, validar e versionar plugins e skills), `bragir` (11 skills: escrita/voz, editorial, carreira e comunicação visual; catálogo no README do plugin), `mimyr` (cursos e didática: 5 skills + scripts Python + harness gerar-curso), `hestia` (economia doméstica: orçamento, análise de gastos, mercado e investimentos com dados no Google Drive do usuário), `hermes` (marketing de performance e criativos: 17 skills + 4 agents + harness criativo.mjs) e `odin` (desafios pelo double diamond: 6 skills + 9 comandos). O objetivo é ser instalável com dois comandos, funcionar em qualquer SO e ser compartilhável com amigos sem precisar de setup manual.
 
 > Rumo do repo: o backlog mestre da reorganização do ecossistema (forja, bragir, mimyr, hestia, odin v2.3, hermes) está em `docs/superpowers/specs/2026-07-22-megaplano-ecossistema-plugins.md`.
 
@@ -228,7 +228,7 @@ O que este arquivo guarda é a **explicação** — o porquê de cada comando te
   cada invariante "em código" tem um caso que o vê rodando. Invariante novo no harness entra
   com caso novo ali — grep de string no `.mjs` trava declaração, não efeito. mimyr
   (`harness-gerar-curso.test.mjs`) e hermes (`harness-criativo-fluxo.test.mjs`) seguem o mesmo
-  molde desde 2026-09-02; o contrato por marcador + `node --check` continua como segunda camada.
+  molde desde 2026-09-02; o contrato por marcador + `node --check` continua como segunda camada (exceto no harness criativo.mjs do hermes, cujo formato Workflow usa `return` no topo: `node --check` direto sai com erro; vale o embrulho AsyncFunction dos testes).
 - **Não enumere plugins na descoberta**: lista de plugins apodrece e o que ficar de fora tem a
   suíte ignorada em silêncio. Duas consequências que vêm junto e não são de graça: (a) o
   diretório precisa se chamar `tests` — `tests_node/` e afins seguem invisíveis, então suíte

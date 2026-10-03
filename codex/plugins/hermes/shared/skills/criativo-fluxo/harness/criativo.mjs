@@ -28,6 +28,12 @@ export const meta = {
 // Este script não tem filesystem nem env — quem valida venv/layout e lê defaults é a skill;
 // os agents fazem todo trabalho de arquivo. `hoje` vem de fora (o script não tem relógio).
 //
+// Opcionais do estágio produzir (1.4.0): reproduzir (true libera render já existente),
+// headline (string que substitui a copy do run), headlineTravada (true: headline não se reescreve).
+// Campos de rota (artefato de rotas): semGeracao (true = sem imagem IA, mesmo fora do arquétipo
+// texto), flagSobrescrever (flag anexada ao comando de overlay a partir da iteração 2),
+// headlineTravada.
+//
 // tiering: { modelos?: {step: modelo}, efforts?: {step: effort} } — OPCIONAL, montado pela
 // skill a partir de ~/.claude/hermes/defaults.md (campos criativo_*). Enforcement em código:
 // promoção só dentro do papel (rotas: opus→fable, dirigida por criativo_diretor; producao/
@@ -91,6 +97,8 @@ const ROTAS_SCHEMA = { type: 'object', additionalProperties: false, required: ['
     composicao: { type: 'string' }, promptIa: { type: ['string', 'null'] },
     comandoRough: { type: 'string' }, comandoOverlay: { type: 'string' },
     referencia: { type: 'string' }, porque: { type: 'string' },
+    semGeracao: { type: 'boolean' },        // true = sem geração de imagem IA (ex.: produtotexto sobre mockup)
+    flagSobrescrever: { type: 'string' },   // flag do script de composição que permite regravar o render (iteração >= 2)
   } } },
 } }
 
@@ -118,6 +126,7 @@ const PORTAO_SCHEMA = { type: 'object', additionalProperties: false, required: [
     textoEsperado: { type: 'string' }, copy: { type: ['string', 'null'] },
     baselinePath: { type: ['string', 'null'] }, mockupPath: { type: ['string', 'null'] },
     briefPath: { type: 'string' }, briefResumo: { type: 'string' },
+    semGeracao: { type: 'boolean' }, flagSobrescrever: { type: 'string' }, headlineTravada: { type: 'boolean' },
   } },
 } }
 
@@ -146,6 +155,7 @@ const CRIT_SCHEMA = { type: 'object', additionalProperties: false, required: ['f
     confianca: { enum: ['confirmado', 'plausivel'] },
     custoCorrecao: { enum: ['overlay', 'ia', 'copy'] },
     acaoSugerida: { type: 'string' },
+    alvo: { type: 'string' },   // 'headline' quando o defeito é da headline; omitido nos demais
   } } },
 } }
 
@@ -395,6 +405,11 @@ if (ARGS.estagio === 'rotas') {
        placeholder literal {{BASE}} (o harness substitui em CÓDIGO pelo candidato selecionado;
        nunca escreva um path real de base no comando de overlay) —, referencia que ancora e
        porque. Se o brief pedir arquétipo diferente do trilho vencedor, preencha conflitoTrilho.
+       Rota de arquétipo sem imagem IA que NÃO seja 'texto' (ex.: produtotexto sobre mockup do
+       produto) leva semGeracao: true e promptIa null; sem o campo, o harness exige {{BASE}}.
+       Rota com semGeracao: true tem comandoRough que NÃO pode chamar gerar_imagem.py: o rough é
+       determinístico a partir do mockup (compor_*.py de comp, custo zero).
+       Se o script de composição exige flag para regravar o render, preencha flagSobrescrever.
     4. Defina o slug na convenção do registry (${DIR.marketing}/registry/README.md) e ESCREVA o artefato
        ${DIR.marketing}/registry/criativos/<slug>__rotas.md com frontmatter YAML: slug, brief_path,
        criado_em: ${ARGS.hoje}, rota_aprovada: null, prancheta e as rotas completas (todos os
@@ -471,6 +486,8 @@ const portao = await chamarProdutor('portao',
     brief não traz copy), baselinePath (da prancheta), mockupPath (se o brief/registry aponta
     mockup de produto; senão null), briefPath e briefResumo (3-5 linhas: mensagem, público,
     oferta/prazo prometidos — o crit julga completude por isso).
+    Extraia também, quando o artefato os traz na rota: semGeracao (boolean), flagSobrescrever
+    (string) e headlineTravada (boolean) — nunca invente; ausente = omita o campo.
   - renderJaExiste: o arquivo ${DIR.marketing}/criativos/renders/<raca>/<slug>.png já existe no disco?
   - reproduzir: o frontmatter tem reproduzir: true?
   - roughExiste: o arquivo de rough da rota APROVADA (o path de saída do comando_rough dela)
@@ -484,8 +501,8 @@ const portao = await chamarProdutor('portao',
 if (!portao) return { status: 'erro', fase: 'Portão', detalhe: 'o validador do portão não retornou', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'reinvocar com resumeFromRunId' }
 if (!portao.ok) return { status: 'bloqueado', fase: 'Portão', detalhe: portao.motivo || 'artefato de rotas ausente ou incompleto', acao: 'rodar o estágio rotas primeiro (ou corrigir o artefato) e reinvocar', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
 if (!portao.aprovada) return { status: 'bloqueado', fase: 'Portão', detalhe: 'rota_aprovada ausente no artefato — o humano ainda não escolheu a rota', acao: 'apresentar os roughs ao humano, gravar rota_aprovada: <n> no frontmatter e reinvocar — o harness não produz com o portão aberto (nenhuma API de imagem foi gasta)', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
-if (portao.renderJaExiste && !portao.reproduzir) {
-  return { status: 'bloqueado', fase: 'Portão', detalhe: `o render final do slug já existe e o artefato não tem reproduzir: true`, acao: 'confirmar com o humano: marcar reproduzir: true no artefato de rotas (sobrescreve) ou versionar o slug (v<N+1>) — o harness não sobrescreve render publicado em silêncio', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+if (portao.renderJaExiste && !portao.reproduzir && ARGS.reproduzir !== true) {
+  return { status: 'bloqueado', fase: 'Portão', detalhe: `o render final do slug já existe e nem o artefato nem args.reproduzir liberam reproduzir`, acao: 'confirmar com o humano: marcar reproduzir: true no artefato de rotas ou reinvocar com args.reproduzir: true (sobrescreve) ou versionar o slug (v<N+1>) — o harness não sobrescreve render publicado em silêncio', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
 }
 // Aprovado sem rota extraível é resposta não-conforme — desreferenciar sem guarda mataria o
 // run com TypeError SEM relatório, o invariante que este arquivo declara (finding #2, 1.0.1).
@@ -499,12 +516,18 @@ if (portao.roughExiste === false) {
 }
 
 const rota = portao.rota
-const ehTexto = rota.arquetipo === 'texto'
+// semGeracao explícito (não inferido de promptIa vazio): "sem prompt" ≠ "sem geração". Rota
+// com semGeracao se comporta como arquétipo texto no que toca custo: zero API de imagem.
+const ehTexto = rota.arquetipo === 'texto' || rota.semGeracao === true
+const headlineTravada = rota.headlineTravada === true || ARGS.headlineTravada === true
 // Placeholder {{BASE}} é contrato do comando de overlay em arquétipo com imagem IA: a troca
 // da imagem-base pelo candidato selecionado é feita em CÓDIGO (o mecânico é proibido de
 // editar comando — finding #5, 1.0.1). Artefato antigo sem placeholder = corrigir o artefato.
 if (!ehTexto && !rota.comandoOverlay.includes('{{BASE}}')) {
   return { status: 'bloqueado', fase: 'Portão', detalhe: 'comando de overlay da rota aprovada não tem o placeholder {{BASE}} para a imagem-base', acao: 'editar o artefato de rotas trocando o path de base do comando_overlay pelo literal {{BASE}} e reinvocar — sem isso a composição ignoraria o candidato selecionado', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+}
+if (typeof rota.flagSobrescrever === 'string' && rota.flagSobrescrever.trim() && !/^--?[A-Za-z0-9][\w-]*$/.test(rota.flagSobrescrever.trim())) {
+  return { status: 'bloqueado', fase: 'Portão', detalhe: `flagSobrescrever inválida na rota: "${rota.flagSobrescrever}" não é uma flag (--nome ou -n)`, acao: 'corrigir o campo flagSobrescrever no artefato de rotas (uma flag simples, sem espaço nem metacaractere de shell) e reinvocar', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
 }
 log(`Portão fechado: rota ${rota.n} (${rota.nome || rota.arquetipo}) aprovada — slug ${rota.slug}${ehTexto ? ' · arquétipo texto (zero API de imagem)' : ''}`)
 
@@ -519,7 +542,25 @@ let selecaoInfo = null
 let candidatosTodos = []
 let comandoOverlayAtual = rota.comandoOverlay
 let promptIaAtual = rota.promptIa
-let copyAtual = rota.copy || null
+// args.headline troca SÓ o valor do rótulo Headline: copy estruturada mantém Subheadline, body,
+// descrição e CTA; copy sem nenhum rótulo reconhecido é só a headline e é substituída inteira.
+// Rótulo ancorado (início, após | / quebra de linha ou ". ") — nunca dentro de "Subheadline".
+const headlineNova = typeof ARGS.headline === 'string' ? ARGS.headline.trim() : ''
+const ROTULO_COPY = /(^|[ \t]*[|/][ \t]*|\.[ \t]+|\n[ \t]*)(Subheadline|Headline|Body|Corpo|Descri[cç][aã]o|CTA)[ \t]*:[ \t]*/gi
+function trocarHeadline(copy, nova) {
+  const rotulos = [...copy.matchAll(ROTULO_COPY)]
+  if (!rotulos.length) return nova
+  const i = rotulos.findIndex(m => m[2].toLowerCase() === 'headline')
+  if (i < 0) return `Headline: ${nova} | ${copy}`
+  const ini = rotulos[i].index + rotulos[i][0].length
+  let fim = rotulos[i + 1] ? rotulos[i + 1].index : copy.length
+  const corte = copy.slice(ini, fim).search(/[|\n]/)
+  if (corte >= 0) fim = ini + corte
+  const resto = copy[fim] === '|' ? copy.slice(ini, fim).match(/\s*$/)[0] : ''
+  return copy.slice(0, ini) + nova + resto + copy.slice(fim)
+}
+let copyAtual = (headlineNova ? (rota.copy ? trocarHeadline(rota.copy, headlineNova) : headlineNova) : rota.copy) || null
+const sinalizacoes = []         // findings de headline com a trava ligada: sinalizados, nunca bloqueantes
 let copyFoiCorrigida = false
 let precisaGerarIa = !ehTexto   // 1ª iteração de arquétipo IA gera; overlay-only NUNCA re-gera
 let renderAtual = null
@@ -553,6 +594,7 @@ async function montarPacote(desfecho) {
     Seleção: ${JSON.stringify(selecaoInfo)}
     Candidatos gerados: ${JSON.stringify(candidatosTodos)}
     Copy final: ${copyAtual || '(sem copy no run)'}
+    Sinalizações (headline travada, não bloqueiam; copyCorrigida descartada fica aqui): ${JSON.stringify(sinalizacoes)}
     Render final: ${renderAtual || '(nenhum render composto)'}
     Artefato de rotas: ${ARGS.rotasPath}
     ok=true SÓ se tudo gravado; liste em gravados os paths escritos. NÃO altere o registry
@@ -564,7 +606,7 @@ async function escaladoComPacote(fase, detalhe, acao) {
   const pac = historico.length > 0 ? await montarPacote('escalado') : null
   return {
     status: 'escalado', fase, iteracao, detalhe, acao,
-    historico, findingsJulgados,
+    historico, findingsJulgados, sinalizacoes,
     pacote: pac && pac.ok ? pac.pacotePath : null,
     ...(historico.length > 0 && !(pac && pac.ok) ? { avisoPacote: 'pacote não gravado — os reports das iterações seguem no campo historico deste relatório' } : {}),
     fallbacks: fallbacksModelo, modelos: relatorioModelos(),
@@ -643,13 +685,23 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // A troca da imagem-base pelo candidato selecionado é feita AQUI, em código, via o
   // placeholder {{BASE}} validado no portão — nunca pedida em prosa ao mecânico, cujo
   // contrato proíbe editar comando (finding #5 da revisão 1.0.1).
-  const comandoComposicao = ehTexto ? comandoOverlayAtual : comandoOverlayAtual.split('{{BASE}}').join(baseEscolhida)
+  const comandoBase = ehTexto ? comandoOverlayAtual : comandoOverlayAtual.split('{{BASE}}').join(baseEscolhida)
+  // flagSobrescrever: a iteração 1 roda o comando como está, exceto no reuso (portao.renderJaExiste,
+  // reproduzir); da 2 em diante o render já existe e o script só o regrava com a flag — anexada uma única vez.
+  const flag = typeof rota.flagSobrescrever === 'string' ? rota.flagSobrescrever.trim() : ''
+  let comandoComposicao = comandoBase
+  if (flag && (iteracao >= 2 || portao.renderJaExiste) && !comandoBase.split(/\s+/).includes(flag)) {
+    // ponytail: recusa em vez de reposicionar a flag antes do pipe/redirect (parse de shell);
+    // upgrade: inserir a flag logo após os args do script quando houver caso real.
+    if (/\||>|&&/.test(comandoBase)) return await escaladoComPacote('Produzir', { motivo: `comando de overlay com pipe/redirect/&& não aceita a flag ${flag} anexada ao final` }, 'tirar o pipe/redirect do comandoOverlay (ou já incluir a flag nele) e reinvocar')
+    comandoComposicao = `${comandoBase} ${flag}`
+  }
   const comp = await chamarMecanico('composicao',
     `Execute a composição do render (venv: ${ARGS.python}), a partir do cwd ATUAL da sessão —
     NUNCA mude de diretório; paths relativos resolvem a partir dele (se não resolverem, reporte
     falha em vez de procurar o workspace em outro lugar):
     ${comandoComposicao}
-    A saída do render é o path de saída do PRÓPRIO comando (o último argumento) — essa é a fonte
+    A saída do render é o path de saída do PRÓPRIO comando (o último argumento que não seja flag) — essa é a fonte
     única; não mude o destino nem o compare com outra convenção. Os scripts compor_*.py
     auto-logam o comando — NÃO use --sem-log.
     ok=true SOMENTE se o arquivo de saída do comando existe depois de rodar. artefatos = [esse path].`,
@@ -705,6 +757,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
     copy do anúncio a julgar (G e J): ${copyAtual || 'não fornecida — J é skip com esse motivo'}
     documento de voz: ${DIR.branding}/tom-de-voz-aplicado.md (leia antes de julgar J)
     princípios duros: ${DIR.branding}/principios-criativos.md (leia antes de julgar C)
+    alvo: 'headline' SOMENTE quando o defeito está na headline/copy principal; omita nos demais.
     criterio: use EXATAMENTE um dos slugs do contrato — arquetipo_correto, rosto_nao_coberto,
     principios_duros, fidelidade_referencia, fidelidade_estampa, naturalidade_ia,
     texto_correto, legibilidade_thumbnail, mensagem_completa, voz_da_marca.${ehTexto ? `
@@ -721,6 +774,9 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // ── confirmação de findings plausíveis (fail-closed) ───────────────────────
   const bloqueantes = []
   for (const f of crit.findings.filter(f => f.severidade === 'bloqueante')) {
+    // Headline travada: o defeito é sinalizado ao humano, não vira retrabalho nem gasta confirmação.
+    // A trava protege a REDAÇÃO (copy / voz / mensagem); defeito de render com alvo headline segue o fluxo normal.
+    if (headlineTravada && f.alvo === 'headline' && (f.custoCorrecao === 'copy' || f.criterio === 'voz_da_marca' || f.criterio === 'mensagem_completa')) { sinalizacoes.push({ iteracao, ...f, motivo: 'headline travada: sinalizado, não bloqueia' }); continue }
     if (f.confianca === 'confirmado') { bloqueantes.push(f); findingsJulgados.push({ iteracao, ...f, confirmado: true, porqueVeredito: 'confirmado pelo próprio crit com evidência' }); continue }
     const v = await chamarValidador('confirmacao',
       `Tarefa T3 (confirmação). Confirme ou refute este finding plausível antes de virar retrabalho:
@@ -754,6 +810,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
     Comando de overlay atual: ${comandoOverlayAtual}
     ${promptIaAtual ? `Prompt de IA atual: ${promptIaAtual}` : 'Arquétipo texto — sem prompt de IA.'}
     ${copyAtual ? `Copy atual: ${copyAtual}` : ''}
+    ${headlineTravada ? 'HEADLINE TRAVADA: não reescreva a copy — copyCorrigida deve ser null.' : ''}
     Devolva: comandoOverlay corrigido (ou null pra manter${ehTexto ? '' : '; em arquétipo com imagem IA, mantenha o placeholder literal {{BASE}} no lugar do path da imagem-base'}), promptIa corrigido (SÓ se alguma
     falha tem custo ia — senão null), copyCorrigida (SÓ se alguma falha tem custo copy — senão
     null). Corrija TODAS as falhas de uma vez. Não invente correção fora da tabela.`,
@@ -769,14 +826,20 @@ while (iteracao < MAX_ITERACOES && !verde) {
     if (ehTexto || cor.comandoOverlay.includes('{{BASE}}')) { comandoOverlayAtual = cor.comandoOverlay; comandoAceito = true }
     else avisosCorrecao.push('comandoOverlay corrigido recusado: sem o placeholder {{BASE}} (arquétipo IA)')
   }
-  if (cor.copyCorrigida) { copyAtual = cor.copyCorrigida; copyFoiCorrigida = true }
+  let copyAceita = false
+  if (cor.copyCorrigida) {
+    if (headlineTravada) {
+      avisosCorrecao.push('copyCorrigida descartada: headline travada')
+      sinalizacoes.push({ iteracao, tipo: 'copyCorrigida', motivo: 'copyCorrigida descartada: headline travada', descartada: cor.copyCorrigida })
+    } else { copyAtual = cor.copyCorrigida; copyFoiCorrigida = true; copyAceita = true }
+  }
   if (custoIa && cor.promptIa) { promptIaAtual = cor.promptIa; precisaGerarIa = true }
   else if (custoIa && !cor.promptIa) { precisaGerarIa = true } // re-gera com o prompt atual — a falha é da imagem
   historico[historico.length - 1].correcao = { resumo: cor.resumo, avisos: avisosCorrecao }
   // Guarda de não-progresso (finding #8 da revisão 1.0.1): correção que não mudou comando,
   // copy nem pediu re-geração re-produziria o MESMO render — iterar só queimaria teto e
   // chamadas de julgamento; escala com o diagnóstico honesto.
-  if (!comandoAceito && !cor.copyCorrigida && !precisaGerarIa) {
+  if (!comandoAceito && !copyAceita && !precisaGerarIa) {
     return await escaladoComPacote('Crit', { motivo: 'correção não produziu mudança executável', resumoCorrecao: cor.resumo, avisos: avisosCorrecao }, 'ajustar comando/copy/rota manualmente com o humano — iterar sem mudança só queimaria o teto')
   }
   log(`Iteração ${iteracao} não fechou: ${falhasPreflight.length} falha(s) de pre-flight, ${bloqueantes.length} bloqueante(s) — correção ${custoIa ? 'com re-geração de imagem' : 'só de overlay/copy (custo zero de API)'}`)
@@ -793,7 +856,7 @@ if (!verde) {
   return {
     status: 'escalado', fase: 'Loop', detalhe: `${iteracao} iteração(ões) sem fechar (teto ${MAX_ITERACOES}; rodadas de IA ${rodadasIa}/${MAX_RODADAS_IA})`,
     slug: rota.slug, render: renderAtual, pacote: pac.pacotePath,
-    historico, findingsJulgados, fallbacks: fallbacksModelo, modelos: relatorioModelos(),
+    historico, findingsJulgados, sinalizacoes, fallbacks: fallbacksModelo, modelos: relatorioModelos(),
     acao: 'decisão humana no pacote: trocar de rota (os roughs das outras seguem válidos), ajustar brief, ou descartar — loop que não converge é sinal de rota/brief errado, não de falta de força bruta',
   }
 }
@@ -809,6 +872,7 @@ return {
   selecao: selecaoInfo,
   candidatos: candidatosTodos,
   copy: copyAtual, copyFoiCorrigida,
+  sinalizacoes,
   preflight: preflightFinal,
   pacote: pac.pacotePath,
   reportsGravados: pac.gravados,
