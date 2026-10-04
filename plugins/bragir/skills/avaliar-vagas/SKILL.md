@@ -17,6 +17,12 @@ Leia `${CLAUDE_PLUGIN_ROOT}/skills/mapear-perfil-profissional/references/carreir
 4. Distinga liderança de projeto de gestão de pessoas. Não sugira inflar cargo, duração, resultados ou experiência para passar filtro. Não estime chance de contratação nem use pontuação opaca como decisão.
 5. Entregue recomendação `priorizar | investigar | não priorizar` com motivos, critérios eliminatórios confirmados e perguntas úteis. O usuário decide candidatar-se; diferenças negociáveis não viram veto automático.
 
+## Identidade e limites da pesquisa
+
+- Compare o escopo real entre títulos; direção de posicionamento não equivale automaticamente a senioridade nem a decisão de abandonar gestão. Preferências de distância/frequência presencial são condicionais ao endereço e deslocamento, não autorização para toda uma região.
+- Registre indisponibilidade da fonte separadamente do encerramento da vaga e do resultado da candidatura. Falha de acesso ou busca vazia não prova reprovação nem encerramento. Aviso explícito de fechamento deve manter fonte e data, sem generalizar a outras vagas da empresa.
+- Antes de criar ficha, consulte board, índices, candidaturas anteriores e exclusões declaradas. Preserve ID local ao reconciliar ID externo; mesma empresa não implica mesmo processo. Atualize a análise e vincule a ficha existente no painel único.
+
 ## Output
 
 Salve avaliação em `oportunidades/<id>.md`, com empresa, função, id/URL, data da consulta, estado da vaga, matriz de aderência e próximo passo. Reuse o id existente; em colisão, confirme identidade antes de atualizar. Busca não envia candidaturas. Para preparar materiais da oportunidade escolhida, use `bragir:preparar-candidatura`.

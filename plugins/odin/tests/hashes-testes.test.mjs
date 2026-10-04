@@ -13,7 +13,15 @@ function run(root, paths) { const r=spawnSync(process.execPath,[SCRIPT,JSON.stri
 test('calcula SHA-256 conhecido com chave relativa canônica',t=>{
  const root=fixture(t);const r=run(root,['./tests/a.js']);
  assert.equal(r.status,0,r.stderr);
- assert.deepEqual(r.json,{'tests/a.js':'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'});
+ // SHA-256 de "abc" e, depois do hífen, a conferência de transporte: CRC-32 de `path\nsha`,
+ // calculado fora do script (zlib do Python) — vetor conhecido, não eco do algoritmo.
+ assert.deepEqual(r.json,{'tests/a.js':'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad-2b61c175'});
+});
+test('conferência amarra o hash ao path: mesmo conteúdo em dois arquivos, conferências diferentes',t=>{
+ const root=fixture(t);writeFileSync(join(root,'tests/b.js'),'abc');const r=run(root,['tests/a.js','tests/b.js']);
+ assert.equal(r.status,0,r.stderr);
+ const [a,b]=['tests/a.js','tests/b.js'].map(p=>r.json[p].split('-'));
+ assert.equal(a[0],b[0]);assert.match(a[1],/^[a-f0-9]{8}$/);assert.notEqual(a[1],b[1]);
 });
 test('hash muda quando conteúdo muda',t=>{
  const root=fixture(t);const antes=run(root,['tests/a.js']);assert.equal(antes.status,0,antes.stderr);

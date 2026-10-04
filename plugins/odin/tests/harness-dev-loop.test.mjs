@@ -37,6 +37,12 @@ function corpoDoScript(src) {
 // Respostas default: um run que fecha verde na primeira iteração. Cada teste sobrescreve só o
 // label que quer quebrar.
 const TESTE = 'tests/a.test.js';
+// Evidência no formato do script de hashes: `<sha256>-<conferência>`. As conferências (CRC-32 de
+// `path\nsha`) foram calculadas FORA do harness, com o zlib do Python — são vetores conhecidos,
+// não eco do algoritmo sob teste. Literais porque `codex/tests/controllers.test.mjs` avalia este
+// bloco sem os imports do arquivo.
+const HASH_A = `${'a'.repeat(64)}-e411bb3e`;
+const HASH_B = `${'b'.repeat(64)}-66d1a195`;
 const DEFAULTS = {
   'spec:ids': () => ({ok:true,ids:['C1'],erros:[],verificacoesComplementares:{}}),
   'spec:validar': () => ({
@@ -45,10 +51,10 @@ const DEFAULTS = {
     unidades: [{ id: 'U1', titulo: 'unidade 1', arquivos: 'src/a.js', criterios: ['C1'] }],
   }),
   'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [{ criterio: 'C1', path: TESTE, motivoFalha: 'falta implementação' }] }),
-  'tdd:vermelho': () => ({ exitZero: false, falhaEsperada: true, hashesDosTestes: { [TESTE]: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } }),
+  'tdd:vermelho': () => ({ exitZero: false, falhaEsperada: true, hashesDosTestes: { [TESTE]: HASH_A } }),
   'impl:': () => ({ status: 'concluida', resumo: 'ok', escada: [{ item: 'fn', degrau: 7, porque: 'nada reusável' }], arquivosTocados: ['src/a.js'] }),
   'consulta:': () => ({ decisao: 'use A', porque: 'mais simples' }),
-  'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } }),
+  'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: HASH_A } }),
   'ponytail:': () => ({ dependenciasNovas: [], duplicacoes: [], abstracoesUsoUnico: [], forasDeEscopo: [], linhasAdicionadasAcumuladas: 12 }),
   'rev:': () => ({ findings: [] }),
   'confirmar:': () => ({ real: false, porque: 'não reproduz' }),
@@ -185,7 +191,7 @@ test('operário que não confirma o vermelho bloqueia o TDD', async () => {
 });
 
 test('vermelho auto-declarado não basta: o mecânico roda os testes e um exit 0 bloqueia o TDD', async () => {
-  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'tdd:vermelho': () => ({ exitZero: true, falhaEsperada: false, hashesDosTestes: { [TESTE]: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } }) } });
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'tdd:vermelho': () => ({ exitZero: true, falhaEsperada: false, hashesDosTestes: { [TESTE]: HASH_A } }) } });
   assert.ok(chamadas.some((c) => c.label === 'tdd:vermelho'), 'o harness despacha uma execução independente dos testes da SPEC');
   assert.equal(resultado.status, 'bloqueado');
   assert.equal(resultado.fase, 'TDD');
@@ -195,7 +201,7 @@ test('vermelho auto-declarado não basta: o mecânico roda os testes e um exit 0
 
 test('erro de sintaxe/import/infra no vermelho independente aborta antes da implementação', async () => {
   const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
-    'tdd:vermelho': () => ({ exitZero: false, falhaEsperada: false, resumo: 'Cannot find module', hashesDosTestes: { [TESTE]: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } }),
+    'tdd:vermelho': () => ({ exitZero: false, falhaEsperada: false, resumo: 'Cannot find module', hashesDosTestes: { [TESTE]: HASH_A } }),
   } });
   assert.equal(resultado.status, 'erro');
   assert.equal(resultado.fase, 'TDD');
@@ -218,11 +224,12 @@ test('verificação manual explícita não vira alegação de critério verifica
 });
 
 test('teste da SPEC alterado durante a implementação é bloqueante automático, sem confirmação', async () => {
-  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' } }) } });
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: HASH_B } }) } });
   assert.equal(resultado.status, 'escalado');
   const findings = resultado.historico.flatMap((h) => h.findings);
   assert.ok(findings.some((f) => /alterad/i.test(f.resumo) && f.arquivo.includes(TESTE)), `esperava finding de teste alterado, veio ${JSON.stringify(findings)}`);
   assert.ok(!chamadas.some((c) => c.label.startsWith('confirmar:')), 'bloqueante automático não passa pelo confirmador');
+  assert.ok(!chamadas.some((c) => c.label.startsWith('hashes:')), 'evidência que confere e diverge da base não ganha recoleta: é mudança de conteúdo');
 });
 
 test('auditoria ponytail que não retorna aborta o run em vez de virar "nada encontrado"', async () => {
@@ -282,18 +289,18 @@ test('perfil balanceado despacha operários em paralelo com teto de concorrênci
 for (const chave of ['/workspace/tests/a.test.js', './tests/a.test.js:8', '/workspace/tests/a.test.js:8-10 ("caso")']) {
   test(`hash intacto aceita referência equivalente: ${chave}`, async () => {
     const { resultado } = await rodar({ args: ARGS, overrides: {
-      'tdd:vermelho': () => ({exitZero:false, falhaEsperada:true, hashesDosTestes:{[chave]:'a'.repeat(64)}}),
-      'validar:': () => ({verde:true, falhas:[], hashesDosTestes:{[TESTE]:'a'.repeat(64)}}),
+      'tdd:vermelho': () => ({exitZero:false, falhaEsperada:true, hashesDosTestes:{[chave]:HASH_A}}),
+      'validar:': () => ({verde:true, falhas:[], hashesDosTestes:{[TESTE]:HASH_A}}),
     }});
     assert.equal(resultado.status,'verde',JSON.stringify(resultado));
   });
 }
 test('dois hashes conflitantes para o mesmo arquivo reprovam como erro de evidência', async () => {
- const {resultado}=await rodar({args:ARGS,overrides:{'tdd:vermelho':()=>({exitZero:false,falhaEsperada:true,hashesDosTestes:{[TESTE]:'a'.repeat(64),['/workspace/'+TESTE]:'b'.repeat(64)}})}});
+ const {resultado}=await rodar({args:ARGS,overrides:{'tdd:vermelho':()=>({exitZero:false,falhaEsperada:true,hashesDosTestes:{[TESTE]:HASH_A,['/workspace/'+TESTE]:HASH_B}})}});
  assert.equal(resultado.status,'erro'); assert.equal(resultado.fase,'TDD');
 });
 test('arquivo externo com mesmo sufixo não equivale ao teste do workspace', async () => {
- const {resultado}=await rodar({args:ARGS,overrides:{'validar:':()=>({verde:true,hashesDosTestes:{['/outro/'+TESTE]:'a'.repeat(64)}})}});
+ const {resultado}=await rodar({args:ARGS,overrides:{'validar:':()=>({verde:true,hashesDosTestes:{['/outro/'+TESTE]:HASH_A}})}});
  assert.notEqual(resultado.status,'verde');
 });
 
@@ -351,7 +358,9 @@ test('comandos transportados executam os helpers reais com espaços e aspas no c
   const root = realpathSync(mkdtempSync(resolve(tmpdir(), "odin comando ' ")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const specPath = "spec ' teste.md";
-  const path = "teste ' soma.js";
+  // 'á' (unidade UTF-16 < 256) e '✓' (> 255) exercitam os dois ramos da conferência: o script
+  // real e o controlador têm cada um a sua cópia do CRC, e é aqui que os dois precisam concordar.
+  const path = "teste ' somá ✓.js";
   writeFileSync(resolve(root, specPath), '# SPEC\n## Critérios de aceite\n| # | Critério | Teste |\n|---|---|---|\n| C1 | soma | teste |\n');
   writeFileSync(resolve(root, path), 'abc');
   let comandos = 0;
@@ -381,7 +390,7 @@ for (const [tipo, sinal] of [
   test(`OM-01: ${tipo} confirmada e persistente continua bloqueante até o teto`, async () => {
     const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
       'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), [tipo]: [sinal] }),
-      'confirmar:': () => ({ real: true, porque: 'cenário reproduzido' }),
+      'confirmar:': () => ({ real: true, bloqueante: true, porque: 'cenário reproduzido' }),
     } });
     assert.equal(resultado.status, 'escalado');
     assert.equal(resultado.fase, 'Loop');
@@ -394,7 +403,7 @@ for (const [tipo, sinal] of [
     let vez = 0;
     const { resultado } = await rodar({ args: ARGS, overrides: {
       'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), [tipo]: vez++ === 0 ? [sinal] : [] }),
-      'confirmar:': () => ({ real: true, porque: 'cenário reproduzido' }),
+      'confirmar:': () => ({ real: true, bloqueante: true, porque: 'cenário reproduzido' }),
     } });
     assert.equal(resultado.status, 'verde');
     assert.equal(resultado.iteracoes, 2);
@@ -417,7 +426,7 @@ test('OM-01: cenário de abstração alterado exige novo veredito', async () => 
   const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
     'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), abstracoesUsoUnico: [{ arquivo: 'src/a.js', oQue: 'Wrapper', unicoChamador: vez++ === 0 ? 'src/antigo.js' : 'src/novo.js' }] }),
     'validar:': () => ({ ...DEFAULTS['validar:'](), verde: vez > 0 }),
-    'confirmar:': (opts, chamadas) => ({ real: chamadas.filter(c => c.label.startsWith('confirmar:')).length > 1, porque: 'cenário mudou' }),
+    'confirmar:': (opts, chamadas) => ({ real: chamadas.filter(c => c.label.startsWith('confirmar:')).length > 1, bloqueante: true, porque: 'cenário mudou' }),
   } });
   assert.equal(resultado.status, 'escalado');
   assert.equal(chamadas.filter(c => c.label.startsWith('confirmar:')).length, 2);
@@ -461,4 +470,178 @@ test('OM-07: revisão inclui arquivo novo relatado sem encenar notas ou alterar 
     git('add', '--', 'src/a.js');
     assert.equal(git('diff', '--cached', '--name-only').trim(), 'src/a.js');
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ── 2026-10-04: achado que ninguém pode consertar, e hash copiado errado ─────────────────────
+// Duas rodadas reais do dev-loop (perfil máximo) terminaram escaladas sem defeito de
+// comportamento em aberto. Na última iteração, 9 dos 12 bloqueantes eram sinais P2/P11 da
+// auditoria dentro dos testes da SPEC — que a regra dos testes intactos proíbe de editar — e os
+// 27 sinais confirmados nas duas rodadas traziam "não bloqueante" no texto de um veredito que só
+// tinha o campo `real`. Numa iteração anterior, um hash copiado com dois caracteres trocados
+// virou "teste alterado" num arquivo que nunca mudou. Os casos abaixo travam as três correções e
+// os portões que elas NÃO podem abrir.
+
+const SINAL_EM_PRODUCAO = { arquivo: 'src/a.js', linha: 12, oQue: 'Wrapper', unicoChamador: 'src/cliente.js' };
+
+for (const arquivo of [TESTE, `/workspace/${TESTE}`, `./${TESTE}:54`]) {
+  test(`sinal P2/P11 da auditoria em teste da SPEC vira pendência, sem confirmador e sem bloquear: ${arquivo}`, async () => {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'ponytail:': () => ({ ...DEFAULTS['ponytail:'](),
+        duplicacoes: [{ arquivo, linha: 54, oQue: 'travessia por fila', ondeJaExiste: `${TESTE}:39` }],
+        abstracoesUsoUnico: [{ arquivo, linha: 35, oQue: 'helper de teste', unicoChamador: `${TESTE}:84` }],
+      }),
+      // Se o sinal chegasse ao confirmador, este veredito o faria bloquear até o teto.
+      'confirmar:': () => ({ real: true, bloqueante: true, porque: 'o fato existe' }),
+    } });
+    assert.equal(resultado.status, 'verde', JSON.stringify(resultado));
+    assert.equal(resultado.iteracoes, 1);
+    assert.ok(!chamadas.some((c) => c.label.startsWith('confirmar:')), 'teste congelado não paga confirmador');
+    assert.deepEqual(resultado.ponytail.pendenciasEmTestesDaSpec.map((p) => p.resumo.slice(0, 3)), ['P2:', 'P11']);
+    assert.ok(resultado.ponytail.pendenciasEmTestesDaSpec.every((p) => p.arquivo === arquivo && p.iteracao === 1));
+    assert.deepEqual(resultado.ponytail.duplicacoesEAbstracoes, [], 'pendência não julgada não se passa por veredito');
+  });
+}
+
+test('pendência em teste da SPEC não solta o sinal em arquivo de produção nem manda o operário editar o teste', async () => {
+  const prompts = [];
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'impl:': (_opts, _chamadas, prompt) => { prompts.push(prompt); return DEFAULTS['impl:'](); },
+    'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), abstracoesUsoUnico: [
+      { arquivo: TESTE, linha: 35, oQue: 'helper de teste', unicoChamador: `${TESTE}:84` },
+      SINAL_EM_PRODUCAO,
+    ] }),
+    'confirmar:': () => ({ real: true, bloqueante: true, porque: 'esconde o contrato da unidade' }),
+  } });
+  assert.equal(resultado.status, 'escalado');
+  assert.equal(resultado.historico.length, 3);
+  assert.ok(resultado.historico.every((h) => h.findings.length === 1 && h.findings[0].arquivo === 'src/a.js'));
+  assert.equal(chamadas.filter((c) => c.label.startsWith('confirmar:')).length, 1, 'só o sinal de produção é julgado');
+  assert.equal(resultado.ponytail.pendenciasEmTestesDaSpec.length, 1, 'a auditoria revê a branch inteira: o mesmo sinal não vira três pendências');
+  assert.match(prompts[1], /CORREÇÕES DESTA ITERAÇÃO/);
+  assert.ok(prompts[1].includes('src/a.js') && !prompts[1].includes(TESTE), 'a correção obrigatória não aponta pro teste que o operário é proibido de editar');
+});
+
+for (const arquivo of [undefined, `/outro/${TESTE}`, `pacote/${TESTE}`]) {
+  test(`sinal da auditoria fora da lista de testes da SPEC segue o fluxo normal: ${arquivo ?? '(sem arquivo)'}`, async () => {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), abstracoesUsoUnico: [{ ...SINAL_EM_PRODUCAO, arquivo }] }),
+      'confirmar:': () => ({ real: true, bloqueante: true, porque: 'cenário reproduzido' }),
+    } });
+    assert.equal(resultado.status, 'escalado', 'mesmo sufixo em outra raiz, ou arquivo não informado, não é teste congelado');
+    assert.equal(chamadas.filter((c) => c.label.startsWith('confirmar:')).length, 1);
+    assert.deepEqual(resultado.ponytail.pendenciasEmTestesDaSpec, []);
+  });
+}
+
+test('sinal da auditoria confirmado como real e não bloqueante não vira retrabalho, e o relatório guarda o veredito', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), abstracoesUsoUnico: [SINAL_EM_PRODUCAO] }),
+    'confirmar:': () => ({ real: true, bloqueante: false, porque: 'Confirmado, mas é nao-bloqueante: só peso de diff.' }),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado));
+  assert.equal(resultado.iteracoes, 1);
+  const confirmadores = chamadas.filter((c) => c.label.startsWith('confirmar:'));
+  assert.equal(confirmadores.length, 1);
+  assert.deepEqual(confirmadores[0].opts.schema.required, ['real', 'bloqueante'], 'fato e severidade são campos separados e obrigatórios');
+  assert.equal(resultado.ponytail.duplicacoesEAbstracoes.length, 1);
+  const [julgado] = resultado.ponytail.duplicacoesEAbstracoes;
+  assert.equal(julgado.confirmado, true, 'o fato continua registrado como real');
+  assert.equal(julgado.severidade, 'nao-bloqueante');
+  assert.match(julgado.porqueVeredito, /nao-bloqueante/);
+});
+
+test('veredito "real, não bloqueante" é reaproveitado: o sinal reaparece sem novo confirmador e sem bloquear', async () => {
+  let vez = 0;
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), abstracoesUsoUnico: [SINAL_EM_PRODUCAO] }),
+    'validar:': () => ({ ...DEFAULTS['validar:'](), verde: vez++ > 0 }),
+    'confirmar:': () => ({ real: true, bloqueante: false, porque: 'peso de diff' }),
+  } });
+  assert.equal(resultado.status, 'verde');
+  assert.equal(resultado.iteracoes, 2);
+  assert.equal(chamadas.filter((c) => c.label.startsWith('confirmar:')).length, 1);
+});
+
+test('veredito da auditoria sem o campo de severidade bloqueia: só "bloqueante: false" explícito libera', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), abstracoesUsoUnico: [SINAL_EM_PRODUCAO] }),
+    'confirmar:': () => ({ real: true, porque: 'cenário reproduzido' }),
+  } });
+  assert.equal(resultado.status, 'escalado');
+  assert.equal(resultado.ponytail.duplicacoesEAbstracoes[0].severidade, 'bloqueante');
+});
+
+test('confirmador não rebaixa finding de lente: a severidade é da lente e o schema nem oferece o campo', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'rev:': () => ({ findings: [{ arquivo: 'src/a.js', linha: 3, resumo: 'critério C1 não atendido', cenario: 'entrada vazia devolve 0', severidade: 'bloqueante', confianca: 'plausivel' }] }),
+    'confirmar:': () => ({ real: true, bloqueante: false, porque: 'existe; eu não bloquearia' }),
+  } });
+  assert.equal(resultado.status, 'escalado');
+  assert.equal(resultado.historico.length, 3);
+  const confirmadores = chamadas.filter((c) => c.label.startsWith('confirmar:'));
+  assert.equal(confirmadores.length, 3);
+  assert.ok(confirmadores.every((c) => !Object.hasOwn(c.opts.schema.properties, 'bloqueante') && c.opts.schema.additionalProperties === false));
+});
+
+// Hash de fixture com vizinhos distintos, pra reproduzir a troca observada ("c3d" lido como
+// "d3c": dois caracteres a distância 2, invertidos). Conferência do valor CORRETO calculada com
+// o zlib do Python, como as de HASH_A e HASH_B.
+const SHA_C = '0123456789abcdef'.repeat(4);
+const HASH_C = `${SHA_C}-cad97208`;
+const HASH_C_TROCADO = HASH_C.replace('cde', 'edc');
+const BASE_C = { 'tdd:vermelho': () => ({ exitZero: false, falhaEsperada: true, hashesDosTestes: { [TESTE]: HASH_C } }) };
+
+test('hash copiado com dois caracteres trocados na validação não vira "teste alterado": recoleta única no piso do papel', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    ...BASE_C,
+    'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: HASH_C_TROCADO } }),
+    'hashes:': () => ({ hashesDosTestes: { [TESTE]: HASH_C } }),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado));
+  assert.equal(resultado.iteracoes, 1, 'o arquivo nunca mudou: a cópia errada não custa uma iteração');
+  const recoletas = chamadas.filter((c) => c.label.startsWith('hashes:'));
+  assert.deepEqual(recoletas.map(label), ['hashes:i1']);
+  assert.equal(recoletas[0].opts.agentType, 'odin:operario', 'a recoleta sobe pro piso do papel em vez de repetir no tier que errou');
+  assert.equal(resultado.fallbacks.length, 1, 'a recoleta fica registrada no relatório');
+  assert.equal(resultado.fallbacks[0].chamada, 'hashes:i1');
+  assert.match(resultado.fallbacks[0].causa, /erro de transcrição/);
+});
+
+test('hash copiado errado na BASE do portão TDD é recolhido antes de qualquer implementação', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'tdd:vermelho': () => ({ exitZero: false, falhaEsperada: true, hashesDosTestes: { [TESTE]: HASH_C_TROCADO } }),
+    'tdd:hashes': () => ({ hashesDosTestes: { [TESTE]: HASH_C } }),
+    'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: HASH_C } }),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado));
+  assert.equal(resultado.iteracoes, 1, 'base corrompida fazia toda validação correta divergir até o teto');
+  const rotulos = chamadas.map(label);
+  assert.ok(rotulos.includes('tdd:hashes') && rotulos.indexOf('tdd:hashes') < rotulos.indexOf('impl:U1'), rotulos.join(', '));
+});
+
+test('evidência que não confere nem na recoleta é erro de evidência, nunca "teste alterado"', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    ...BASE_C,
+    // Primeiro o SHA puro, sem conferência (formato anterior à 2.4.12); na recoleta, a troca de caracteres.
+    'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: SHA_C } }),
+    'hashes:': () => ({ hashesDosTestes: { [TESTE]: HASH_C_TROCADO } }),
+  } });
+  assert.equal(resultado.status, 'erro');
+  assert.equal(resultado.fase, 'Validar');
+  assert.match(resultado.detalhe, /fora do formato/);
+  assert.match(resultado.detalhe, /recoleta: .*erro de transcrição/);
+  assert.match(resultado.acao, /não prova alteração/);
+  assert.equal(chamadas.filter((c) => c.label.startsWith('hashes:')).length, 1, 'a recoleta é uma só');
+  assert.ok(!chamadas.some((c) => c.label.startsWith('ponytail:')), 'sem evidência conferida o run não segue pra auditoria');
+});
+
+test('recoleta não é apelação: coleta conferida que diverge da base é teste alterado e bloqueia', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: HASH_A.replace('-e411bb3e', '-00000000') } }),
+    'hashes:': () => ({ hashesDosTestes: { [TESTE]: HASH_B } }),
+  } });
+  assert.equal(resultado.status, 'escalado');
+  assert.equal(resultado.historico.length, 3);
+  assert.ok(resultado.historico.every((h) => h.findings.some((f) => f.origem === 'testes-intactos')));
+  assert.ok(!chamadas.some((c) => c.label.startsWith('confirmar:')), 'bloqueante automático não passa pelo confirmador');
 });

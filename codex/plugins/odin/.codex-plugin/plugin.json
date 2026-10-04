@@ -1,6 +1,6 @@
 {
   "name": "odin",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Double diamond para investigar e entregar desafios: descobrir, definir, desenvolver, entregar, acompanhar e dev-loop. O adaptador local coordena planejamento, TDD, implementação e revisão independente, com invariantes em código e evidências no workspace. Modelo e esforço são herdados da sessão; preferências explícitas opcionais ficam separadas da identidade efetiva. Paths seguem a configuração do projeto.",
   "author": {
     "name": "Antonio Salgado",

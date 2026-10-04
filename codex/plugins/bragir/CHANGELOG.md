@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — 2026-09-26
+
+- Candidaturas autorizadas: escopo, responsável, dados pendentes, verificação de anexos e recibos, reconciliação antes de repetir envio.
+- Busca preserva IDs, exclusões e board existente; distingue acesso indisponível, vaga encerrada e resultado do processo.
+- Capa do LinkedIn com fonte aprovada, recorte e verificação visual; memória corrente separada de histórico.
+- Ajustes compatíveis das skills existentes; sem novas skills ou dados pessoais de processos no pacote.
+
 ## 0.2.0 — 2026-09-20
 
 - Seis skills de carreira e comunicação: perfil profissional, vagas, LinkedIn, portfólio, candidatura e direção visual.

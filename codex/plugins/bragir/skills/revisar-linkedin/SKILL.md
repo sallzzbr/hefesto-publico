@@ -1,6 +1,6 @@
 ---
 name: revisar-linkedin
-description: "Review LinkedIn positioning. Use quando pedir para reescrever headline, Sobre, experiências ou destaques do LinkedIn, ou retomar uma revisão anterior do perfil profissional. Não pressupõe publicação nem vaga ativa."
+description: "Review LinkedIn positioning. Use quando pedir para reescrever headline, Sobre, experiências, destaques ou capa do LinkedIn, ou retomar uma revisão anterior do perfil profissional. Não pressupõe publicação nem vaga ativa."
 ---
 
 # Revisar LinkedIn

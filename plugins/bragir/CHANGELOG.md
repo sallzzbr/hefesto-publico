@@ -3,6 +3,13 @@
 > Histórico anterior à 1.2.4 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 1.3.1 — 2026-09-26
+
+- Candidaturas autorizadas: escopo, responsável, dados pendentes, verificação de anexos e recibos, reconciliação antes de repetir envio.
+- Busca preserva IDs, exclusões e board existente; distingue acesso indisponível, vaga encerrada e resultado do processo.
+- Capa do LinkedIn com fonte aprovada, recorte e verificação visual; memória corrente separada de histórico.
+- Ajustes compatíveis das skills existentes; sem novas skills ou dados pessoais de processos no pacote.
+
 ## 1.3.0 — 2026-09-20
 
 - Seis skills de carreira e comunicação: perfil profissional, vagas, LinkedIn, portfólio, candidatura e direção visual.

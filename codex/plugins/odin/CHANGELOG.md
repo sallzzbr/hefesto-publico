@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5 — 2026-10-04
+
+- Sinal de duplicação/abstração da auditoria em arquivo da lista de testes protegidos vira pendência (`ponytail.pendenciasEmTestesDaSpec`), sem confirmador e sem bloquear: ninguém no loop pode editar esse arquivo. Achado de lente nesses testes continua bloqueando.
+- A confirmação de sinal da auditoria responde `real` e `bloqueante` em campos separados e obrigatórios. Real e não bloqueante vira pendência com o veredito registrado; campo ausente bloqueia. Finding de lente mantém a severidade da lente.
+- O helper de hashes emite `<sha256>-<conferência>` e o controlador recalcula a conferência. Evidência que não confere é recolhida uma vez em solicitação própria (`tdd:hashes`, `hashes:i<N>`); duas falhas seguidas encerram como erro de evidência. Só a divergência entre duas coletas conferidas é teste alterado.
+- Revisão de contratos do controlador: `2026-10-04-r6`. Run de revisão anterior não é retomado.
+
 ## 0.1.4 — 2026-09-11
 
 - Auditor e lentes inspecionam Git sem staging; arquivos novos selecionados e stage são apresentados separadamente. A entrega confere todos os paths staged contra o escopo aprovado antes de commit, preservando conteúdo alheio.

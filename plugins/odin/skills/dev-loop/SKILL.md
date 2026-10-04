@@ -80,7 +80,9 @@ qualquer consulta pontual dentro do loop.
    o implementador não edita o teste que precisa passar. Os dois são verificados em código
    desde a 2.4.6: o mecânico roda os testes da SPEC de forma independente (exit 0 = bloqueado)
    e executa o script Node de hashes; a validação de cada iteração executa o mesmo script e
-   qualquer diferença é bloqueante automático, sem confirmação.
+   qualquer diferença é bloqueante automático, sem confirmação. Cada hash viaja com uma
+   conferência que o controlador recalcula (desde a 2.4.12): cópia errada do agente é erro de
+   transporte, recolhido uma vez, e nunca conta como teste alterado.
 7. **Operário executa, arquiteto pensa** — Sonnet implementa; decisão de arquitetura vira
    consulta ao arquiteto (**Fable quando disponível, senão Opus**), com teto de 2 por unidade
    por iteração; consulta que revela furo na spec escala pro humano. Nunca 2 arquitetos em
@@ -105,10 +107,28 @@ faz com esse sinal é `if` no script — uma vez sinalizada, a dependência não
 não tem apelação e o arquiteto não pode autorizá-la. Quem quer a dependência **escreve o porquê no
 código** (comentário no manifesto ou no ponto de uso), que é onde a justificativa serve pra quem
 vier depois. Duplicação e abstração de uso único viram findings normais, confirmados antes de
-virar retrabalho. Para o mesmo arquivo, alegação e cenário, o veredito é reaproveitado:
-uma refutação não paga novo confirmador, mas um sinal confirmado continua bloqueante enquanto
-a auditoria atual o apontar. Se o cenário mudar, exige novo veredito; se o sinal desaparecer
-da auditoria atual, deixa de bloquear. O cache não verifica mudança de código por si só.
+virar retrabalho. Como a severidade desses sinais nasce de uma constante do script e nenhum
+revisor a classificou, o confirmador responde duas perguntas em campos separados (desde a
+2.4.12): `real` (o fato existe?) e `bloqueante` (viola critério de aceite, quebra em cenário
+real ou toca segurança?). Real e bloqueante vira retrabalho; real e não bloqueante vira
+pendência, registrada com o veredito em `ponytail.duplicacoesEAbstracoes` (`confirmado: true`,
+`severidade: "nao-bloqueante"`). Esse segundo campo só existe para sinal da auditoria: finding
+de lente mantém a severidade que a lente classificou, e o confirmador não pode rebaixá-la.
+Para o mesmo arquivo, alegação e cenário, o veredito é reaproveitado: refutação ou "real, não
+bloqueante" não pagam novo confirmador, mas um sinal confirmado como bloqueante continua
+bloqueante enquanto a auditoria atual o apontar. Se o cenário mudar, exige novo veredito; se o
+sinal desaparecer da auditoria atual, deixa de bloquear. O cache não verifica mudança de
+código por si só.
+
+**Teste da SPEC é congelado dentro do loop.** A regra dos testes intactos proíbe qualquer
+operário de editá-lo, então um sinal de duplicação/abstração localizado num arquivo da lista
+de testes da SPEC não tem quem conserte: como bloqueante, o run só podia terminar escalado no
+teto. O script decide pelo arquivo, sem rota de modelo: o sinal vai para
+`ponytail.pendenciasEmTestesDaSpec`, **sem confirmador e sem julgamento** (é alegação da
+auditoria, não veredito). Arquivo de apoio que o portão TDD criou fora dessa lista não é
+protegido por hash e segue o fluxo normal. Achado de **lente** num teste da SPEC continua
+bloqueando: pode ser teste que não cobre o critério, e isso é furo do portão, não peso de diff.
+Como ninguém no loop pode editar o teste, esse caso termina em escalada pro humano.
 
 O **relato de escada** também é cobrado em código: unidade que fecha tocando arquivos e reporta
 `escada` vazia vira bloqueante na auditoria. E **auditoria, lente de revisão ou confirmador de
@@ -195,7 +215,9 @@ não uma vez. Ex.: 3 unidades, Balanceado (2 lentes), 3 iterações → `3 + 3×
 Nos perfis paralelos, no máximo 4 operários rodam ao mesmo tempo (lotes) — mais unidades não
 aumentam a concorrência, só o tempo.
 Somam-se por cima, e são imprevisíveis: cada consulta ao arquiteto custa 2 (o arquiteto + a
-re-invocação do operário), cada duplicação/abstração achada pela auditoria custa 1 de confirmação.
+re-invocação do operário), cada duplicação/abstração achada pela auditoria custa 1 de confirmação
+(sinal em teste da SPEC não custa: vira pendência sem confirmador), e cada evidência de hashes
+que não confere custa 1 de recoleta.
 Estime o piso, diga que é piso e a pergunta de **opt-in explícito**: *"posso orquestrar
 com multi-agentes? (~N agentes)"*. Sem opt-in → fallback sequencial (abaixo).
 
@@ -205,13 +227,19 @@ Com spec aprovada + branch de trabalho + perfil + opt-in, resolva `CLAUDE_PLUGIN
 skill para um caminho absoluto e invoque a tool **Workflow** por `scriptPath` explícito.
 Nunca substitua por `name: odin-dev-loop` durante teste local: uma instalação global pode
 resolver esse nome para outra versão. Verifique no transcript a linha
-`odin-dev-loop: revisão de contratos 2026-09-05-r5`; sem ela não atribua o resultado a esta versão.
+`odin-dev-loop: revisão de contratos 2026-10-04-r6`; sem ela não atribua o resultado a esta versão.
 Use um run novo após alterar o harness, sem reaproveitar `resumeFromRunId` de outra revisão.
 
 O sandbox Workflow não tem filesystem nem APIs Node. Os operários executam os scripts
 standalone `scripts/spec-ids.mjs` (tabela original, antes do julgamento) e
 `scripts/hashes-testes.mjs` (SHA-256 real via Node nos dois pontos). O controlador valida o
 JSON transportado; erro de coleta é erro de evidência, não prova de que o teste foi alterado.
+Quem leva esse JSON ao controlador é um modelo copiando 64 caracteres por arquivo, então o
+script emite cada valor como `<sha256>-<conferência>` (CRC-32 de `path\nsha`) e o controlador
+recalcula a conferência em JS puro. Valor que não confere — na base do portão ou numa
+validação — dispara **uma** recoleta, em chamada própria no operário (`tdd:hashes`,
+`hashes:i<N>`), registrada em `fallbacks`. Se a recoleta também não conferir, o run encerra
+como `erro` de evidência. Só a divergência entre duas coletas conferidas é teste alterado.
 O preflight também extrai a coluna `Verificação complementar`: coluna vazia não cria pendência
 manual, e exigência explícita não pode ser omitida pelo agente. Os scripts não instalam
 dependências nem escrevem no projeto.
@@ -262,8 +290,12 @@ O script roda em background e devolve um resultado estruturado. Trate os 4 desfe
   controle: invocado pela `entregar` → ela retoma no Step 8; standalone → apresente o
   relatório e siga as regras da `entregar` pra qualquer commit/push (OK explícito). O bloco
   `ponytail` do relatório (escada relatada, dependências barradas/autorizadas, duplicações
-  unificadas, tamanho do diff) entra no log **inteiro** — é o rastro de como as regras agiram; a
-  lista `ponytail.pendenciasForaDeEscopo` vira entrada em `docs/pendencias.md`, nunca retrabalho.
+  unificadas, tamanho do diff) entra no log **inteiro** — é o rastro de como as regras agiram.
+  Três coisas dele viram entrada em `docs/pendencias.md`, nunca retrabalho:
+  `ponytail.pendenciasForaDeEscopo`, `ponytail.pendenciasEmTestesDaSpec` (sinais não julgados
+  em testes congelados) e os itens de `ponytail.duplicacoesEAbstracoes` com `confirmado: true`
+  e `severidade: "nao-bloqueante"` (reais, julgados como pendência). O bloco `ponytail` sai
+  também nos desfechos `escalado` e `erro` do loop, então essas listas não dependem do verde.
 - **`status: "bloqueado"`** → a causa vem em `detalhe`/`acao`: na fase Spec/TDD, spec vazia ou
   com furo de formato, IDs de critério/unidade repetidos, unidade ligada a critério inexistente,
   pendência bloqueadora aberta, critério funcional sem teste, referência de teste inválida,
@@ -277,7 +309,10 @@ O script roda em background e devolve um resultado estruturado. Trate os 4 desfe
   no meio. Apresente o diagnóstico ao humano (`historico`/`detalhe`/`consultas`) e espere
   decisão — loop que não converge é sinal de spec ruim, não de falta de força bruta.
 - **`status: "erro"`** → falha de infraestrutura de um agente; reinvocar com
-  `resumeFromRunId` aproveita tudo que já completou.
+  `resumeFromRunId` aproveita tudo que já completou. Exceção: erro de **evidência de hashes**
+  (a coleta e a recoleta não conferiram). Aí o resume devolveria as mesmas respostas do cache;
+  siga o `acao` do relatório — na fase TDD nada foi implementado e cabe run novo, na fase
+  Validar a conferência dos testes da SPEC contra o estado do portão passa a ser do humano.
 
 **Destino do relatório (sempre persiste):** entrega de um desafio → seção `## Log de execução`
 de `docs/desafios/<slug>/entregas/<entrega-slug>.md` (via `entregar`, ou você mesmo no

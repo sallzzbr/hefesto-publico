@@ -29,13 +29,13 @@ const PLUGINS = join(RAIZ, 'plugins');
 const PISO_ARQUIVOS = 17;
 // Suítes da Forja e guards do repositório; arquivos complementam o piso de testes.
 const PISO_ARQUIVOS_HEFESTO = 6;
-// Piso EXATAMENTE na contagem atual (327 na distribuição pública desde 2026-10-02: +95 do hermes 1.4.0, entre eles a suíte de `analisar-produto` e os casos novos do harness do criativo-fluxo; 232 desde 2026-09-11 incluía 19 regressões do guard de mutantes), não abaixo dela: diferente do mutation score, que
+// Piso EXATAMENTE na contagem atual (327 na distribuição pública desde 2026-10-02: +95 do hermes 1.4.0, entre eles a suíte de `analisar-produto` e os casos novos do harness do criativo-fluxo; 232 desde 2026-09-11 incluía 19 regressões do guard de mutantes; a constante foi de 352 a 368 em 2026-10-04 com os 16 casos do odin 2.4.12), não abaixo dela: diferente do mutation score, que
 // tem ruído e por isso ganha folga, contagem de teste é determinística — qualquer queda é
 // perda real. Um piso "com margem" reabriria o furo: com piso 25, esvaziar os dois arquivos
 // do odin dava 23 reais + 2 passes de arquivo vazio = 25, e passava. Verificado.
 // Ao adicionar teste, o piso continua satisfeito; ao remover de propósito, baixe aqui no
 // mesmo commit e diga por quê.
-const PISO_TESTES = 352;
+const PISO_TESTES = 368;
 // Publicador e suíte são privados. O package privado solicita a flag; o scrub a
 // remove do package público. Path literal ausente falha, sem skip por existência.
 const PISO_TESTES_PUBLICACAO = 21;

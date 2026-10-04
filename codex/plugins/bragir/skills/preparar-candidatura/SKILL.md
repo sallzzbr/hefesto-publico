@@ -1,6 +1,6 @@
 ---
 name: preparar-candidatura
-description: "Prepare and track applications. Use quando pedir currículo ou apresentação para uma vaga, preparação de entrevista, registro de candidatura, atualização de etapa ou retomada de um processo seletivo existente."
+description: "Prepare and track applications. Use quando pedir currículo ou apresentação para uma vaga, preparação de entrevista, envio autorizado de candidatura, atualização de etapa ou retomada de um processo seletivo existente."
 ---
 
 # Preparar Candidatura

@@ -12,7 +12,7 @@ export const meta = {
   ],
 }
 
-log('odin-dev-loop: revisão de contratos 2026-09-05-r5')
+log('odin-dev-loop: revisão de contratos 2026-10-04-r6')
 
 // ── args esperados (montados pela skill dev-loop) ────────────────────────────
 // {
@@ -146,6 +146,11 @@ const VERMELHO_SCHEMA = { type: 'object', additionalProperties: false, required:
   hashesDosTestes: { type: 'object', additionalProperties: { type: 'string' } },
 } }
 
+// Recoleta dos hashes quando a evidência transportada não confere (ver `hashesConferidos`).
+const HASHES_SCHEMA = { type: 'object', additionalProperties: false, required: ['hashesDosTestes'], properties: {
+  hashesDosTestes: { type: 'object', additionalProperties: { type: 'string' } },
+} }
+
 const REVIEW_SCHEMA = { type: 'object', additionalProperties: false, required: ['findings'], properties: {
   findings: { type: 'array', items: { type: 'object', required: ['arquivo', 'resumo', 'cenario', 'severidade', 'confianca'], properties: {
     arquivo: { type: 'string' }, linha: { type: 'number' }, resumo: { type: 'string' }, cenario: { type: 'string' },
@@ -154,6 +159,13 @@ const REVIEW_SCHEMA = { type: 'object', additionalProperties: false, required: [
 } }
 
 const VEREDITO_SCHEMA = { type: 'object', additionalProperties: false, required: ['real'], properties: { real: { type: 'boolean' }, porque: { type: 'string' } } }
+// Sinal da auditoria ponytail: a severidade dele nunca foi julgada por ninguém (nasce de uma
+// constante na montagem do finding), então o confirmador responde as DUAS perguntas em campos
+// separados. Com um booleano só, "o fato existe, mas não bloqueia" virava `real=true` e
+// retrabalho: nas duas rodadas de 2026-10-03/04 os 27 sinais confirmados diziam "não
+// bloqueante" no `porque`. Finding de lente fica no schema acima — a severidade dele já foi
+// classificada pela lente, e o confirmador não ganha poder de rebaixá-la.
+const VEREDITO_AUDITORIA_SCHEMA = { type: 'object', additionalProperties: false, required: ['real', 'bloqueante'], properties: { real: { type: 'boolean' }, bloqueante: { type: 'boolean' }, porque: { type: 'string' } } }
 
 // Auditoria ponytail: sinais MECÂNICOS no diff (não é julgamento de arquitetura — isso é a lente R3).
 // `onde`/`arquivo` são PEDIDOS no prompt mas NÃO required: um schema estrito aqui faz o retorno
@@ -351,24 +363,48 @@ const relatorioModelos = () => ({
 // Normaliza apenas identidades dentro da raiz conhecida. Não aceita sufixo arbitrário
 // (outro projeto/tests/a.js), valores não SHA-256 ou duas provas conflitantes.
 const pathCanonico = p => p.split('/').filter(parte => parte && parte !== '.').join('/');
+// Identidade de um path relatado por agente: tolera o prefixo da raiz e anotação de :linha.
+// null = não dá pra afirmar que é arquivo deste workspace.
+function pathNoWorkspace(relatado) {
+  const root = ARGS.workspaceRoot.replace(/\\/g, '/').replace(/\/$/, '');
+  let key = relatado.trim().replace(/:\d+(?:-\d+)?(?:\s+\([^\n]*\))?$/, '');
+  if (key.startsWith(root + '/')) key = key.slice(root.length + 1);
+  else if (key.startsWith('/')) return null;
+  if (/[:\\]/.test(key) || key.split('/').includes('..')) return null;
+  return pathCanonico(key);
+}
+// CRC-32 (IEEE) em JS puro — o sandbox não tem crypto nem Buffer. Mesmo algoritmo, byte a byte,
+// do `crc32` de `scripts/hashes-testes.mjs` (este script não importa nada): unidade UTF-16
+// abaixo de 256 entra como um byte, as demais como byte baixo e byte alto.
+function crc32(texto) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < texto.length; i++) {
+    const u = texto.charCodeAt(i);
+    for (const b of u < 256 ? [u] : [u & 0xFF, u >>> 8]) {
+      c ^= b;
+      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1));
+    }
+  }
+  return ((c ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0');
+}
+// Cada valor chega como `<sha256>-<conferência>`, emitido pelo script de hashes. Quem transporta
+// é um modelo copiando 64 caracteres: em 2026-10-04 uma troca de dois deles ("c3d" por "d3c")
+// virou "teste alterado" num arquivo que nunca mudou. A conferência (CRC-32 de `path\nsha`) é
+// recalculada aqui; valor que não confere é erro de TRANSPORTE, nunca prova de alteração.
 function normalizarHashes(mapa, paths) {
   if (!mapa || typeof mapa !== 'object' || Array.isArray(mapa)) throw new Error('mapa de hashes ausente');
-  const root = ARGS.workspaceRoot.replace(/\\/g, '/').replace(/\/$/, '');
-  const limpo = p => p.replace(/:\d+(?:-\d+)?(?:\s+\([^\n]*\))?$/, '');
   const esperado = new Map(paths.map(p => [pathCanonico(p), p]));
   const out = {};
   for (const [chave, valor] of Object.entries(mapa)) {
-    let key = limpo(chave.trim());
-    if (key.startsWith(root + '/')) key = key.slice(root.length + 1);
-    else if (key.startsWith('/')) throw new Error(`hash refere arquivo fora da raiz: ${chave}`);
-    if (/[:\\]/.test(key) || key.split('/').includes('..')) throw new Error(`path de hash inválido: ${chave}`);
-    key = pathCanonico(key);
+    const key = pathNoWorkspace(chave);
+    if (key === null) throw new Error(`hash refere path fora da raiz ou inválido: ${chave}`);
     const original = esperado.get(key);
     if (!original) throw new Error(`hash refere arquivo fora da lista: ${chave}`);
-    if (typeof valor !== 'string' || !/^[a-fA-F0-9]{64}$/.test(valor)) throw new Error(`SHA-256 inválido: ${chave}`);
-    const hash = valor.toLowerCase();
-    if (out[original] && out[original] !== hash) throw new Error(`hashes conflitantes: ${original}`);
-    out[original] = hash;
+    const m = typeof valor === 'string' && /^([a-f0-9]{64})-([a-f0-9]{8})$/.exec(valor.trim().toLowerCase());
+    if (!m) throw new Error(`hash fora do formato <sha256>-<conferência>: ${chave}`);
+    if (crc32(`${original}\n${m[1]}`) !== m[2]) throw new Error(`hash não confere com a própria conferência (erro de transcrição): ${chave}`);
+    if (out[original] && out[original] !== m[1]) throw new Error(`hashes conflitantes: ${original}`);
+    out[original] = m[1];
   }
   for (const p of paths) if (!out[p]) throw new Error(`sem hash para ${p}`);
   return out;
@@ -486,6 +522,34 @@ if (semProva.length > 0) return { status: 'bloqueado', fase: 'TDD', detalhe: `cr
 // é teste que nasceu verde. Os hashes que ele devolve são a baseline do check de testes
 // intactos, comparada em código a cada iteração (abaixo, na auditoria). Testado em
 // tests/harness-dev-loop.test.mjs.
+
+// Evidência de hash que não confere NÃO vira "teste alterado": o que falhou foi o transporte,
+// não o arquivo. Recolhe UMA vez no piso do papel (operário/sonnet), em chamada própria e sem
+// mais nada no contexto do agente; se ainda assim não conferir, é erro de evidência. Vale para a
+// base do portão e para cada validação — transcrição errada na BASE fazia toda validação correta
+// divergir até o teto. A recoleta vai pro relatório em `fallbacks`, não acontece em silêncio.
+async function hashesConferidos(transportado, label, fase) {
+  try { return normalizarHashes(transportado, testesDaSpec) }
+  catch (primeira) {
+    log(`Evidência de hashes não conferiu (${primeira.message}) — recoleta única em ${label}`)
+    fallbacksModelo.push({ step: 'validar', chamada: label, de: execucoesPorStep.validar, para: 'sonnet (operario)', causa: `evidência de hashes não conferiu: ${primeira.message}; recoleta única, sem relação com disponibilidade de modelo` })
+    registrarExec('validar', 'sonnet (recoleta de hashes)')
+    const r = await tentar(
+      `Execute somente este comando, sem editar nada:
+      \`\`\`bash
+      ${comandoHashes(testesDaSpec)}
+      \`\`\`
+      Copie o JSON do stdout em hashesDosTestes, caractere por caractere. Cada valor tem a forma
+      <sha256>-<conferência>: o controlador recalcula a conferência e recusa transcrição errada.
+      Se o comando falhar, não invente valores.`,
+      { ...OPERARIO, ...(TIERING.validar.effort ? { effort: TIERING.validar.effort } : {}), label, phase: fase, schema: HASHES_SCHEMA }
+    )
+    if (!r) throw new Error(`${primeira.message}; a recoleta não retornou`)
+    try { return normalizarHashes(r.hashesDosTestes, testesDaSpec) }
+    catch (segunda) { throw new Error(`${primeira.message}; recoleta: ${segunda.message}`) }
+  }
+}
+
 let hashesBase = {}
 if (testesDaSpec.length > 0) {
   const vermelho = await chamarOperario('validar',
@@ -498,6 +562,8 @@ if (testesDaSpec.length > 0) {
     ${comandoHashes(testesDaSpec)}
     \`\`\`
     Copie o JSON do script em hashesDosTestes sem trocar chaves nem acrescentar :linha.
+    Cada valor tem a forma <sha256>-<conferência>: copie o valor inteiro, caractere por
+    caractere — o controlador recalcula a conferência e recusa transcrição errada.
     O SHA é calculado pelo Node. Se o comando falhar, não invente hashes.`,
     { label: 'tdd:vermelho', phase: 'TDD', schema: VERMELHO_SCHEMA }
   )
@@ -506,8 +572,8 @@ if (testesDaSpec.length > 0) {
     return { status: 'bloqueado', fase: 'TDD', detalhe: `os testes da SPEC passaram (exit 0) antes de qualquer implementação — o vermelho declarado pelo operário não se confirmou${vermelho.resumo ? `: ${vermelho.resumo}` : ''}`, acao: 'teste que nasce verde é suspeito: critério já atendido (cortar) ou teste inútil (reescrever) — revisar antes de qualquer implementação', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
   }
   if (!vermelho.falhaEsperada) return { status: 'erro', fase: 'TDD', detalhe: `a execução independente falhou por sintaxe/import/configuração/infra, não pelo comportamento esperado${vermelho.resumo ? `: ${vermelho.resumo}` : ''}`, acao: 'corrigir o ambiente ou o próprio teste e repetir o portão antes da implementação', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
-  try { hashesBase = normalizarHashes(vermelho.hashesDosTestes, testesDaSpec) }
-  catch (e) { return { status: 'erro', fase: 'TDD', detalhe: e.message, acao: 'executar o script de hashes e devolver seu JSON completo', fallbacks: fallbacksModelo, modelos: relatorioModelos() } }
+  try { hashesBase = await hashesConferidos(vermelho.hashesDosTestes, 'tdd:hashes', 'TDD') }
+  catch (e) { return { status: 'erro', fase: 'TDD', detalhe: e.message, acao: 'a base de hashes não conferiu nem na recoleta, e sem base verificada não há como provar testes intactos; nada foi implementado ainda — iniciar run novo (resumeFromRunId devolveria as mesmas respostas do cache)', fallbacks: fallbacksModelo, modelos: relatorioModelos() } }
 }
 
 // ── Fases 3-5: loop implementar → validar → revisar ─────────────────────────
@@ -518,6 +584,7 @@ const escadaReportada = []
 const auditoriasLog = []
 const dependenciasDecididas = []
 const pendenciasForaDeEscopo = []
+const pendenciasEmTestesDaSpec = []
 const duplicacoesEAbstracoesJulgadas = []
 
 // Usada nos QUATRO desfechos (escalada por unidade, erro de validação, escalada por teto, verde).
@@ -527,8 +594,9 @@ const ponytailAteAgora = () => ({
   escada: escadaReportada,                                 // em que degrau cada coisa criada parou
   auditorias: auditoriasLog,                               // linhas são ACUMULADAS da branch (P13)
   dependencias: dependenciasDecididas,                     // P10: uma entrada por dependência, com a decisão VIGENTE
-  duplicacoesEAbstracoes: duplicacoesEAbstracoesJulgadas,  // com o veredito de cada uma, não só a alegação
+  duplicacoesEAbstracoes: duplicacoesEAbstracoesJulgadas,  // com o veredito de cada uma (fato E severidade), não só a alegação
   pendenciasForaDeEscopo,                                  // P14: reportado, nunca retrabalhado
+  pendenciasEmTestesDaSpec,                                // P2/P11 em teste congelado: reportado sem julgamento, nunca retrabalhado
 })
 let iteracao = 0
 let verde = false
@@ -625,14 +693,16 @@ while (iteracao < MAX_ITERACOES && !verde) {
     ${comandoHashes(testesDaSpec)}
     \`\`\`
     Copie o JSON em hashesDosTestes sem reformatar chaves;
-    não calcule hashes por conta própria nem acrescente anotações de linha.`,
+    não calcule hashes por conta própria nem acrescente anotações de linha.
+    Cada valor tem a forma <sha256>-<conferência>: copie o valor inteiro, caractere por
+    caractere — o controlador recalcula a conferência e recusa transcrição errada.`,
     { label: `validar:i${iteracao}`, phase: 'Validar', schema: VALID_SCHEMA }
   )
   if (!val) return { status: 'erro', fase: 'Validar', iteracao, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora() }
 
   let hashesAgora;
-  try { hashesAgora = normalizarHashes(val.hashesDosTestes, testesDaSpec) }
-  catch (e) { return { status: 'erro', fase: 'Validar', detalhe: e.message, acao: 'recolher evidência com o script de hashes; isto não prova alteração do teste', fallbacks: fallbacksModelo, modelos: relatorioModelos() } }
+  try { hashesAgora = await hashesConferidos(val.hashesDosTestes, `hashes:i${iteracao}`, 'Validar') }
+  catch (e) { return { status: 'erro', fase: 'Validar', iteracao, detalhe: e.message, acao: 'a evidência de hashes não conferiu nem na recoleta; isto não prova alteração do teste. resumeFromRunId devolveria as mesmas respostas do cache: conferir os testes da SPEC à mão (script de hashes contra o estado do portão) e decidir como seguir', consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora() } }
 
   // ── Auditoria ponytail (todos os perfis, 1 agente) ───────────────────────────
   // Checagem MECÂNICA de sinais no diff — barata, roda sempre. Não confundir com a lente R3
@@ -692,6 +762,8 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // Hash de cada teste após a implementação comparado à baseline do `tdd:vermelho`. Diferente
   // ou ausente = bloqueante automático, sem confirmação: o operário que edita o teste pra passar
   // não tem apelação, e "sem hash" é fail-closed (não há como provar que ficou intacto).
+  // Os dois lados chegam aqui com a conferência de transporte recalculada (`hashesConferidos`):
+  // divergência entre duas coletas conferidas é mudança de conteúdo, não erro de cópia.
   for (const p of testesDaSpec) {
     const agora = hashesAgora[p]
     if (agora && agora === hashesBase[p]) continue
@@ -699,7 +771,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
       arquivo: p,
       resumo: agora ? `Teste da SPEC alterado durante a implementação: ${p}` : `Teste da SPEC sem hash na validação: ${p} — não há como provar que ficou intacto`,
       cenario: agora
-        ? `O hash de ${p} mudou entre o portão TDD (${hashesBase[p]}) e a validação (${agora}). O implementador não edita os testes que precisa fazer passar: se o teste parece errado, isso é consulta de arquitetura, não correção. Reverta o teste ao estado do TDD.`
+        ? `O hash de ${p} mudou entre o portão TDD (${hashesBase[p]}) e a validação (${agora}); as duas coletas conferiram, então não é erro de transcrição. O implementador não edita os testes que precisa fazer passar: se o teste parece errado, isso é consulta de arquitetura, não correção. Reverta o teste ao estado do TDD.`
         : `A validação não devolveu hash para ${p}. Sem ele a regra "implementador não edita teste" fica sem prova. Reporte o SHA-256 de todos os testes da SPEC.`,
       severidade: 'bloqueante', confianca: 'confirmado', origem: 'testes-intactos',
     })
@@ -736,17 +808,29 @@ while (iteracao < MAX_ITERACOES && !verde) {
     }
   }
 
-  // Duplicações e abstrações de uso único: findings NORMAIS — passam pela confirmação abaixo.
-  // Reuse o veredito somente para o mesmo arquivo, alegação e cenário. Um sinal confirmado
-  // que reaparece continua bloqueante; desaparecer da auditoria atual é o que o remove.
-  // Refutação da mesma evidência não paga outro confirmador; cenário diferente exige novo juízo.
+  // Duplicações e abstrações de uso único: findings NORMAIS — passam pela confirmação abaixo,
+  // que julga o fato E a severidade (a `severidade` daqui é a alegação, não um veredito).
+  // Reuse o veredito somente para o mesmo arquivo, alegação e cenário. Um sinal confirmado como
+  // bloqueante que reaparece continua bloqueante; desaparecer da auditoria atual é o que o remove.
+  // Refutação ou "real, não bloqueante" da mesma evidência não paga outro confirmador; cenário
+  // diferente exige novo juízo.
+  //
+  // TESTE DA SPEC É CONGELADO: a regra dos testes intactos (acima) proíbe qualquer operário de
+  // editá-lo, então um sinal de peso de diff nele não tem quem conserte dentro do loop — como
+  // bloqueante, o run só podia terminar escalado no teto. Decidido em código pelo arquivo, sem
+  // rota de modelo: vira pendência reportada, sem confirmador. Arquivo que não dá pra identificar
+  // segue o fluxo normal. Achado de LENTE em teste da SPEC não passa por aqui e continua bloqueando.
   const findingsDaAuditoria = [
     ...auditoria.duplicacoes.map(x => ({ arquivo: x.arquivo || '(diff da branch)', linha: x.linha, resumo: `P2: "${x.oQue}" duplica o que já existe em ${x.ondeJaExiste}`, cenario: `A base já resolve isso em ${x.ondeJaExiste}; o diff reintroduz a lógica.`, severidade: 'bloqueante', confianca: 'plausivel', origem: 'auditoria-ponytail' })),
     ...auditoria.abstracoesUsoUnico.map(x => ({ arquivo: x.arquivo || '(diff da branch)', linha: x.linha, resumo: `P11: abstração de uso único "${x.oQue}"`, cenario: `Único chamador: ${x.unicoChamador}. Abstração sem segundo caso de uso.`, severidade: 'bloqueante', confianca: 'plausivel', origem: 'auditoria-ponytail' })),
   ].flatMap(f => {
+    if (testesDaSpec.includes(pathNoWorkspace(f.arquivo))) {
+      if (!pendenciasEmTestesDaSpec.some(p => p.arquivo === f.arquivo && p.resumo === f.resumo)) pendenciasEmTestesDaSpec.push({ iteracao, arquivo: f.arquivo, linha: f.linha, resumo: f.resumo, cenario: f.cenario })
+      return []
+    }
     const julgado = duplicacoesEAbstracoesJulgadas.find(j => j.arquivo === f.arquivo && j.resumo === f.resumo && j.cenario === f.cenario)
     if (!julgado) return [f]
-    return julgado.confirmado ? [{ ...f, confianca: 'confirmado' }] : []
+    return julgado.confirmado && julgado.severidade === 'bloqueante' ? [{ ...f, confianca: 'confirmado' }] : []
   })
 
   phase('Revisar')
@@ -769,19 +853,31 @@ while (iteracao < MAX_ITERACOES && !verde) {
   const bloqueantes = [...bloqueantesAutomaticos]
   for (const f of findingsAbertos.filter(f => f.severidade === 'bloqueante')) {
     if (f.confianca === 'confirmado') { bloqueantes.push(f); continue }
+    // Só o sinal da auditoria ganha a pergunta de severidade: ninguém a julgou antes (ver
+    // VEREDITO_AUDITORIA_SCHEMA). Finding de lente mantém a severidade que a lente classificou.
+    const daAuditoria = f.origem === 'auditoria-ponytail'
     const v = await chamarRevisor('confirmacao',
       `Confirme ou refute este finding plausível antes de virar retrabalho:
       ${f.arquivo}:${f.linha || '?'} — ${f.resumo}. Cenário alegado: ${f.cenario}.
-      Reproduza o cenário (leia o código, rode se preciso). real=true só com evidência.`,
-      { label: `confirmar:i${iteracao}`, phase: 'Revisar', schema: VEREDITO_SCHEMA }
+      Reproduza o cenário (leia o código, rode se preciso). real=true só com evidência.${daAuditoria ? `
+      Este é um sinal MECÂNICO da auditoria ponytail: a severidade ainda não foi julgada por ninguém.
+      Responda as duas perguntas em campos separados. real = o fato alegado existe.
+      bloqueante = pela regra 4 do seu papel: true se viola critério de aceite, quebra em cenário
+      real ou toca segurança; false se é só peso de diff (melhoria, estilo, risco menor) — aí vira
+      pendência reportada, não retrabalho. Fato que existe e não bloqueia é real=true com
+      bloqueante=false; nunca use real=false para dizer "não bloqueia".` : ''}`,
+      { label: `confirmar:i${iteracao}`, phase: 'Revisar', schema: daAuditoria ? VEREDITO_AUDITORIA_SCHEMA : VEREDITO_SCHEMA }
     )
     // Confirmador que não retorna ABORTA: antes o null descartava o finding bloqueante plausível
     // em silêncio — mesma classe de falha-aberta da lente acima. O veredito precisa existir.
     if (!v) return { status: 'erro', fase: 'Revisar', iteracao, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), acao: `o confirmador do finding "${f.resumo}" não retornou — sem veredito não há como decidir retrabalho nem verde; reinvocar com resumeFromRunId` }
-    if (v.real) bloqueantes.push(f)
+    // Fail-closed: só `bloqueante === false` explícito, e só em sinal da auditoria, tira do retrabalho.
+    const naoBloqueia = daAuditoria && v.bloqueante === false
+    if (v.real && !naoBloqueia) bloqueantes.push(f)
     // Findings da auditoria são julgados como qualquer outro; o relatório guarda o VEREDITO,
-    // não a alegação — senão a seção ponytail lista como violação o que foi refutado.
-    if (f.origem === 'auditoria-ponytail') duplicacoesEAbstracoesJulgadas.push({ iteracao, ...f, confirmado: !!v.real, porqueVeredito: v.porque })
+    // não a alegação — senão a seção ponytail lista como violação o que foi refutado, ou como
+    // bloqueante o que o confirmador julgou pendência.
+    if (daAuditoria) duplicacoesEAbstracoesJulgadas.push({ iteracao, ...f, severidade: v.real && naoBloqueia ? 'nao-bloqueante' : f.severidade, confirmado: !!v.real, porqueVeredito: v.porque })
   }
 
   if (val.verde && bloqueantes.length === 0) { verde = true; break }

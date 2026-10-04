@@ -3,6 +3,43 @@
 > Histórico anterior à 2.4.6 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 2.4.12 — 2026-10-04 (achado que ninguém pode consertar e hash copiado errado)
+
+Duas rodadas reais do dev-loop (perfil máximo, harness 2.4.9) terminaram escaladas sem defeito
+de comportamento em aberto. Dois defeitos eram do harness.
+
+- **Teste da SPEC é congelado, então sinal da auditoria nele vira pendência.** Sinal P2/P11 da
+  auditoria ponytail localizado num arquivo da lista de testes da SPEC vai para
+  `ponytail.pendenciasEmTestesDaSpec`, sem confirmador e sem bloquear. Antes virava bloqueante
+  que nenhum operário podia corrigir (o hash do teste é comparado a cada iteração), e desde a
+  2.4.10 persistia até o teto. A decisão é do script, pelo arquivo; path sem identidade segura
+  segue o fluxo normal. Achado de lente em teste da SPEC continua bloqueando.
+- **O confirmador julga fato e severidade do sinal da auditoria em campos separados.** O
+  veredito só tinha `real`; a severidade desses sinais é uma constante do script, que nenhum
+  revisor classificou. Nas duas rodadas, os 27 sinais confirmados traziam "não bloqueante" no
+  texto e bloquearam mesmo assim. Agora `real` e `bloqueante` são obrigatórios nesse veredito:
+  real e bloqueante vira retrabalho, real e não bloqueante vira pendência com o veredito
+  registrado. Campo ausente bloqueia. Finding de lente mantém a severidade da lente; o schema
+  da confirmação dele não oferece o campo.
+- **Hash de teste com conferência de transporte.** `hashes-testes.mjs` emite
+  `<sha256>-<conferência>` (CRC-32 de `path\nsha`) e o controlador recalcula a conferência em JS
+  puro, sem filesystem. Uma troca de dois caracteres na cópia feita pelo agente tinha virado
+  "teste alterado" num arquivo que nunca mudou; a mesma troca na base do portão TDD faria toda
+  validação correta divergir até o teto.
+- **Recoleta única da evidência que não confere**, na base (`tdd:hashes`) e em cada validação
+  (`hashes:i<N>`), no operário e registrada em `fallbacks`. Duas falhas seguidas encerram como
+  `erro` de evidência. Divergência entre duas coletas conferidas continua bloqueante
+  automático, sem confirmação e sem recoleta.
+- Revisão de contratos `2026-10-04-r6`. A string não mudou entre a 2.4.9 e a 2.4.11, apesar de
+  o harness ter mudado: o log de um run dessas versões não as distingue.
+- 16 casos novos em `tests/harness-dev-loop.test.mjs` e `tests/hashes-testes.test.mjs`. O
+  script real e o controlador rodam juntos num path com acento e símbolo fora do Latin-1, para
+  travar as duas cópias do CRC uma contra a outra.
+
+> **Compatibilidade:** o formato dos valores de `hashesDosTestes` e o schema do veredito de
+> sinal da auditoria mudaram. Use run novo; não retome com `resumeFromRunId` um run de revisão
+> anterior. Nenhum arg da skill mudou.
+
 ## 2.4.11 — 2026-09-11
 
 - Auditor e lentes inspecionam Git sem staging; arquivos novos selecionados e stage são apresentados separadamente. A entrega confere todos os paths staged contra o escopo aprovado antes de commit, preservando conteúdo alheio.

@@ -23,3 +23,11 @@ Artefatos de texto usam `status: rascunho | aprovado | aplicado`, data, origem e
 Use a autorização existente para arquivos locais dentro do escopo. Publicar site, editar LinkedIn, enviar candidatura ou mensagem exige instrução correspondente. Preparar conteúdo não concede essa autorização. Ferramenta indisponível bloqueia somente o efeito externo; entregue material utilizável e próximo passo concreto. Não reivindique operação sem verificação. Não faça commits/push por efeito implícito da skill.
 
 Ao concluir trabalho autorizado, atualize `estado.md` com objetivo, artefatos canônicos, decisões, pendências e próxima ação. Não copie todo o histórico. Em retomada, use esses registros; se uma conversa anterior não estiver acessível, registre `não localizada` e peça link/texto somente quando necessário. Não invente lembrança.
+
+## Memória corrente e histórico
+
+Mantenha no início de `estado.md` um resumo atual com data, fontes, artefatos canônicos, responsável e próxima ação. Registros superados ficam identificados como históricos; não deixe uma instrução antiga contradizer a retomada atual. Atualize também guias de entrada e prompts de continuidade que ainda apontem versões ou restrições antigas, sem ampliar uma autorização pontual para sessões futuras.
+
+A ficha é canônica para processo; a análise, para aderência; board e índice apenas resumem e apontam para elas. Ao atualizar uma ficha, confira consistência desses resumos e duplicidades. Separe etapa, disponibilidade da vaga, retorno e resultado final. Não inferir causas de rejeição a partir de feedback genérico, nem contar atuação paralela duas vezes. QA local de texto/layout não é teste em ATS empresarial.
+
+Ao consolidar aprendizados, promova para o plugin somente métodos reutilizáveis. Preferências pessoais, vagas, destinatários, recibos e permissões do usuário permanecem no workspace. Não edite o cache instalado: mudanças de fonte, distribuição sincronizada, publicação e instalação são estados distintos.

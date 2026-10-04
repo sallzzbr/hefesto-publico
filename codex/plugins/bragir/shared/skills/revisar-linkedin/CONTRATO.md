@@ -1,6 +1,6 @@
 ---
 name: revisar-linkedin
-description: "Review LinkedIn positioning. Use quando pedir para reescrever headline, Sobre, experiências ou destaques do LinkedIn, ou retomar uma revisão anterior do perfil profissional. Não pressupõe publicação nem vaga ativa."
+description: "Review LinkedIn positioning. Use quando pedir para reescrever headline, Sobre, experiências, destaques ou capa do LinkedIn, ou retomar uma revisão anterior do perfil profissional. Não pressupõe publicação nem vaga ativa."
 ---
 
 # Revisar LinkedIn
@@ -16,6 +16,12 @@ Leia `${CLAUDE_PLUGIN_ROOT}/skills/mapear-perfil-profissional/references/carreir
 3. Revise somente as seções pedidas; quando a revisão for geral, priorize headline, Sobre, experiências e destaques. Use `bragir:escrever-como-antonio` para a prosa, respeitando o perfil de voz e idioma escolhidos, sem jargão ou números inventados.
 4. Entregue texto pronto para copiar e breve justificativa das mudanças relevantes. Marque afirmações sem base fora do texto publicável, como pendências. Não prometa melhora de ranking ou resultado de algoritmo.
 5. Só editar a plataforma quando essa ação estiver solicitada e houver acesso. Confira o texto no destino após editar; acesso ausente deixa o rascunho pronto, não aplicado. Não envie mensagens ou pedidos de conexão como parte da revisão.
+
+## Capa e verificação na plataforma
+
+Quando o pedido incluir capa, localize primeiro o artefato aprovado e sua fonte editável. Reuse a direção aprovada; mudança pequena de tipografia não exige redesenho. Preserve texto exato, endereço público correto e versões anteriores. Confira alinhamento, dimensões reais do arquivo, legibilidade e recorte com a área da foto de perfil. Use ferramentas adequadas e as regras de edição de imagem disponíveis no runtime.
+
+Upload aceito não equivale a edição salva. Confira a prévia antes de salvar e o resultado no perfil depois, com evidência visual quando disponível; prévia vazia continua pendente. Permissões e seletores dependem da ferramenta atual: descreva o bloqueio observado e solicite somente a ação necessária. Não atribua uma falha a permissão específica sem evidência. Sucesso posterior atualiza o estado e retira a pendência anterior da visão corrente.
 
 ## Output
 

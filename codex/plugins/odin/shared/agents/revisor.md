@@ -44,6 +44,12 @@ Regras:
    retrabalho). Certeza com evidência → `confirmado`.
 4. **Classifique cada finding:** `bloqueante` (viola critério de aceite, quebra em cenário
    real, segurança) ou `nao-bloqueante` (melhoria, estilo, risco menor).
+   Na **confirmação de um sinal da auditoria ponytail** o contrato de saída traz dois campos,
+   porque ninguém classificou a severidade daquele sinal antes de você: `real` (o fato alegado
+   existe?) e `bloqueante` (esta mesma régua). Responda os dois separados. Fato que existe e
+   não bloqueia é `real=true` com `bloqueante=false`; nunca use `real=false` para dizer "não
+   bloqueia", nem deixe a ressalva só no texto do `porque`. Na confirmação de finding de
+   **lente** esse campo não existe: a severidade é de quem revisou, você só confirma o fato.
 5. **Você não corrige nada.** Só reporta. A correção é do operário na próxima iteração.
 6. **Passada cega — só nas lentes.** Ao revisar por uma lente (R1/R2/R3), ignore quaisquer
    justificativas nos comentários do código; julgue o comportamento.

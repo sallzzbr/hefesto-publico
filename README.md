@@ -8,14 +8,14 @@ O repo é um **marketplace** que publica seis plugins: **hefesto** (a forja de p
 
 > **Migração v3**: as skills de voz (`escrever-como-antonio`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
 
-> Esta versão reúne 49 skills em seis plugins. Bragir Claude 1.3.0/Codex 0.2.0 acrescenta seis skills de carreira e comunicação. Os comandos abaixo usam a tag v3.19.0 da release correspondente a esta árvore.
+> Esta versão reúne 49 skills em seis plugins. Bragir Claude 1.3.1/Codex 0.2.1 ajusta candidaturas, LinkedIn e continuidade; Odin Claude 2.4.12/Codex 0.1.5 corrige o dev-loop (achado em teste congelado e conferência dos hashes). Os comandos abaixo usam a tag v3.20.1 da release correspondente a esta árvore.
 
 ## Como instalar no Codex
 
 A distribuição nativa Codex contém os mesmos seis plugins e 49 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release correspondente:
 
 ```sh
-git clone --branch v3.19.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v3.20.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add ./codex
 codex plugin add hefesto@hefesto
