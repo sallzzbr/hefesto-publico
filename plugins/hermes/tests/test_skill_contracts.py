@@ -177,6 +177,6 @@ def test_analisar_produto_is_in_both_readmes() -> None:
     plugin_readme = (PLUGIN_DIR / "README.md").read_text(encoding="utf-8")
     assert re.search(r"^\| `analisar-produto` \|", plugin_readme, re.MULTILINE), "plugin README needs a table row"
     root = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    assert "49 skills" in root, "root README must count 49 skills"
+    assert "50 skills" in root, "root README must count 50 skills"
     assert "48 skills" not in root, "stale 48-skills count left in root README"
     assert re.search(r"hermes/.*\(17 skills", root), "root README tree must list hermes with 17 skills"

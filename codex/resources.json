@@ -611,6 +611,10 @@
     {
       "source": "plugins/bragir/skills/mapear-perfil-profissional/references/carreira.md",
       "target": "plugins/bragir/shared/skills/mapear-perfil-profissional/references/carreira.md"
+    },
+    {
+      "source": "plugins/bragir/skills/revisar-naturalidade/SKILL.md",
+      "target": "plugins/bragir/shared/skills/revisar-naturalidade/CONTRATO.md"
     }
   ]
 }

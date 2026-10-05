@@ -1,24 +1,24 @@
 # Hefesto para Codex
 
-Seis plugins e 49 skills nativas Codex, distribuídos no [marketplace público Hefesto](https://github.com/sallzzbr/hefesto-publico). Esta pasta é a raiz do marketplace Codex; a distribuição Claude Code fica em `../plugins/`.
+Seis plugins e 50 skills nativas Codex, distribuídos no [marketplace público Hefesto](https://github.com/sallzzbr/hefesto-publico). Esta pasta é a raiz do marketplace Codex; a distribuição Claude Code fica em `../plugins/`.
 
 | Plugin | Skills | Função |
 |---|---:|---|
 | Hefesto | 4 | Criar, validar e versionar plugins e skills Codex |
-| Bragir | 11 | Voz, escrita, editorial, carreira e comunicação visual |
+| Bragir | 12 | Voz, escrita, editorial, carreira e comunicação visual |
 | Hestia | 6 | Orçamento, gastos, compras e investimentos |
 | Odin | 6 | Investigar, definir e entregar desafios com SPEC e TDD |
 | Mimyr | 5 | Planejar, escrever e revisar cursos |
 | Hermes | 17 | Diagnóstico de marketing e produção de criativos |
 
-> Esta versão reúne 49 skills em seis plugins. Bragir Claude 1.3.1/Codex 0.2.1 ajusta candidaturas, LinkedIn e continuidade; Odin Claude 2.4.12/Codex 0.1.5 corrige o dev-loop (achado em teste congelado e conferência dos hashes). Os comandos abaixo usam a tag v3.20.1 da release correspondente a esta árvore.
+> Esta versão reúne 50 skills em seis plugins. Bragir Claude 1.4.0/Codex 0.3.0 acrescenta revisão de naturalidade à escrita de artigos e posts. Os comandos abaixo usam a tag v3.21.0 da release correspondente a esta árvore.
 
 ## Instalação
 
 Com Git e a CLI Codex disponíveis, obtenha a release pública e registre a pasta do marketplace:
 
 ```sh
-git clone --branch v3.20.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v3.21.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add ./codex
 codex plugin add hefesto@hefesto
@@ -48,7 +48,7 @@ O replay preserva respostas salvas, mas não oferece transação sobre ferrament
 
 As 42 skills da distribuição inicial foram avaliadas na etapa de testes comportamentais, com sessões reais e dados sintéticos, incluindo integração de teste com Drive e produção de imagem sob orçamento autorizado. Casos de controlador também usam fixtures técnicas e injeção de falhas identificadas. Essas evidências são internas e não integram este espelho público.
 
-Os comandos abaixo verificam empacotamento, contratos e controles determinísticos. O smoke instala seis plugins, descobre as 49 skills e verifica o veto de argumentos do controlador Hermes em perfil temporário; não faz chamadas de modelo, não testa a qualidade de respostas nem comprova acesso aos seus conectores.
+Os comandos abaixo verificam empacotamento, contratos e controles determinísticos. O smoke instala seis plugins, descobre as 50 skills e verifica o veto de argumentos do controlador Hermes em perfil temporário; não faz chamadas de modelo, não testa a qualidade de respostas nem comprova acesso aos seus conectores.
 
 ```sh
 npm --prefix codex test

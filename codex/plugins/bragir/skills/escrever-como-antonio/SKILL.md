@@ -20,7 +20,10 @@ para paths, ferramentas e autorização.
    perfil.
 4. Aplique a voz ao texto inteiro. Exceção explícita do usuário prevalece nesta entrega;
    declare o ajuste e preserve o restante do perfil.
-5. Entregue no formato, idioma, canal e extensão pedidos. Declare qualquer suposição necessária.
+5. Antes de entregar artigos e posts, aplique `bragir:revisar-naturalidade` com o perfil e
+   as fontes já resolvidos. Preserve tese, fatos, opiniões e incertezas; não gere um segundo
+   texto nem alegue revisão independente. A revisão não chama este escritor de volta.
+6. Entregue no formato, idioma, canal e extensão pedidos. Declare qualquer suposição necessária.
 
 Personas e perfis ficam no workspace ou path pessoal configurado, nunca no cache. Para criar uma
 persona, use `gerenciar-personas`.

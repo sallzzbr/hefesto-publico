@@ -3,6 +3,13 @@
 > Histórico anterior à 1.2.4 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 1.4.0 — 2026-10-05
+
+- Nova skill `revisar-naturalidade`, com revisão de ritmo, clareza e fidelidade à voz sem inventar fatos ou prometer aprovação por detector de IA.
+- Artigos e posts passam pela revisão antes da entrega; perfis pessoais continuam no workspace.
+- Análise de voz aceita publicações acessíveis, registra procedência e separa canais e textos de terceiros.
+- Reinicie a sessão após atualizar o plugin para carregar a nova skill.
+
 ## 1.3.1 — 2026-09-26
 
 - Candidaturas autorizadas: escopo, responsável, dados pendentes, verificação de anexos e recibos, reconciliação antes de repetir envio.

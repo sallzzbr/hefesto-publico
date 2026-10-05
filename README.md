@@ -8,14 +8,14 @@ O repo é um **marketplace** que publica seis plugins: **hefesto** (a forja de p
 
 > **Migração v3**: as skills de voz (`escrever-como-antonio`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
 
-> Esta versão reúne 49 skills em seis plugins. Bragir Claude 1.3.1/Codex 0.2.1 ajusta candidaturas, LinkedIn e continuidade; Odin Claude 2.4.12/Codex 0.1.5 corrige o dev-loop (achado em teste congelado e conferência dos hashes). Os comandos abaixo usam a tag v3.20.1 da release correspondente a esta árvore.
+> Esta versão reúne 50 skills em seis plugins. Bragir Claude 1.4.0/Codex 0.3.0 acrescenta revisão de naturalidade à escrita de artigos e posts. Os comandos abaixo usam a tag v3.21.0 da release correspondente a esta árvore.
 
 ## Como instalar no Codex
 
-A distribuição nativa Codex contém os mesmos seis plugins e 49 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release correspondente:
+A distribuição nativa Codex contém os mesmos seis plugins e 50 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release correspondente:
 
 ```sh
-git clone --branch v3.20.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v3.21.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add ./codex
 codex plugin add hefesto@hefesto
@@ -54,6 +54,7 @@ Cada skill tem um command atalho homônimo: `/criar-plugin`, `/criar-skill`, `/v
 |---|---|
 | `escrever-como-antonio` | Escreve na voz do Antonio. Resolve o perfil na ordem `local_voz` (CLAUDE.md do workspace) → `./perfil-de-voz.md` (projeto) → `./voz/perfil-de-voz.md` (workspace de conteúdo) → `./voice-profile.md` (legado, só leitura) → `${CLAUDE_PLUGIN_ROOT}/perfil-de-voz.md` (default Antonio). Perfil só-scaffold conta como ausente. Descobre personas em `./personas/`. |
 | `analisar-voz` | Analisa documentos de um autor e gera `./perfil-de-voz.md` no projeto consumidor (default). Pode atualizar o perfil default do plugin se pedido explicitamente. |
+| `revisar-naturalidade` | Revisa ritmo, clareza e fidelidade à voz em rascunhos, preservando fatos e incertezas. Integra a escrita de artigos e posts e pode ser chamada isoladamente. |
 | `gerenciar-personas` | Cria, lista e edita personas de audiência em `./personas/` do projeto atual. |
 | `planejar-agenda` | Planeja o ciclo do calendário editorial (12 slots, 3 posts/semana) a partir de ideias e rascunhos do workspace. Sem a estrutura no cwd, PARA. |
 | `analisar-metricas` | Analisa o CSV de métricas do workspace, ranqueia posts e gera relatório datado; propõe aprendizados para o perfil de voz. Só leitura no CSV. |
@@ -69,7 +70,8 @@ Cada skill tem um command atalho homônimo: `/criar-plugin`, `/criar-skill`, `/v
 - "Escreve um post sobre X na minha voz" → aciona `escrever-como-antonio`
 - "Agora pensando no meu cliente X" → a skill procura `./personas/<nome>.md` no projeto. Se não existir, oferece criar.
 - "Cria uma persona nova pra esse projeto" → aciona `gerenciar-personas`
-- "Analisa esses 3 docx e gera um perfil de voz" → aciona `analisar-voz` (requer a skill oficial `docx` instalada)
+- "Analisa esses artigos e posts e gera meu perfil de voz" → aciona `analisar-voz` (DOCX requer leitor compatível com o runtime)
+- "Revisa a naturalidade desse rascunho, preservando minha voz" → aciona `revisar-naturalidade`
 
 ### Onde ficam as personas
 
@@ -217,7 +219,7 @@ daqui.
     │   │       ├── criar-skill/           # + references/convencoes-skill.md
     │   │       ├── validar-plugin/        # + scripts/validar.mjs
     │   │       └── versionar-plugin/
-    │   ├── bragir/                        # voz, escrita, editorial e carreira (11 skills)
+    │   ├── bragir/                        # voz, escrita, editorial e carreira (12 skills)
     │   │   ├── .claude-plugin/plugin.json
     │   │   ├── perfil-de-voz.md           # perfil de voz canônico do Antonio (fallback)
     │   │   └── skills/                    # escrever-como-antonio, analisar-voz, gerenciar-personas,

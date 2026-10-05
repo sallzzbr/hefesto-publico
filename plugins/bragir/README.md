@@ -14,7 +14,8 @@ Até a v2.x do marketplace, as skills de voz viviam no plugin `hefesto`. Migrara
 | Skill | O que faz |
 |---|---|
 | `escrever-como-antonio` | Escreve na voz do Antonio. Resolve o perfil na ordem `local_voz` (CLAUDE.md do workspace) → `./perfil-de-voz.md` (projeto) → `./voz/perfil-de-voz.md` (workspace de conteúdo) → `./voice-profile.md` (nome legado, só leitura) → `${CLAUDE_PLUGIN_ROOT}/perfil-de-voz.md` (default Antonio). Perfil só-scaffold (placeholders) conta como ausente. Descobre personas em `./personas/`. |
-| `analisar-voz` | Analisa documentos de um autor e gera `./perfil-de-voz.md` no projeto consumidor (default). Pode atualizar o perfil default do plugin se pedido explicitamente. Requer a skill oficial `docx` para arquivos `.docx`. |
+| `analisar-voz` | Analisa documentos e publicações acessíveis, registra procedência e diferenças entre canais e gera o perfil no workspace consumidor. Para DOCX, requer leitor compatível com o runtime. |
+| `revisar-naturalidade` | Revisa um rascunho quanto a ritmo, clareza e fidelidade à voz, preservando fatos e incertezas. Pode ser chamada isoladamente e integra a escrita de artigos e posts. Sem perfil do autor, anuncia o limite da calibração. |
 | `gerenciar-personas` | Cria, lista e edita personas de audiência em `./personas/` do projeto atual. |
 | `planejar-agenda` | Planeja o ciclo do calendário editorial (12 slots, 3 posts/semana, 4 semanas) a partir de ideias e rascunhos. Opera sobre `./agenda/calendario.md` do workspace; sem a estrutura, PARA. |
 | `analisar-metricas` | Analisa o CSV de métricas do workspace, ranqueia posts, aponta padrões e gera relatório datado; propõe aprendizados para o perfil de voz. Só leitura no CSV; sem a estrutura, PARA. |

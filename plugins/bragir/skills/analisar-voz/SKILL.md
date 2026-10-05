@@ -9,7 +9,14 @@ Read the provided documents and extract a structured voice profile for the autho
 
 ## Input
 
-The user will specify 3-5 documents (docx, markdown, txt) to analyze. Read each one using the Read tool. Para arquivos `.docx`, a skill oficial `docx` da Anthropic precisa estar instalada no ambiente.
+Analise 3-5 amostras escolhidas pelo usuário (docx, markdown, txt ou publicações acessíveis).
+Leia o texto completo com as ferramentas disponíveis. Para DOCX, use uma skill ou leitor
+compatível com o runtime; não instale dependências automaticamente. Para URLs, registre
+limites de acesso e não trate título ou snippet como leitura integral.
+
+Registre título, canal, referência, data disponível e data da leitura. Em compartilhamentos,
+analise a legenda do autor, separada do corpo de terceiros. Material editorial ou rascunho
+assistido por IA não comprova sozinho a voz autoral; identifique essa limitação.
 
 ## Analysis dimensions
 
@@ -69,4 +76,10 @@ Include 2-3 **trechos reais** (curtos, <30 palavras) dos documentos analisados c
 
 - Extract patterns, not individual instances. The profile should generalize.
 - Note contradictions or register shifts between documents (e.g., more formal in e-book vs. informal in video script).
+- Separe padrões por canal quando as amostras sustentarem a distinção. Não transfira caixas,
+  bordões e cadência de aula para artigos ou posts sem evidência. Um canal não amostrado fica
+  explicitamente não calibrado.
+- Acrescente fontes e limites da análise ao perfil. Preserve 2-3 trechos literais curtos com
+  procedência, sem fabricar exemplos como se fossem falas do autor. Observação inicial não é
+  validação humana: convide o autor a reconhecer e corrigir o perfil.
 - The profile will be used as input for content generation — be specific enough that another AI could replicate the voice.

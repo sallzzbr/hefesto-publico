@@ -64,6 +64,12 @@ um formato ou uma metáfora por conta própria.
 
 ## Output
 
+Antes de entregar artigos e posts, aplique `bragir:revisar-naturalidade` ao rascunho com o
+perfil já resolvido, as fontes e as restrições do pedido. É uma revisão do mesmo texto, não
+uma segunda geração: preserve tese, fatos, opinião e incertezas. Na entrega normal, mostre o
+texto final; justificativas de revisão entram quando solicitadas. A skill revisora não chama
+este escritor de volta. Não alegue revisão independente quando for o mesmo agente.
+
 Write the requested content no formato, extensão, idioma e canal pedidos pelo usuário, sempre sob
 o perfil e a audiência resolvidos. Quando algum desses elementos não vier no pedido, use primeiro
 o que estiver definido no perfil selecionado. Se ainda faltar algo necessário, faça a menor

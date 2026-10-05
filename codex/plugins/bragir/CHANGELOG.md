@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-10-05
+
+- Nova skill nativa `revisar-naturalidade` e integração com a escrita de artigos e posts.
+- Revisão preserva fatos, opiniões e incertezas; falta de perfil autoral é anunciada.
+- Análise de voz registra fontes de publicações e distingue canais e legendas autorais de textos de terceiros.
+- Reinicie a sessão após atualizar o plugin para carregar a nova skill.
+
 ## 0.2.1 — 2026-09-26
 
 - Candidaturas autorizadas: escopo, responsável, dados pendentes, verificação de anexos e recibos, reconciliação antes de repetir envio.
