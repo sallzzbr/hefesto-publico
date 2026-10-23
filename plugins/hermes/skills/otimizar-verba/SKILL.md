@@ -38,8 +38,11 @@ Por campanha (período: mês corrente, level=campaign, leitura pura):
 - **Learning phase**: campanha/conjunto com < 7 dias desde a última edição significativa ou
   < 50 eventos de otimização → não mexe (mexer reseta o aprendizado).
 - **Escala com sinal**: escalar só com ≥ 10 conversões no período.
-- **Incrementos**: subir em passos de R$5 ou 10% (o que for maior); **nunca cortar > 50%**
-  de uma vez (choque de verba derruba a entrega do que sobrou).
+- **Incrementos**: subir em passos de R$5 ou 10% (o que for maior), **limitados a ~20% por
+  degrau, com 3 a 7 dias entre degraus**; salto acima de 20% a 30% de uma vez reseta o
+  aprendizado. Conjunto novo também paga aprendizado (custo por lookup na doutrina de
+  estrutura do workspace). **Nunca cortar > 50%** de uma vez (choque de verba derruba a
+  entrega do que sobrou).
 - Campanha sem gasto mínimo (default R$50 no período) → "dados insuficientes".
 
 ## Pacing do mês

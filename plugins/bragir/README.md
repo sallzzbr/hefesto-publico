@@ -22,7 +22,7 @@ Até a v2.x do marketplace, as skills de voz viviam no plugin `hefesto`. Migrara
 | `mapear-perfil-profissional` | Mapear Perfil Profissional. |
 | `avaliar-vagas` | Avaliar Vagas. |
 | `revisar-linkedin` | Revisar LinkedIn. |
-| `curar-portfolio` | Curar Portfólio. |
+| `curar-portfolio` | Curadoria de cases e revisão por URL pela ótica de contratação, com evidências, rubrica e melhorias prioritárias. |
 | `preparar-candidatura` | Preparar Candidatura. |
 | `direcionar-comunicacao-visual` | Direcionar Comunicação Visual. |
 
@@ -47,3 +47,9 @@ Até a v2.x do marketplace, as skills de voz viviam no plugin `hefesto`. Migrara
 Comece pela entrega necessária: retomar LinkedIn não exige vaga nem perfil completo. `mapear-perfil-profissional` organiza contexto quando útil; as demais skills funcionam independentemente. O workspace guarda fontes, propostas e continuidade; o plugin não distribui experiências ou candidaturas pessoais. Portfólios externos permanecem em seus repositórios canônicos.
 
 Exemplos: “retome a revisão do meu LinkedIn”, “avalie esta vaga contra meu perfil”, “selecione cases para esta oportunidade”, “prepare minha candidatura sem enviar”, “defina a direção visual desta apresentação”. Busca depende de acesso à web; alterações em plataformas e produção visual dependem das ferramentas do executor. Ausência dessas ferramentas não impede entregar conteúdo revisável.
+
+## Revisão de portfólio
+
+Peça “avalie meu portfólio pela ótica de contratação” ou forneça uma URL à `curar-portfolio`. O fluxo reutiliza objetivo e fontes do workspace, distingue evidência visual de texto extraído e entrega até cinco melhorias com critérios de conclusão. A nota de 0 a 100 só aparece com cobertura suficiente e usa pesos heurísticos.
+
+Método adaptado de [pd-portfolio-review](https://github.com/leonardobetti/pd-portfolio-review), de Leonardo Betti (MIT). [Origem, alterações e licença](skills/curar-portfolio/references/origem-e-licenca.md). A pesquisa UXfolio 2026 informa os critérios; as estatísticas herdadas exigem conferência da fonte antes de citação.

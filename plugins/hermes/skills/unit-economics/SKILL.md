@@ -27,6 +27,11 @@ faltar, pergunte — e trate campo `PREENCHER` com estimativa conservadora, sina
 5. **ROAS breakeven** = ticket médio ÷ margem por pedido (= 1 ÷ margem%); **ROAS alvo** idem
    sobre o CAC alvo.
 
+6. **Custos fixos** (mensalidade de plano, ferramentas, pessoas; do workspace): não alteram o
+   CAC breakeven nem o ROAS breakeven. Calcule **pedidos por mês para cobrir os custos fixos**
+   = custos fixos ÷ margem de contribuição por pedido, e compare com o volume atual. Campo
+   vazio ou "a confirmar" → sinalize que o resultado do mês fica "antes de custos fixos".
+
 Destaque o número-chave (CAC máximo) e grave em
 `financeiro/relatorios/unit-economics-AAAA-MM.md` — as demais skills fazem lookup daqui.
 

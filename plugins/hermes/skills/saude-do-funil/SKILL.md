@@ -51,6 +51,10 @@ Bloco de relatório pronto para compor o briefing semanal do workspace (ou respo
 tabela + cruzamento + gargalo. Quem grava o arquivo consolidado é o fluxo chamador.
 
 ## Regras
+**CPA de plataforma ≠ CPA de ledger.** O CPA/ROAS lidos na plataforma de ads incluem pedidos
+internos e podem incluir evento duplicado; rotule sempre como "CPA de plataforma" e cite o
+fator ledger ÷ plataforma do `pnl-mensal` mais recente (não existe ledger diário: não exija
+reconciliação diária, só não apresente o número como lucro).
 
 - Somente leitura no Meta. Mínimo de gasto por entidade para diagnóstico (padrão R$50; use o
   do workspace se documentado) — abaixo, "dados insuficientes".

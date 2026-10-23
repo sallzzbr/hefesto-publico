@@ -65,6 +65,11 @@ afins) fica FORA de CPA/ROAS/CTR médios e de qualquer veredito — identifique 
 total real sobrevive no relatório numa linha própria, rotulada. Razão: gasto sem compra no
 denominador contamina a régua e derruba decisão boa.
 
+**CPA de plataforma ≠ CPA de ledger.** O CPA/ROAS lidos na plataforma de ads incluem pedidos
+internos e podem incluir evento duplicado; rotule sempre como "CPA de plataforma" e cite o
+fator ledger ÷ plataforma do `pnl-mensal` mais recente (não existe ledger diário: não exija
+reconciliação diária, só não apresente o número como lucro).
+
 ### 3. Montar a série dia-a-dia
 
 Ler as análises anteriores e **estender a série** de cada ad acompanhado com o dia de ontem

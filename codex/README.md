@@ -11,14 +11,14 @@ Seis plugins e 50 skills nativas Codex, distribuídos no [marketplace público H
 | Mimyr | 5 | Planejar, escrever e revisar cursos |
 | Hermes | 17 | Diagnóstico de marketing e produção de criativos |
 
-> Esta versão reúne 50 skills em seis plugins. Bragir Claude 1.4.0/Codex 0.3.0 acrescenta revisão de naturalidade à escrita de artigos e posts. Os comandos abaixo usam a tag v3.21.0 da release correspondente a esta árvore.
+> Esta versão reúne 50 skills em seis plugins. Bragir Claude 1.4.1/Codex 0.3.1 reúne revisão de naturalidade e revisão de portfólio pela ótica de contratação. Os comandos abaixo usam a tag v3.21.1 da release correspondente a esta árvore.
 
 ## Instalação
 
 Com Git e a CLI Codex disponíveis, obtenha a release pública e registre a pasta do marketplace:
 
 ```sh
-git clone --branch v3.21.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v3.21.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add ./codex
 codex plugin add hefesto@hefesto

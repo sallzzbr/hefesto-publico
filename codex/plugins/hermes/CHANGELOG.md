@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — 2026-10-23
+
+- Sincroniza recursos da versão Claude 1.4.1: custos fixos, reconciliação de plataforma com ledger e regra de rampa.
+- Registra o bump da distribuição Codex exigido pela atualização dos recursos compartilhados.
+
 ## 0.2.0 — 2026-10-02
 
 - Acompanha o hermes 1.4.0 do Claude: skill nova `analisar-produto` (script Node de cálculo em `shared`, sem PII) e correções do fluxo criativo (`semGeracao`, `flagSobrescrever`, `reproduzir`, `headline`, `headlineTravada` e `sinalizacoes[]`; Catalog Sales sem clonagem de conjunto).

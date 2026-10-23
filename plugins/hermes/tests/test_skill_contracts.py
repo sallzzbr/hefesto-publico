@@ -180,3 +180,32 @@ def test_analisar_produto_is_in_both_readmes() -> None:
     assert "50 skills" in root, "root README must count 50 skills"
     assert "48 skills" not in root, "stale 48-skills count left in root README"
     assert re.search(r"hermes/.*\(17 skills", root), "root README tree must list hermes with 17 skills"
+
+
+# --- hermes 1.4.1: custo fixo, reconciliação plataforma x ledger, regra de rampa ---
+
+def _skill(name: str) -> str:
+    return (PLUGIN_DIR / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_pnl_e_unit_economics_tratam_custos_fixos() -> None:
+    pnl, ue = _skill("pnl-mensal"), _skill("unit-economics")
+    assert "custos fixos" in pnl, "pnl-mensal precisa de linha de custos fixos"
+    assert re.search(r"nenhum m[eê]s (pode|deve) ser declarado positivo", pnl), \
+        "pnl-mensal precisa do aviso bloqueante quando custos fixos estiver vazio"
+    assert "custos fixos" in ue
+    assert "pedidos por m" in ue, "unit-economics deve calcular pedidos/mês para cobrir o custo fixo"
+    # o breakeven continua sendo marginal: custo fixo NÃO entra nele
+    assert "CAC breakeven** = margem de contribuição por pedido" in ue
+
+
+def test_pnl_reconcilia_plataforma_e_ledger() -> None:
+    assert "reconcili" in _skill("pnl-mensal").lower()
+    assert "CPA de plataforma" in _skill("analise-diaria")
+    assert "CPA de plataforma" in _skill("saude-do-funil")
+
+
+def test_otimizar_verba_regra_de_rampa_sem_dado_do_workspace() -> None:
+    ov = _skill("otimizar-verba")
+    assert "3 a 7 dias" in ov and "reseta" in ov
+    assert "R$100" not in ov, "dado do workspace não entra na skill pública"

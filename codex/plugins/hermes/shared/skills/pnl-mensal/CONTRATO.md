@@ -22,7 +22,16 @@ reais — fechando o ciclo entre o planejado (unit economics) e o acontecido.
 7. = **Margem de contribuição**
 8. − investimento em ads do mês (da plataforma de ads — dado real, não planejado; sem
    acesso, pergunte o valor)
-9. = **Resultado operacional do mês**
+9. = **Resultado operacional do mês (antes de custos fixos)**
+10. − **custos fixos** do mês (mensalidade de plano da plataforma de produção, assinaturas,
+    ferramentas, pessoas — do workspace; sem o dado, pergunte)
+11. = **Resultado líquido do mês**
+
+**Custos fixos vazios = resultado sem validade.** Se o workspace não declarar custos fixos
+(ou declarar "a confirmar"), o relatório mostra o resultado como "antes de custos fixos" e
+**nenhum mês pode ser declarado positivo** sem essa ressalva na primeira linha. Custo fixo
+NÃO entra no CAC breakeven nem no ROAS breakeven (são marginais por pedido); ele entra aqui
+e no `unit-economics` como pedidos por mês para cobri-lo.
 
 ## Indicadores derivados
 
@@ -35,6 +44,16 @@ reais — fechando o ciclo entre o planejado (unit economics) e o acontecido.
 - **Margem %** por linha da cascata
 - **Confronto com a régua**: CAC real vs CAC máximo do `unit-economics` mais recente
   (lookup do relatório — nunca número de memória) — acima/abaixo e por quanto.
+
+## Reconciliação plataforma × ledger
+
+Antes de comparar CAC real com a régua, **reconcilie** as compras que a plataforma de ads
+atribui com os pedidos do ledger (mesmo mês, mesmas fronteiras de data). Mostre as duas
+contagens, a diferença e as causas possíveis: pedidos internos/da casa, janela de atribuição,
+evento de compra reenviado (recarregar a página de confirmação ou a do Pix), compra de teste
+do lojista, pedido sem atribuição. Não declare causa sem conciliar por dia; diferença sem
+explicação aparece como "inexplicada". O fator CPA do ledger ÷ CPA da plataforma deste mês é o
+que as skills diárias citam.
 
 ## Regras
 

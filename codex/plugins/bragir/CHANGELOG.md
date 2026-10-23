@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-10-23
+
+- Revisão de portfólio pela ótica de contratação incorporada à curar-portfolio, adaptada de pd-portfolio-review (Leonardo Betti, MIT), com origem fixada e licença preservada.
+- Rubrica de sete áreas, cobertura explícita, evidências por achado e até cinco melhorias verificáveis; avaliação parcial sem nota total e sem inferir IA pelo estilo.
+- Contexto do workspace reutilizado; curadoria sem URL preservada. Dados da pesquisa exigem conferência antes de citação.
+
 ## 0.3.0 — 2026-10-05
 
 - Nova skill nativa `revisar-naturalidade` e integração com a escrita de artigos e posts.

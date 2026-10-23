@@ -1,6 +1,6 @@
 ---
 name: curar-portfolio
-description: "Curate professional portfolio. Use quando pedir seleção ou revisão de cases, narrativa de contribuição e impacto, reorganização de portfólio existente ou preparação de seleção de trabalhos para uma oportunidade."
+description: "Review and curate design portfolios. Use quando pedir avaliação de portfólio por URL, revisão pela ótica de contratação, nota e melhorias prioritárias, seleção ou revisão de cases, narrativa de contribuição e impacto ou preparação de trabalhos para uma oportunidade."
 ---
 
 # Curar Portfólio
@@ -8,6 +8,12 @@ description: "Curate professional portfolio. Use quando pedir seleção ou revis
 ## Input e contexto
 
 Leia `${CLAUDE_PLUGIN_ROOT}/skills/mapear-perfil-profissional/references/carreira.md`. Resolva o portfólio em `projetos.md`/`local_portfolio` e leia as instruções do repositório alvo antes de editar. A metodologia não depende de framework, provedor ou pasta irmã específica.
+
+## Revisão pela ótica de contratação
+
+Para avaliar um portfólio por URL ou sua prontidão para apresentação, leia `${CLAUDE_PLUGIN_ROOT}/skills/curar-portfolio/references/revisao-contratacao.md` e use o modelo de relatório ali indicado. O modo adapta a skill `pd-portfolio-review`, de Leonardo Betti, com origem e licença nas referências. No Codex, os mesmos recursos ficam em `shared/skills/curar-portfolio/references/`.
+
+Consulte primeiro URL, objetivo e senioridade nas fontes do workspace; pergunte apenas o que faltar para a entrega. Seleção de cases e curadoria de materiais podem avançar sem URL. Revisão de site depende de acesso observável: se houver só conteúdo extraído ou material fornecido, declare a cobertura parcial. Não atribua nota zero por falha da ferramenta. Pontuação é heurística de revisão, sem previsão de contratação.
 
 ## Fluxo
 
@@ -20,6 +26,8 @@ Leia `${CLAUDE_PLUGIN_ROOT}/skills/mapear-perfil-profissional/references/carreir
 ## Output
 
 Registre `portfolio/curadoria.md` com objetivo, seleção/ordem, evidências, lacunas e referências aos arquivos canônicos do projeto. Conteúdo e código pertencentes ao site permanecem nele; carreira guarda referências e decisões, não uma segunda cópia do site. Conclusão distingue texto preparado, alteração implementada, verificação e publicação.
+
+No modo de revisão, salve `portfolio/revisoes/YYYY-MM-DD-dominio.md` com cobertura, evidências, pontuação quando sustentada e até cinco melhorias verificáveis. Em nova rodada no mesmo dia, use sufixo `-02`, `-03`; preserve relatórios anteriores. Atualize o estado do workspace com o resultado e o próximo passo. Não reescreva cases sem pedido; para redação autorizada, aplique `bragir:escrever-como-antonio`.
 
 ## Resolução de paths
 

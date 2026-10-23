@@ -615,6 +615,22 @@
     {
       "source": "plugins/bragir/skills/revisar-naturalidade/SKILL.md",
       "target": "plugins/bragir/shared/skills/revisar-naturalidade/CONTRATO.md"
+    },
+    {
+      "source": "plugins/bragir/skills/curar-portfolio/references/revisao-contratacao.md",
+      "target": "plugins/bragir/shared/skills/curar-portfolio/references/revisao-contratacao.md"
+    },
+    {
+      "source": "plugins/bragir/skills/curar-portfolio/references/modelo-revisao.md",
+      "target": "plugins/bragir/shared/skills/curar-portfolio/references/modelo-revisao.md"
+    },
+    {
+      "source": "plugins/bragir/skills/curar-portfolio/references/uxfolio-2026.md",
+      "target": "plugins/bragir/shared/skills/curar-portfolio/references/uxfolio-2026.md"
+    },
+    {
+      "source": "plugins/bragir/skills/curar-portfolio/references/origem-e-licenca.md",
+      "target": "plugins/bragir/shared/skills/curar-portfolio/references/origem-e-licenca.md"
     }
   ]
 }

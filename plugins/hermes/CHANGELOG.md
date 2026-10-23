@@ -1,5 +1,13 @@
 # Changelog — hermes
 
+## 1.4.1 — 2026-10-10
+
+- `pnl-mensal`: a cascata ganha **custos fixos** depois do resultado operacional, com o aviso de que custo fixo vazio ou "a confirmar" deixa o resultado "antes de custos fixos" e nenhum mês pode ser declarado positivo sem a ressalva. Custo fixo nunca entra no CAC nem no ROAS breakeven (são marginais por pedido). Passo novo de **reconciliação plataforma × ledger** (contagens, diferença e causas possíveis, sem declarar causa sem conciliar por dia).
+- `unit-economics`: item 6 calcula **pedidos por mês para cobrir os custos fixos**, sem alterar os breakevens.
+- `otimizar-verba`: regra de rampa explícita (até ~20% por degrau, 3 a 7 dias entre degraus; salto acima de 20% a 30% reseta o aprendizado; conjunto novo paga aprendizado).
+- `analise-diaria` e `saude-do-funil`: rotulam o número lido na plataforma como "CPA de plataforma", citam o fator ledger ÷ plataforma e não o apresentam como lucro.
+- Testes de contrato novos para os quatro pontos.
+
 ## 1.4.0 — 2026-10-02
 
 - Skill nova `analisar-produto`: qual ESTAMPA vende e por que. Script Node sem dependências (`scripts/analisar-produto.mjs`) recebe o agregado por estampa já sem PII e entrega relatório `.md` e `.csv`: três lentes (vitrine, atenção, compra), teste de duas proporções com poder, raça comparada dentro de cada estilo com controle de confusão (inclui a reversão do paradoxo de Simpson), junção de nomes com auditoria de colisões e lista de aproximados, concentração da vitrine e recomendações em Produzir, Investir e Rever só com evidência estatística. Raça e estilo vêm da tabela de catálogo, nunca do ledger. Recusa entrada com PII e entrada incoerente (compras acima de views).

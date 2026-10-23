@@ -3,6 +3,12 @@
 > Histórico anterior à 1.2.4 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 1.4.1 — 2026-10-23
+
+- Revisão de portfólio pela ótica de contratação incorporada à curar-portfolio, adaptada de pd-portfolio-review (Leonardo Betti, MIT), com origem fixada e licença preservada.
+- Rubrica de sete áreas, cobertura explícita, evidências por achado e até cinco melhorias verificáveis; avaliação parcial sem nota total e sem inferir IA pelo estilo.
+- Contexto do workspace reutilizado; curadoria sem URL preservada. Dados da pesquisa exigem conferência antes de citação.
+
 ## 1.4.0 — 2026-10-05
 
 - Nova skill `revisar-naturalidade`, com revisão de ritmo, clareza e fidelidade à voz sem inventar fatos ou prometer aprovação por detector de IA.
