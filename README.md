@@ -4,18 +4,18 @@
 
 > Forja pessoal de skills do Antonio para Claude Code e Codex. O nome vem do deus grego da metalurgia e do artesanato — este repo é onde as ferramentas são marteladas, afiadas e distribuídas.
 
-O repo é um **marketplace** que publica seis plugins: **hefesto** (a forja de plugins), **bragir** (voz, escrita e editorial), **mimyr** (cursos e didática), **hestia** (economia doméstica), **hermes** (marketing de performance e criativos) e **odin** (desafios pelo double diamond).
+O repo é um **marketplace** que publica sete plugins: **hefesto** (a forja de plugins), **bragir** (voz, escrita e editorial), **mimyr** (cursos e didática), **hestia** (economia doméstica), **hermes** (marketing de performance e criativos) e **odin** (desafios pelo double diamond). **titbits** (game design, GDD vivo e produção: 9 skills; dados privados fora do pacote).
 
 > **Migração v3**: as skills de voz (`escrever-como-antonio`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
 
-> Esta versão reúne 50 skills em seis plugins. Bragir Claude 1.4.1/Codex 0.3.1 reúne revisão de naturalidade e revisão de portfólio pela ótica de contratação. Os comandos abaixo usam a tag v3.21.1 da release correspondente a esta árvore.
+> Release 3.22.0: 59 skills em sete plugins, incluindo TitBits 0.1.0 para GDD vivo e produção de jogos. Dados e aprendizados dos jogos permanecem fora do pacote público.
 
 ## Como instalar no Codex
 
-A distribuição nativa Codex contém os mesmos seis plugins e 50 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release correspondente:
+A distribuição nativa Codex contém os mesmos sete plugins e 59 skills, com manifestos e runtime próprios em [`codex/`](codex/README.md). Para instalar a release correspondente:
 
 ```sh
-git clone --branch v3.21.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v3.22.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add ./codex
 codex plugin add hefesto@hefesto
@@ -185,6 +185,10 @@ Desde a v2.1, desafio novo passa por uma **régua de proporcionalidade**: a IA c
 | `acompanhar` | Cadência transversal: re-mede o placar e força perseverar/pivotar/encerrar. |
 
 Documentação completa em [plugins/odin/README.md](plugins/odin/README.md).
+
+## Plugin titbits — game design e produção
+
+Veja [TitBits](plugins/titbits/README.md): nove skills, seis papéis, GDD vivo e histórico privado. Cada jogo é autossuficiente; acervo e Munin são opcionais. Esta adição está em desenvolvimento local, ainda não publicada.
 
 ## Desenvolvimento local
 

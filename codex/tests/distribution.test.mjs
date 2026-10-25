@@ -47,8 +47,8 @@ test('accepts the complete isolated distribution', async () => {
       codexRoot: fx.codexRoot,
       synchronize: fx.synchronize,
     });
-    assert.equal(result.plugins, 6);
-    assert.equal(result.skills, 50);
+    assert.equal(result.plugins, 7);
+    assert.equal(result.skills, 59);
   } finally {
     await rm(fx.root, { recursive: true, force: true });
   }

@@ -1,0 +1,17 @@
+{
+  "name": "titbits",
+  "version": "0.1.0",
+  "description": "TitBits — game design, GDD vivo, direção audiovisual, produção e aprendizados privados de jogos.",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "repository": "https://github.com/sallzzbr/hefesto-publico",
+  "license": "MIT",
+  "keywords": [
+    "gamedev",
+    "gdd",
+    "game-design",
+    "portuguese"
+  ]
+}

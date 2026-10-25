@@ -631,6 +631,134 @@
     {
       "source": "plugins/bragir/skills/curar-portfolio/references/origem-e-licenca.md",
       "target": "plugins/bragir/shared/skills/curar-portfolio/references/origem-e-licenca.md"
+    },
+    {
+      "source": "plugins/titbits/README.md",
+      "target": "plugins/titbits/shared/README.md"
+    },
+    {
+      "source": "plugins/titbits/skills/preparar-jogo/SKILL.md",
+      "target": "plugins/titbits/shared/skills/preparar-jogo/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/skills/criar-gdd/SKILL.md",
+      "target": "plugins/titbits/shared/skills/criar-gdd/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/skills/revisar-gdd/SKILL.md",
+      "target": "plugins/titbits/shared/skills/revisar-gdd/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/skills/atualizar-gdd/SKILL.md",
+      "target": "plugins/titbits/shared/skills/atualizar-gdd/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/skills/direcionar-arte/SKILL.md",
+      "target": "plugins/titbits/shared/skills/direcionar-arte/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/skills/planejar-audio/SKILL.md",
+      "target": "plugins/titbits/shared/skills/planejar-audio/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/skills/planejar-producao/SKILL.md",
+      "target": "plugins/titbits/shared/skills/planejar-producao/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/skills/avaliar-playtest/SKILL.md",
+      "target": "plugins/titbits/shared/skills/avaliar-playtest/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/skills/manter-aprendizados/SKILL.md",
+      "target": "plugins/titbits/shared/skills/manter-aprendizados/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/agents/produtor.md",
+      "target": "plugins/titbits/shared/agents/produtor.md"
+    },
+    {
+      "source": "plugins/titbits/agents/game-designer.md",
+      "target": "plugins/titbits/shared/agents/game-designer.md"
+    },
+    {
+      "source": "plugins/titbits/agents/programador.md",
+      "target": "plugins/titbits/shared/agents/programador.md"
+    },
+    {
+      "source": "plugins/titbits/agents/artista.md",
+      "target": "plugins/titbits/shared/agents/artista.md"
+    },
+    {
+      "source": "plugins/titbits/agents/designer-sonoro.md",
+      "target": "plugins/titbits/shared/agents/designer-sonoro.md"
+    },
+    {
+      "source": "plugins/titbits/agents/qa.md",
+      "target": "plugins/titbits/shared/agents/qa.md"
+    },
+    {
+      "source": "plugins/titbits/references/contrato.md",
+      "target": "plugins/titbits/shared/references/contrato.md"
+    },
+    {
+      "source": "plugins/titbits/references/historico.md",
+      "target": "plugins/titbits/shared/references/historico.md"
+    },
+    {
+      "source": "plugins/titbits/references/compartilhamento.md",
+      "target": "plugins/titbits/shared/references/compartilhamento.md"
+    },
+    {
+      "source": "plugins/titbits/references/avaliacao.md",
+      "target": "plugins/titbits/shared/references/avaliacao.md"
+    },
+    {
+      "source": "plugins/titbits/templates/projeto.md",
+      "target": "plugins/titbits/shared/templates/projeto.md"
+    },
+    {
+      "source": "plugins/titbits/templates/gdd.md",
+      "target": "plugins/titbits/shared/templates/gdd.md"
+    },
+    {
+      "source": "plugins/titbits/templates/fase.md",
+      "target": "plugins/titbits/shared/templates/fase.md"
+    },
+    {
+      "source": "plugins/titbits/templates/registro.md",
+      "target": "plugins/titbits/shared/templates/registro.md"
+    },
+    {
+      "source": "plugins/titbits/templates/incremento.md",
+      "target": "plugins/titbits/shared/templates/incremento.md"
+    },
+    {
+      "source": "plugins/titbits/templates/brief-arte.md",
+      "target": "plugins/titbits/shared/templates/brief-arte.md"
+    },
+    {
+      "source": "plugins/titbits/templates/brief-audio.md",
+      "target": "plugins/titbits/shared/templates/brief-audio.md"
+    },
+    {
+      "source": "plugins/titbits/templates/playtest.md",
+      "target": "plugins/titbits/shared/templates/playtest.md"
+    },
+    {
+      "source": "plugins/titbits/templates/indice.md",
+      "target": "plugins/titbits/shared/templates/indice.md"
+    },
+    {
+      "source": "plugins/titbits/templates/estado.md",
+      "target": "plugins/titbits/shared/templates/estado.md"
+    },
+    {
+      "source": "plugins/titbits/evals/cenarios.md",
+      "target": "plugins/titbits/shared/evals/cenarios.md"
+    },
+    {
+      "source": "LICENSE",
+      "target": "plugins/titbits/LICENSE"
     }
   ]
 }

@@ -38,7 +38,7 @@ const PISO_ARQUIVOS_HEFESTO = 6;
 const PISO_TESTES = 368;
 // Publicador e suíte são privados. O package privado solicita a flag; o scrub a
 // remove do package público. Path literal ausente falha, sem skip por existência.
-const PISO_TESTES_PUBLICACAO = 21;
+const PISO_TESTES_PUBLICACAO = 24;
 const argumentos = process.argv.slice(2);
 if (argumentos.length > 1 || (argumentos.length === 1 && argumentos[0] !== '--publicacao')) morrer('uso: testes-node.mjs [--publicacao]');
 const comPublicacao = argumentos.length === 1;

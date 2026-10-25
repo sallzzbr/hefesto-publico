@@ -1,0 +1,24 @@
+{
+  "name": "titbits",
+  "version": "0.1.0",
+  "description": "Game design, GDD vivo, produção e aprendizados privados de jogos.",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "TitBits",
+    "shortDescription": "Game design e produção de jogos",
+    "longDescription": "Game design, GDD vivo, produção e aprendizados privados de jogos.",
+    "developerName": "Antonio Salgado",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": [
+      "Prepare a documentação de um novo jogo.",
+      "Revise meu GDD e consulte as tentativas anteriores."
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/sallzzbr/hefesto-publico"
+}

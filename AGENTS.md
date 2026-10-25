@@ -4,7 +4,7 @@
 
 ## Propósito do repo
 
-`hefesto` é um **marketplace Claude Code** que publica seis **plugins**: `hefesto` (forja de plugins: criar, validar e versionar plugins e skills), `bragir` (12 skills: escrita/voz, editorial, carreira e comunicação visual; catálogo no README do plugin), `mimyr` (cursos e didática: 5 skills + scripts Python + harness gerar-curso), `hestia` (economia doméstica: orçamento, análise de gastos, mercado e investimentos com dados no Google Drive do usuário), `hermes` (marketing de performance e criativos: 17 skills + 4 agents + harness criativo.mjs) e `odin` (desafios pelo double diamond: 6 skills + 9 comandos). O objetivo é ser instalável com dois comandos, funcionar em qualquer SO e ser compartilhável com amigos sem precisar de setup manual.
+`hefesto` é um **marketplace Claude Code** que publica sete **plugins**: `hefesto` (forja de plugins: criar, validar e versionar plugins e skills), `bragir` (12 skills: escrita/voz, editorial, carreira e comunicação visual; catálogo no README do plugin), `mimyr` (cursos e didática: 5 skills + scripts Python + harness gerar-curso), `hestia` (economia doméstica: orçamento, análise de gastos, mercado e investimentos com dados no Google Drive do usuário), `hermes` (marketing de performance e criativos: 17 skills + 4 agents + harness criativo.mjs) e `odin` (desafios pelo double diamond: 6 skills + 9 comandos). O objetivo é ser instalável com dois comandos, funcionar em qualquer SO e ser compartilhável com amigos sem precisar de setup manual. `titbits` (game design, GDD vivo e produção: 9 skills; dados privados fora do pacote).
 
 > Rumo do repo: o backlog mestre da reorganização do ecossistema (forja, bragir, mimyr, hestia, odin v2.3, hermes) está em `docs/superpowers/specs/2026-07-22-megaplano-ecossistema-plugins.md`.
 
@@ -12,7 +12,7 @@
 
 ### Distribuição Codex
 
-`codex/` é uma raiz de marketplace separada: `.agents/plugins/marketplace.json` e seis pacotes `codex/plugins/<nome>/.codex-plugin/plugin.json`. As regras de layout e variáveis Claude abaixo continuam aplicáveis à distribuição `plugins/` da raiz, não aos entrypoints Codex. Skills nativas leem o `RUNTIME.md` do pacote e usam links relativos reais. Defaults Codex vivem em `~/.codex/hefesto/<plugin>/defaults.md` e configuração do workspace em `AGENTS.md`.
+`codex/` é uma raiz de marketplace separada: `.agents/plugins/marketplace.json` e sete pacotes `codex/plugins/<nome>/.codex-plugin/plugin.json`. As regras de layout e variáveis Claude abaixo continuam aplicáveis à distribuição `plugins/` da raiz, não aos entrypoints Codex. Skills nativas leem o `RUNTIME.md` do pacote e usam links relativos reais. Defaults Codex vivem em `~/.codex/hefesto/<plugin>/defaults.md` e configuração do workspace em `AGENTS.md`.
 
 Recursos de domínio são copiados para `shared/` pelo inventário `codex/resources.json`; `SKILL.md` legado vira `CONTRATO.md`. Não editar cópias geradas. Materializar com `npm --prefix codex run sync` e verificar com `npm --prefix codex test`. Os pacotes são autocontidos e instaláveis sem build. Fonte e cópia divergentes reprovam o checker. O CI privado e o público executam o check Codex; os arquivos de `codex/` aprovados no inventário integram o espelho. Não tratar smoke técnico como avaliação comportamental concluída.
 
@@ -337,3 +337,6 @@ não `AGENTS.md`. Não duplique conteúdo lá.
 ## Quando em dúvida
 
 Releia esse arquivo. Se não cobriu sua dúvida, prefira **não** mudar o contrato e perguntar ao humano responsável (Antonio).
+
+## TitBits e dados privados
+TitBits distribui método, não jogos/memórias/aprendizados de consumidores. O acervo interno privado/jogos/aprendizados/ é uma exceção explícita aprovada pelo dono para dados de aprendizados em Markdown neste repositório. Não incluir assets, credenciais ou cópias integrais de memórias. Essa área é interna no espelho, fora de plugins/ e codex/. Nenhum conteúdo real dela entra no público, mesmo anonimizado. Grupo e autorização são configurados por humano; ainda ausentes na estrutura inicial. Um checkout legível não autoriza redistribuição. Revisão do pacote exportado continua obrigatória.

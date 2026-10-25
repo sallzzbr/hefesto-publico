@@ -128,8 +128,8 @@ export async function checkDistribution({
   const sourceNames = directories(sourcePluginsRoot).filter((name) => existsSync(join(sourcePluginsRoot, name, '.claude-plugin', 'plugin.json')));
   const nativeNames = directories(nativePluginsRoot).filter((name) => existsSync(join(nativePluginsRoot, name, '.codex-plugin', 'plugin.json')));
 
-  if (sourceNames.length !== 6) errors.push(`plugins fonte: esperado 6, encontrado ${sourceNames.length}`);
-  if (nativeNames.length !== 6) errors.push(`manifestos Codex: esperado 6, encontrado ${nativeNames.length}`);
+  if (sourceNames.length !== 7) errors.push(`plugins fonte: esperado 7, encontrado ${sourceNames.length}`);
+  if (nativeNames.length !== 7) errors.push(`manifestos Codex: esperado 7, encontrado ${nativeNames.length}`);
   if (sourceNames.join('\n') !== nativeNames.join('\n')) errors.push('nomes dos plugins Codex diferem das fontes em plugins/');
 
   let skillCount = 0;
@@ -165,7 +165,7 @@ export async function checkDistribution({
       if (kind === 'file' && basename(path) === 'SKILL.md') errors.push(`${path}: shared não pode conter SKILL.md descobrível`);
     });
   }
-  if (skillCount !== 50) errors.push(`skills Codex: esperado 50, encontrado ${skillCount}`);
+  if (skillCount !== 59) errors.push(`skills Codex: esperado 59, encontrado ${skillCount}`);
 
   const marketplacePath = join(codexRoot, '.agents', 'plugins', 'marketplace.json');
   const marketplace = existsSync(marketplacePath) ? json(marketplacePath, errors) : null;
@@ -173,7 +173,7 @@ export async function checkDistribution({
   else {
     if (marketplace.name !== 'hefesto') errors.push(`${marketplacePath}: marketplace.name deve ser hefesto`);
     const entries = Array.isArray(marketplace.plugins) ? marketplace.plugins : [];
-    if (entries.length !== 6) errors.push(`${marketplacePath}: esperado 6 plugins`);
+    if (entries.length !== 7) errors.push(`${marketplacePath}: esperado 7 plugins`);
     const seen = new Set();
     for (const entry of entries) {
       if (!sourceNames.includes(entry.name) || seen.has(entry.name)) errors.push(`${marketplacePath}: plugin inválido ou duplicado: ${String(entry.name)}`);
