@@ -23,3 +23,6 @@ Botão reiniciar puzzle, música e mute: proposta mantém uma única instância 
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Inventário integrado
+Usar `${CLAUDE_PLUGIN_ROOT}/templates/assets.md` com arte e UX. Cada evento/asset deve apontar para requisito, revisão, origem/licença, entrega e evidência de integração. Planejar alternativas visuais/táteis para informação sonora relevante. Voz traduzida precisa de contexto, texto/idioma/revisão e sincronização quando aplicável, sem presumir gerador ou direitos. Declarar relações conforme `${CLAUDE_PLUGIN_ROOT}/references/continuidade.md`.

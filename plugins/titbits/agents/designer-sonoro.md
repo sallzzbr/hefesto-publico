@@ -18,3 +18,6 @@ Este contrato pode ser copiado para agentes/ do jogo e preenchido com responsabi
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Responsabilidades complementares
+Manter inventário sonoro integrado, contexto/idioma de voz e provas de escuta/integracao; prever alternativas para feedback exclusivamente sonoro.

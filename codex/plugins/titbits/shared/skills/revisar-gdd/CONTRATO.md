@@ -23,3 +23,6 @@ FAS-001 exige chave inexistente; ART-001 câmera lateral conflita com UX-001 top
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Cobertura e impacto
+Consultar `${CLAUDE_PLUGIN_ROOT}/references/continuidade.md`. Conferir mapa de sistemas e relações diretas/transitivas até assets, SPEC, tarefas e evidências. Comparar índice com fontes; ausência/inconsistência significa não avaliado. Executar verificar quando Node/índice disponíveis; caso contrário fazer revisão documental e declarar a limitação. Relatório separa afetado confirmado, possível impacto e domínio não avaliado. Não editar baseline para fazer o alerta sumir. Avaliar UX e acessibilidade em cenários reais ou protocolos pendentes; quantidade de texto/testes não comprova qualidade.

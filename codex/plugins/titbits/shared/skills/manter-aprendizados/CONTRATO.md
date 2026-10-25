@@ -29,3 +29,6 @@ Saída: operação efetiva, registros/revisões, evidências, estado de consolid
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Retrospectiva de entrega
+Consolidar expectativa versus resultado, esforço real versus estimado quando medido, gargalos e condições de aplicabilidade. Distinguir falta de dados de falha de abordagem. Manter origem/revisão e apontar tentativas antigas sem recolocá-las como regra vigente. Toda síntese continua privada; o plugin público recebe somente métodos e exemplos sintéticos independentes.

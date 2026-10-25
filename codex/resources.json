@@ -759,6 +759,46 @@
     {
       "source": "LICENSE",
       "target": "plugins/titbits/LICENSE"
+    },
+    {
+      "source": "plugins/titbits/references/continuidade.md",
+      "target": "plugins/titbits/shared/references/continuidade.md"
+    },
+    {
+      "source": "plugins/titbits/templates/prototipo.md",
+      "target": "plugins/titbits/shared/templates/prototipo.md"
+    },
+    {
+      "source": "plugins/titbits/templates/lancamento.md",
+      "target": "plugins/titbits/shared/templates/lancamento.md"
+    },
+    {
+      "source": "plugins/titbits/templates/assets.md",
+      "target": "plugins/titbits/shared/templates/assets.md"
+    },
+    {
+      "source": "plugins/titbits/templates/ux.md",
+      "target": "plugins/titbits/shared/templates/ux.md"
+    },
+    {
+      "source": "plugins/titbits/scripts/continuidade.mjs",
+      "target": "plugins/titbits/shared/scripts/continuidade.mjs"
+    },
+    {
+      "source": "plugins/titbits/scripts/hook.mjs",
+      "target": "plugins/titbits/shared/scripts/hook.mjs"
+    },
+    {
+      "source": "plugins/titbits/scripts/hook-worker.mjs",
+      "target": "plugins/titbits/shared/scripts/hook-worker.mjs"
+    },
+    {
+      "source": "plugins/titbits/skills/planejar-prototipo/SKILL.md",
+      "target": "plugins/titbits/shared/skills/planejar-prototipo/CONTRATO.md"
+    },
+    {
+      "source": "plugins/titbits/skills/preparar-lancamento/SKILL.md",
+      "target": "plugins/titbits/shared/skills/preparar-lancamento/CONTRATO.md"
     }
   ]
 }

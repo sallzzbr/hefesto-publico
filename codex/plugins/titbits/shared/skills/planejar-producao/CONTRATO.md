@@ -25,3 +25,7 @@ GDD v2 MEC-001 reiniciar e ART-002 paleta: SPEC de restauração de estado, brie
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Fatia representativa e contratos
+Para incerteza de uma mecânica, usar titbits:planejar-prototipo. Para provar integração e capacidade de produção, planejar fatia vertical: trecho representativo do loop com arte, áudio, UX, conteúdo e integração, registrando placeholders e evidência exigida de cada disciplina. Duração, esforço e orçamento vêm do projeto; não impor semanas ou minutos universais. Comparar esforço real com estimado, gargalos e retrabalho antes de ampliar produção.
+Usar `${CLAUDE_PLUGIN_ROOT}/templates/assets.md` para inventário único, relacionar briefs aos IDs sem duplicar autoridade. Aplicar `${CLAUDE_PLUGIN_ROOT}/references/continuidade.md` para vínculos entre requisitos, fichas de SPEC, tarefas e evidências. SPEC fora da base do jogo precisa de ficha local com revisão consumida e pendências; não presumir que o hook leu código ou assets externos. Prontidão depende de critérios observáveis e dependências, não de tamanho de story.

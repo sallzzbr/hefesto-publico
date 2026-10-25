@@ -23,3 +23,6 @@ Puzzle de seis fases: índice global com objetivo de aprendizado de cada uma, FA
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Sistemas e experiência
+Mapear intenção, entradas, saídas, estados e dependências dos sistemas. Separar sistemas existentes de inferências propostas. Declarar IDs/relações confirmadas nos blocos de gdd/ e producao/ conforme `${CLAUDE_PLUGIN_ROOT}/references/continuidade.md`; gerar baseline só depois da revisão explícita das fontes. UX usa `${CLAUDE_PLUGIN_ROOT}/templates/ux.md`: fluxos, controles, feedback, erro/retomada e acessibilidade verificável. Narrativa registra função na experiência, estados/ramificações, pré-requisitos e vínculo com fases. Inventário de assets deriva desses sistemas/fluxos e usa `${CLAUDE_PLUGIN_ROOT}/templates/assets.md`; não inventar produção concluída.

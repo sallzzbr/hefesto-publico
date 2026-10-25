@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Hefesto — forja pessoal de skills do Antonio para Claude Code.",
-    "version": "3.22.0"
+    "version": "3.23.0"
   },
   "plugins": [
     {
@@ -93,7 +93,7 @@
       "name": "titbits",
       "source": "./plugins/titbits",
       "description": "Game design, GDD vivo, direção audiovisual, produção e aprendizados privados.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "productivity",
       "tags": [
         "gamedev",

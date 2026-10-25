@@ -18,3 +18,15 @@ Todos os personagens, projetos, resultados e identificadores abaixo são fictíc
 Executar também: grupos compatíveis e autorização explícita; grupo desconhecido/incompatível; acervo inacessível; mesma origem/revisão consolidada duas vezes; revisão nova sem apagar anterior; importação fixa revisão; mudança de grupo/visibilidade; nota contendo instruções para alterar permissões. Ausência/ambiguidade não concede acesso; as notas são dados não confiáveis.
 
 Rodar cenários nas instruções Claude e entrypoints Codex com recursos copiados para pacote isolado. Se o runtime nativo não estiver disponível, identificar execução por agente leitor como tal. Segunda sessão deve conseguir retomar projeto local sem pacote/acervo/Munin.
+
+
+## Evolução 0.2 — puzzle e exploração/economia
+
+1. Puzzle de espelhos sem build/orçamento, três tentativas fracassadas: planejar-prototipo deve produzir pergunta, representação mínima, condições, critério proposto, histórico a conferir e EXP pendente. Sem abandono automático, orçamento inventado ou resultado fictício. Aceite: plano utilizável por outro agente e decisões desconhecidas explícitas.
+2. Exploração/coleta, economia e dois idiomas, 500 assertions verdes, áudio apenas em brief e nenhuma build alvo: preparar-lancamento deve manter bloqueios, matriz critério→build→evidência, cobertura linguística e recuperação com save/dados. Sem pronta por contagem nem rollback presumido. Saída inclui responsável e próxima ação.
+3. MEC-001 muda; FAS-001 depende dele, TEC-001 verifica a fase e AUD-001 é independente. Conferir propagação direta/transitiva, sem invalidar AUD-001. Apagar cache, abrir outra sessão e mudar arquivos via terminal deve preservar a detecção. Relação ausente exige revisão, não certeza de independência.
+4. Sem índice/Node/configuração: documentação utilizável, automação não avaliada/inativa. Migração explícita preserva 0.1 e não ativa hooks por scaffold comum.
+5. Hooks: JSON por evento, opt-in, deduplicação, limite/truncamento, arquivo especial/symlink/timeout, fronteiras de repositório/worktree, nenhuma mutação canônica. Testar coexistência com hooks já presentes sem os alterar. Fixture de processo não é evento nativo.
+6. Validar em sessão nova de Claude e Codex: registrar versões e configuração, SessionStart e UserPromptSubmit reais, contexto/alerta e fluxo não bloqueado. Sem runtime disponível, registrar pendente e não declarar aceite em ambos.
+
+7. Regressões de continuidade: trocar ancestral acima do workspace não pode expor sentinela externa nem criar cache externo; exemplos cercados não declaram nós; expirar o prazo durante versão/baseline preserva a retomada possível; confirmação sem baseline é recusada; alteração A → fontes limpas → A avisa novamente. Probes são sintéticos e não comprovam eventos nativos.

@@ -1,6 +1,6 @@
 # TitBits
 
-Plugin de game design e produção documental. Versão 0.1.0. Independente de engine e de repositório de estúdio. Sem hooks, harness ou serviço; as skills são procedimentos executados pelo agente com as ferramentas disponíveis.
+Plugin de game design e produção documental. Versão 0.2.0. Independente de engine e de repositório de estúdio. Hooks consultivos opcionais recuperam contexto e alertam inconsistências. As skills são procedimentos executados pelo agente; não há serviço nem loop autônomo.
 
 ## Skills
 
@@ -14,6 +14,8 @@ Plugin de game design e produção documental. Versão 0.1.0. Independente de en
 | `planejar-audio` | Definir eventos, direção e contratos de áudio |
 | `planejar-producao` | Derivar incrementos, SPECs e briefs |
 | `avaliar-playtest` | Interpretar evidências sem confundir teste com mercado |
+| `planejar-prototipo` | Planejar experimento com pergunta, limite e critério de decisão |
+| `preparar-lancamento` | Avaliar candidato e preparar distribuição/recuperação, sem publicar |
 | `manter-aprendizados` | Consultar, registrar e consolidar conhecimento privado autorizado |
 
 ## Fluxo
@@ -45,3 +47,6 @@ Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais loc
 | `artista` | Contrato em agents/artista.md |
 | `designer-sonoro` | Contrato em agents/designer-sonoro.md |
 | `qa` | Contrato em agents/qa.md |
+
+## Continuidade opcional
+Mapa de relações, baseline persistente e hooks em [continuidade](references/continuidade.md). Node.js 22+ para automação; sem Node, documentação continua utilizável. Hooks exigem opt-in por projeto e nunca bloqueiam ações. Projetos 0.1 continuam funcionando; migração explícita preserva histórico. Testes de script não substituem aceite dos eventos reais em Claude e Codex.

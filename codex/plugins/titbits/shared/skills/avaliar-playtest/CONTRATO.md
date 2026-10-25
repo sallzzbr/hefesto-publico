@@ -25,3 +25,7 @@ Três relatos de tutorial confuso e um travamento: compreensão e defeito relata
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Economia, progressão e retrospectiva
+Quando aplicáveis, confrontar fontes e gastos de recursos, curvas de progressão, recompensas, gargalos e estratégias dominantes. Sem dados de partida, separar inspeção de regra, hipótese e diagnóstico ainda não avaliado. Não inventar indicadores ou números de mercado. Identificar build/GDD/condição de cada evidência; mudança relacionada exige rever validade.
+Concluir com retrospectiva: esperado, observado, diferenças, retrabalho, aprendizado contextual e próxima decisão. Registrar EXP/APR e vínculos conforme `${CLAUDE_PLUGIN_ROOT}/references/continuidade.md`. Três tentativas não impõem desistência automática; repetir exige condição nova ou replicação justificada, dentro da autonomia e orçamento existentes.

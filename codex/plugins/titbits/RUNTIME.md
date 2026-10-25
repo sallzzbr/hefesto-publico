@@ -1,6 +1,6 @@
 # Runtime Codex — TitBits
 
-Leia este arquivo antes do contrato da skill. Use ferramentas disponíveis, sem presumir engine, CLI Claude, geradores ou conectores. Não há harness, hooks ou servidor no TitBits 0.1.0.
+Leia este arquivo antes do contrato da skill. Use ferramentas disponíveis, sem presumir engine, CLI Claude, geradores ou conectores. Hooks consultivos opcionais seguem shared/references/continuidade.md. Não há harness de execução nem servidor.
 
 Recursos de domínio em shared/ são cópias verificadas pelo inventário; nunca editar pacote instalado. Nos contratos, `${CLAUDE_PLUGIN_ROOT}` resolve para shared/ deste pacote, apenas para leitura. SKILL.md legado em shared vira CONTRATO.md. Links relativos são resolvidos a partir do arquivo que contém o link.
 
@@ -14,3 +14,6 @@ Ler shared/agents/<papel>.md antes de exercê-lo. Contratos locais copiados para
 
 ## Evidência
 Uma chamada de skill produz documentos, não prova que código, arte ou áudio foi executado. Registrar arquivos/versão, evidência, limitações, pendências e próxima ação. Reconciliação de histórico é procedimento, não transação automática. Para Odin disponível, ler seu template vigente; sem ele, produzir SPEC documental e registrar execução não realizada.
+
+## Scripts e hooks
+CLI documental em shared/scripts/continuidade.mjs. Hooks nativos em hooks/hooks.json usam o adaptador Codex, com Node.js 22+, opt-in por workspace e sem bloqueio. Não instalar runtime ou alterar confiança/permissões automaticamente. Somente SessionStart e UserPromptSubmit são registrados e emitem contexto. O Codex só executa hooks de plugin depois que o usuário revisa e confia neles; não alterar essa confiança. A mesma identidade de workspace acompanha configuração, fontes e cache; o prazo cooperativo inclui versão e baseline. I/O síncrono travado pode produzir silêncio pelo timeout do supervisor. Aceite de runtime deve registrar eventos reais, não apenas fixtures.

@@ -5,3 +5,6 @@ Testes de pacote verificam formato, links, cópias e exportação. Não provam o
 Nunca chamar uma simulação via agente de instalação nativa no Claude/Codex. Aceite de gameplay exige build real identificada, procedimento, observação e limitações. Sem build, planejar protocolo e classificar relatos como não reproduzidos.
 
 Rubrica de entrega: decisão atual clara; autoria e aprovação; vínculos GDD/DEC/EXP/APR; saídas executáveis por outra sessão; transferência apenas autorizada; evidência diferente de hipótese; pendência não promovida a sucesso. Usar exemplos sintéticos independentes, nunca dados reais anonimizados.
+
+
+Na 0.2, separar quatro níveis: contratos documentais, testes determinísticos de scripts/JSON, descoberta/instalação em perfil temporário e eventos reais com agente. Os três primeiros não comprovam o quarto. Validar gameplay e aceitação do dono separadamente. Documentação de protótipo/lançamento é avaliada com puzzle e jogo multissistemas sintéticos, conforme cenários.

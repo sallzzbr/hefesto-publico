@@ -165,7 +165,7 @@ export async function checkDistribution({
       if (kind === 'file' && basename(path) === 'SKILL.md') errors.push(`${path}: shared não pode conter SKILL.md descobrível`);
     });
   }
-  if (skillCount !== 59) errors.push(`skills Codex: esperado 59, encontrado ${skillCount}`);
+  if (skillCount !== 61) errors.push(`skills Codex: esperado 61, encontrado ${skillCount}`);
 
   const marketplacePath = join(codexRoot, '.agents', 'plugins', 'marketplace.json');
   const marketplace = existsSync(marketplacePath) ? json(marketplacePath, errors) : null;

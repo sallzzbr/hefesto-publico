@@ -29,3 +29,9 @@ Escopo aprovado, fora de escopo, placeholders, dependências, hipóteses a testa
 
 ## Histórico relacionado
 Links para DEC/EXP; texto substituído fica em ../historico/, não como regra vigente.
+
+## Mapa de sistemas e relações
+Para cada sistema: intenção, entradas, saídas, estados, dependências confirmadas, dúvidas e dono. Declarar IDs uma única vez nos documentos de domínio seguindo ../referencias/continuidade.md do jogo preparado. Cobertura não mapeada permanece pendente. Relacionar sistemas a fases, UX, narrativa, inventário de assets e fichas de produção.
+
+## Experiência e conteúdo
+Fluxos/controles/feedback, falhas e retomada, acessibilidade e validação por plataforma. Narrativa: intenção, estados, pré-requisitos e consequências. Economia/progressão quando aplicáveis: fontes/gastos, curvas, risco de estratégia dominante e dados necessários.

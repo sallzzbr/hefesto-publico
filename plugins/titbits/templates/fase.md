@@ -15,3 +15,6 @@
 - histórico relacionado e dúvidas bloqueantes:
 
 Fases futuras podem ficar em rascunho; registrar o detalhe ainda ausente. Ilustração não prova que fase é solucionável.
+
+## Dependências e experiência
+O que o jogador aprende/pratica; conhecimentos anteriores; mecânicas e assets necessários; estados narrativos; feedback e acessibilidade; hipótese de dificuldade; dados necessários para balancear. Critérios da fase independem de arte final quando placeholders forem autorizados.

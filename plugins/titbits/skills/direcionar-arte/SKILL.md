@@ -23,3 +23,6 @@ Cem personagens 3D para telefone: entregar plano de amostra representativa antes
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Inventário e direção integrada
+Usar `${CLAUDE_PLUGIN_ROOT}/templates/assets.md` como inventário comum com áudio, sem criar listas divergentes. Relacionar cada asset à necessidade de sistema, fase ou UX; registrar escala real, fonte editável, exportação, revisão e prova de integração. Direção visual contempla linguagem de formas, materiais/paleta, personagem/ambiente/UI e legibilidade; densidade de texto não é critério de completude. Comunicar dependências usando `${CLAUDE_PLUGIN_ROOT}/references/continuidade.md`.

@@ -23,3 +23,7 @@ Documento preparado não é jogo implementado. Preservar arquivos de outra sess�
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Continuidade opcional
+Copiar também a referência continuidade.md para referencias/ e templates prototipo.md, lancamento.md, assets.md e ux.md para modelos/, adaptando links locais. Documentação do jogo permanece suficiente sem scripts ou instalação. Consultar `${CLAUDE_PLUGIN_ROOT}/references/continuidade.md`.
+Só com pedido explícito de ativação, gravar/mesclar .titbits/config.json na raiz do workspace, formato 1, enabled:true e local_jogo relativo já resolvido. Adicionar .titbits/cache/ ao .gitignore sem substituir regras existentes; não mudar hooks/permissões globais ou de outros plugins. Conferir Node 22+ e registro dos eventos no runtime; ausência fica pendente. Migração 0.1 preserva conteúdo/IDs e precisa mapear relações e conferir baseline explicitamente. Preparar documentação por si só não ativa hooks.

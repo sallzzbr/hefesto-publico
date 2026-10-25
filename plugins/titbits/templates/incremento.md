@@ -20,3 +20,9 @@ Build, cenário, resultado esperado, meio de evidência, protocolo humano e limi
 
 ## Retomada
 Última ação, arquivos, decisão, pendência e próximo responsável. Reconciliar resultado parcial antes de repetir efeito externo.
+
+## Fatia vertical, quando aplicável
+Trecho representativo do loop e disciplinas integradas; hipótese sobre viabilidade/pipeline; placeholders autorizados; prova na plataforma alvo; esforço previsto e observado; limites da conclusão. Nenhuma duração universal.
+
+## Rastreabilidade
+IDs de requisitos → fichas de SPEC/tarefas → entregas/assets → critérios/evidências, com versões consumidas. Aplicar referências de continuidade locais. Mudança em dependência exige revisão; índice atualizado não aceita a tarefa automaticamente.

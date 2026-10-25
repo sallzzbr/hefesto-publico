@@ -23,7 +23,10 @@ Requisitos: `hipotese`, `proposto`, `aprovado`, `substituido`. Registrar aprovad
 Achados de QA não mudam o design: classificam observações e propõem alternativas. Arte/áudio prontos em texto não significam assets gerados. Testes automatizados não provam diversão; playtest pequeno não prova mercado. Não inventar participantes, medições, ferramenta disponível ou aceitação.
 
 ## Limites de execução
-Sem engine ou estilo global. Sem geradores, MCPs, ferramentas ou APIs presumidos. Não há hook, loop, serviço ou coordenação concorrente na V1. Um escritor por conjunto GDD/histórico; conflito entre escritores exige reconciliar. Se paralelismo não estiver autorizado/disponível, papéis são exercidos sequencialmente. Uma revisão pelo próprio autor não é independente.
+Sem engine ou estilo global. Sem geradores, MCPs, ferramentas ou APIs presumidos. Hooks consultivos opcionais seguem [continuidade.md](continuidade.md). Sem configuração explícita, não atuam. Não há loop de execução, serviço ou coordenação concorrente. Um escritor por conjunto GDD/histórico; conflito entre escritores exige reconciliar. Se paralelismo não estiver autorizado/disponível, papéis são exercidos sequencialmente. Uma revisão pelo próprio autor não é independente.
 
 ## Histórico e retomada
 Leia [historico.md](historico.md) para atualizar GDD. No fim de uma tentativa relevante, preencher EXP e resultado observado. Nada relevante novo: registrar que não houve mudança, sem fabricar experimento. Nunca usar conhecimento privado para completar exemplo público, mesmo anonimizado ou generalizado. Templates distribuídos são vazios; exemplos/evals são sintéticos independentes.
+
+## Consistência proporcional
+Consultar [continuidade.md](continuidade.md) ao mapear sistemas, alterar GDD ou preparar produção. Profundidade acompanha risco e incremento; documento longo não prova completude, contagem de testes não prova qualidade e hipótese não vira fato. Nenhum mínimo de documentação dispensa evidência essencial para o comportamento prometido. O aviso automático é apoio: verificar relações e histórico explicitamente antes de decidir.

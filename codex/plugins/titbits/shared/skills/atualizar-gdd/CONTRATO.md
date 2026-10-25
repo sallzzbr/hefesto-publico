@@ -23,3 +23,6 @@ MEC-001 muda salto duplo para único por pedido aprovado: preservar regra anteri
 
 ## Resolução de paths
 Pedido explícito > local_jogo no CLAUDE.md do workspace > defaults pessoais local_* > exatamente uma convenção descoberta no cwd > default documentado docs/jogo/. Paths citados são ilustrativos. Múltiplos candidatos exigem esclarecimento. No Codex, usar AGENTS.md e defaults do RUNTIME.md. Acervo só por configuração explícita e autorização.
+
+## Propagação
+Antes da edição, conferir baseline e relações conforme `${CLAUDE_PLUGIN_ROOT}/references/continuidade.md`. Listar IDs/arquivos diretamente afetados e dependentes transitivos, incluindo fases, narrativa, UX, arte, áudio, SPEC e evidências. Revisar cada possível impacto; ausência de relação exige investigação, não conclusão de independência. Preservar baseline anterior no DEC. Após reconciliar fontes, tarefas/evidências e versão, gerar candidato e salvar índice; somente então finalizar DEC. Se reconciliar listar `pendentes`, revisar esses documentos; usar `--confirmar` só com justificativa registrada no DEC. Hook nunca substitui esse procedimento.
