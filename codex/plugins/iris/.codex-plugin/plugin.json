@@ -1,0 +1,24 @@
+{
+  "name": "iris",
+  "version": "0.1.2",
+  "description": "Prompts e briefs de delegação no tamanho certo para o modelo de destino (Claude, GPT/Codex, Gemini ou desconhecido), com orientações oficiais datadas e fontes citadas.",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Iris",
+    "shortDescription": "Prompts adequados ao modelo de destino",
+    "longDescription": "Escreve e enxuga prompts e briefs de delegação para o modelo que vai executá-los, com princípios comuns, cartões por destino (Claude, GPT/Codex, Gemini, desconhecido) e fontes oficiais datadas. Destino desconhecido recebe versão portátil declarada.",
+    "developerName": "Antonio Salgado",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": [
+      "Melhore este prompt para o modelo que vai executá-lo e diga o que cortou.",
+      "Monte o brief de um subagente revisor para esta mudança."
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/sallzzbr/hefesto-publico"
+}

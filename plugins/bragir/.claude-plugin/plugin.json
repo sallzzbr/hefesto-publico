@@ -1,0 +1,20 @@
+{
+  "name": "bragir",
+  "version": "2.0.0",
+  "description": "Bragir — voz, escrita e carreira: comunicação na voz do autor, perfil profissional, vagas, LinkedIn, portfólio, candidaturas e direção visual.",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "homepage": "https://github.com/sallzzbr/hefesto-publico",
+  "repository": "https://github.com/sallzzbr/hefesto-publico",
+  "license": "MIT",
+  "keywords": [
+    "writing",
+    "voice",
+    "portuguese",
+    "personas",
+    "content-generation",
+    "bragir"
+  ]
+}

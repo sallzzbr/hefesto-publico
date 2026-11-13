@@ -1,0 +1,69 @@
+{
+  "criterios": {
+    "agrupamento": "pela coluna `categoria` do produtos.csv; a soma de cada grupo e de `valor_total`, o unico campo que todo item tem",
+    "divergencia": "relatada, nunca recusada — a skill manda mostrar e perguntar antes de seguir, e a decisao de gravar assim mesmo e do usuario",
+    "extracao": "quantidade x valor_unitario comparado a valor_total, tolerancia de 0.01 (1 centavo, o custo de o mercado truncar em vez de arredondar); item sem quantidade fica fora da conferencia",
+    "formato": "os valores saem com PONTO decimal, que e o padrao do JSON no hestia. Ao GRAVAR no livro converta para virgula (tabela BRL <-> cru da skill): planilha em pt-BR le '312.40' como 31240",
+    "identidade": "cada nota e a coluna `nota` (AAAA-MM-DD-N); linha sem identificador vale pela identidade antiga (data, mercado), e selecionada por --sem-nota com --data e --mercado e so ganha lancamento com --nota-unica-confirmada",
+    "item_orfao": "segregado em `sem_categoria` e somado em `nao_coberto` dentro do proprio lancamento proposto, para que lancar menos do que se gastou nao passe por omissao na narrativa"
+  },
+  "divergencias_de_extracao": [],
+  "itens_considerados": 2,
+  "itens_sem_quantidade": [],
+  "lancamento_proposto": {
+    "data": "2026-07-12",
+    "descricao": "Mercado Pão de Açúcar (nota 2026-07-12-2)",
+    "identidade": "nota",
+    "linhas": [
+      {
+        "categoria": "Alimentação",
+        "data": "2026-07-12",
+        "descricao": "Mercado Pão de Açúcar (nota 2026-07-12-2)",
+        "tipo": "despesa",
+        "valor": "29.34"
+      },
+      {
+        "categoria": "Higiene",
+        "data": "2026-07-12",
+        "descricao": "Mercado Pão de Açúcar (nota 2026-07-12-2)",
+        "tipo": "despesa",
+        "valor": "14.32"
+      }
+    ],
+    "mercado": "Pão de Açúcar",
+    "metodo": null,
+    "metodo_motivo": "use o metodo da nota se visivel; senao pergunte ao usuario (Fluxo 2)",
+    "nao_coberto": "0.00",
+    "nota": "2026-07-12-2",
+    "total": "43.66"
+  },
+  "notas_na_selecao": [
+    {
+      "data": "2026-07-12",
+      "mercado": "Pão de Açúcar",
+      "nota": "2026-07-12-2"
+    }
+  ],
+  "por_categoria": [
+    {
+      "categoria": "Alimentação",
+      "itens": 1,
+      "pct_do_agrupado": "67.20",
+      "valor": "29.34"
+    },
+    {
+      "categoria": "Higiene",
+      "itens": 1,
+      "pct_do_agrupado": "32.80",
+      "valor": "14.32"
+    }
+  ],
+  "sem_categoria": [],
+  "simplificacoes": [
+    "`--data`, `--mercado` e `--nota` comparam o texto exato como esta no CSV, sem normalizar acento nem caixa: 'Atacadao' nao casa com 'Atacadão'",
+    "a conferencia do total da nota compara o total de TODOS os itens da selecao, orfaos inclusive — e o que a nota impressa cobra, diferente do que o lancamento cobre"
+  ],
+  "total_agrupado": "43.66",
+  "total_dos_itens": "43.66",
+  "total_sem_categoria": "0.00"
+}

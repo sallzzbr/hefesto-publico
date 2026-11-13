@@ -1,0 +1,304 @@
+"""Contract checks for hermes skills, manifests and portability (hermes 1.0)."""
+
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+
+PLUGIN_DIR = Path(__file__).parent.parent
+MARKETPLACE = PLUGIN_DIR.parent.parent / ".claude-plugin" / "marketplace.json"
+
+EXPECTED_SKILLS = [
+    # cluster criativo (fluxo de estúdio)
+    "criativo-fluxo", "direcao-de-arte", "sugerir-criativos", "validar-criativo",
+    "evoluir-vencedor", "analisar-criativos",
+    # analíticas destiladas
+    "unit-economics", "pnl-mensal", "fadiga-criativa", "otimizar-verba",
+    "auditoria-de-estrutura", "auditoria-cro",
+    # rituais promovidos do workspace (Fase 8)
+    "analise-diaria", "saude-do-funil", "sintese-semanal", "diagnostico-site-funil",
+    # hermes 1.4.0
+    "analisar-produto",
+    # hermes 1.5.0
+    "regua-decisao",
+]
+
+
+def skill_dirs() -> list[Path]:
+    return sorted(p for p in (PLUGIN_DIR / "skills").iterdir() if p.is_dir())
+
+
+def test_expected_skills_exist_exactly() -> None:
+    names = [p.name for p in skill_dirs()]
+    assert sorted(names) == sorted(EXPECTED_SKILLS), f"skill set drifted: {set(names) ^ set(EXPECTED_SKILLS)}"
+
+
+def test_every_skill_has_frontmatter_description_with_triggers() -> None:
+    for d in skill_dirs():
+        text = (d / "SKILL.md").read_text(encoding="utf-8")
+        fm = re.match(r'^---\n(.*?)\n---\n', text, re.DOTALL)
+        assert fm, f"{d.name}/SKILL.md must start with frontmatter"
+        name = re.search(r'^name: (.+)$', fm.group(1), re.MULTILINE)
+        assert name and name.group(1) == d.name, f"{d.name}: name must match skill directory"
+        m = re.search(r'^description: "(.+?)"$', fm.group(1), re.MULTILINE)
+        assert m, f"{d.name}/SKILL.md must contain a quoted description"
+        desc = m.group(1)
+        assert len(desc) > 80, f"{d.name} description too short to route"
+        assert "Use when" in desc, f"{d.name} description must carry usage triggers"
+
+
+def test_no_absolute_os_paths_in_plugin_files() -> None:
+    token = "/" + "Users" + "/"  # montado em partes pra este arquivo não se autoacusar
+    for path in PLUGIN_DIR.rglob("*"):
+        if path.is_dir() or path.suffix in {".png", ".pyc"} or "__pycache__" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8")
+        assert token not in text, f"{path.relative_to(PLUGIN_DIR)} carries an absolute OS path"
+
+
+def test_no_workspace_credentials_or_account_ids_in_plugin() -> None:
+    # a regra da fase: o plugin não carrega dados/credenciais/IDs de um workspace real —
+    # nem nomes do negócio, do nicho ou de pessoa: metodologia que cita o caso concreto não é
+    # metodologia, é operação vazada. Escopo: todo .md e .mjs do plugin (README, skills,
+    # agents, references e harness), EXCETO CHANGELOG.md — histórico publicado não se
+    # reescreve. plugin.json (author) fica fora por não ser .md/.mjs: autoria é legítima.
+    # Os valores abaixo são sintéticos de propósito: este arquivo é público e não pode carregar o
+    # literal real. A defesa contra o vazamento real é o guard do espelho (scripts/espelho.mjs,
+    # regras em scripts/espelho-publico.json); esta lista só ilustra e guarda o formato.
+    forbidden = [
+        "000000000000000", "CA_ExemploLoja", "META_ACCESS_TOKEN", "111111111", "exemplo.loja",
+        "ExemploLoja", "NichoExemplo", "Fulana",
+    ]
+    scanned = 0
+    for path in PLUGIN_DIR.rglob("*"):
+        if path.is_dir() or path.suffix not in {".md", ".mjs"} or "__pycache__" in path.parts:
+            continue
+        if path.name == "CHANGELOG.md":
+            continue
+        scanned += 1
+        text = path.read_text(encoding="utf-8")
+        for token in forbidden:
+            assert token not in text, f"{path.relative_to(PLUGIN_DIR)} leaks workspace-coupled token {token}"
+    assert scanned > 20, f"varredura anti-vazamento viu só {scanned} arquivos — escopo quebrou"
+
+
+def test_ruler_numbers_are_lookup_not_literals() -> None:
+    # réguas de decisão vêm do unit-economics mais recente, nunca hardcoded (achado da Fase 7:
+    # R$X × R$Y inconsistentes entre commands do workspace)
+    for d in skill_dirs():
+        text = (d / "SKILL.md").read_text(encoding="utf-8")
+        assert not re.search(r"CAC (alvo|máximo|max)[^.\n]*R\$\s*\d", text), (
+            f"{d.name} hardcodes a CAC ruler — must be lookup do unit-economics"
+        )
+
+
+def test_plugin_json_and_marketplace_versions_agree() -> None:
+    plugin = json.loads((PLUGIN_DIR / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert plugin["name"] == "hermes"
+    marketplace = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
+    entry = next(p for p in marketplace["plugins"] if p["name"] == "hermes")
+    assert entry["version"] == plugin["version"], "plugin.json and marketplace.json disagree on version"
+    assert entry["source"] == "./plugins/hermes"
+
+
+def test_readme_documents_no_bragir_dependency_and_workspace_contract() -> None:
+    text = (PLUGIN_DIR / "README.md").read_text(encoding="utf-8")
+    assert "bragir" in text, "README must document the (non-)dependency on bragir explicitly"
+    assert "workspace" in text.lower(), "README must document the workspace layout contract"
+
+
+def test_boost_traffic_stays_out_of_the_rulers() -> None:
+    # tráfego que não otimiza por conversão (boost/impulsionamento) fora de CPA/ROAS/CTR e de
+    # veredito, identificado por optimization_goal (nunca pelo nome); gasto total sobrevive
+    # rotulado. Gasto sem compra no denominador contamina a régua e derruba decisão boa.
+    for name in ("analise-diaria", "saude-do-funil", "otimizar-verba", "pnl-mensal",
+                 "analisar-criativos"):
+        text = (PLUGIN_DIR / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "optimization_goal" in text, (
+            f"{name} must exclude non-conversion traffic from rulers via optimization_goal"
+        )
+
+
+def test_inference_clause_guards_measurement_to_rule_promotion() -> None:
+    # os 3 pontos onde medição vira regra carregam a cláusula de inferência (3 perguntas);
+    # sem as respostas, a medição entra como OBSERVAÇÃO, não como regra
+    alvos = {
+        "criativo-fluxo": "SKILL.md",
+        "direcao-de-arte": "SKILL.md",
+        "sintese-semanal": "SKILL.md",
+    }
+    for skill, arquivo in alvos.items():
+        text = (PLUGIN_DIR / "skills" / skill / arquivo).read_text(encoding="utf-8")
+        for termo in ("Cláusula de inferência", "variância", "variantes relevantes",
+                      "contra-exemplo", "OBSERVAÇÃO, não como regra"):
+            assert termo in text, f"{skill} lost inference-clause marker: {termo}"
+
+
+def test_analise_diaria_preserves_the_snapshot_contract() -> None:
+    text = (PLUGIN_DIR / "skills" / "analise-diaria" / "SKILL.md").read_text(encoding="utf-8")
+    for marker in (
+        "modo snapshot",
+        "level=account",
+        "level=campaign",
+        "last_30d",
+        "lifetime",
+        "dados insuficientes",
+    ):
+        assert marker in text, f"analise-diaria lost snapshot contract marker: {marker}"
+
+
+# ── hermes 1.4.0: skill analisar-produto (B9) ────────────────────────────────
+
+ANALISAR_PRODUTO = PLUGIN_DIR / "skills" / "analisar-produto"
+REPO_ROOT = PLUGIN_DIR.parent.parent
+
+
+def test_analisar_produto_is_listed_and_has_valid_frontmatter() -> None:
+    assert "analisar-produto" in EXPECTED_SKILLS
+    assert len(EXPECTED_SKILLS) == 18
+    skill = ANALISAR_PRODUTO / "SKILL.md"
+    assert skill.is_file(), "skills/analisar-produto/SKILL.md missing"
+    text = skill.read_text(encoding="utf-8")
+    fm = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
+    assert fm
+    assert re.search(r"^name: analisar-produto$", fm.group(1), re.MULTILINE)
+    desc = re.search(r'^description: "(.+?)"$', fm.group(1), re.MULTILINE)
+    assert desc and len(desc.group(1)) > 80
+    assert "Use when" in desc.group(1)
+    assert "Somente leitura" in desc.group(1), "description must close with the read-only marker"
+
+
+def test_analisar_produto_skill_has_no_emoji_and_points_to_its_script() -> None:
+    text = (ANALISAR_PRODUTO / "SKILL.md").read_text(encoding="utf-8")
+    assert not re.search("[\U0001F300-\U0001FAFF☀-➿⭐✅❌]", text), "SKILL.md must not carry emoji"
+    assert "${CLAUDE_PLUGIN_ROOT}/skills/analisar-produto/scripts/analisar-produto.mjs" in text
+    assert (ANALISAR_PRODUTO / "scripts" / "analisar-produto.mjs").is_file()
+    assert (ANALISAR_PRODUTO / "references").is_dir()
+
+
+def test_analisar_produto_is_in_both_readmes() -> None:
+    plugin_readme = (PLUGIN_DIR / "README.md").read_text(encoding="utf-8")
+    assert re.search(r"^\| `analisar-produto` \|", plugin_readme, re.MULTILINE), "plugin README needs a table row"
+    root = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    count = len(list((REPO_ROOT / "plugins").glob("*/skills/*/SKILL.md")))
+    assert f"{count} skills" in root, "root README must match the current skill inventory"
+    assert "61 skills" not in root, "stale 61-skills count left in root README"
+    assert "48 skills" not in root, "stale 48-skills count left in root README"
+    assert re.search(r"hermes/.*\(18 skills", root), "root README tree must list hermes with 18 skills"
+
+
+# --- hermes 1.4.1: custo fixo, reconciliação plataforma x ledger, regra de rampa ---
+
+def _skill(name: str) -> str:
+    return (PLUGIN_DIR / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_pnl_e_unit_economics_tratam_custos_fixos() -> None:
+    pnl, ue = _skill("pnl-mensal"), _skill("unit-economics")
+    assert "custos fixos" in pnl, "pnl-mensal precisa de linha de custos fixos"
+    assert re.search(r"nenhum m[eê]s (pode|deve) ser declarado positivo", pnl), \
+        "pnl-mensal precisa do aviso bloqueante quando custos fixos estiver vazio"
+    assert "custos fixos" in ue
+    assert "pedidos por m" in ue, "unit-economics deve calcular pedidos/mês para cobrir o custo fixo"
+    # o breakeven continua sendo marginal: custo fixo NÃO entra nele
+    assert "CAC breakeven** = margem de contribuição por pedido" in ue
+
+
+def test_pnl_reconcilia_plataforma_e_ledger() -> None:
+    assert "reconcili" in _skill("pnl-mensal").lower()
+    assert "CPA de plataforma" in _skill("analise-diaria")
+    assert "CPA de plataforma" in _skill("saude-do-funil")
+
+
+def test_otimizar_verba_regra_de_rampa_sem_dado_do_workspace() -> None:
+    ov = _skill("otimizar-verba")
+    assert "3 a 7 dias" in ov and "reseta" in ov
+    assert "R$100" not in ov, "dado do workspace não entra na skill pública"
+
+
+# ── E3 (hermes 2.0.0): conectores por categoria e origem das regras ──
+
+CONECTORES = PLUGIN_DIR / "CONNECTORS.md"
+ADAPTADORES = PLUGIN_DIR / "references" / "adaptadores"
+CATEGORIAS_DE_CONECTOR = ("plataforma de anúncios", "ledger", "analytics")
+
+
+def _linhas_de_tabela_com(texto: str, termo: str) -> list[str]:
+    return [l for l in texto.splitlines() if l.lstrip().startswith("|") and termo in l.lower()]
+
+
+def test_c3_connectors_mapeia_cada_categoria_a_adaptadores_que_existem() -> None:
+    assert CONECTORES.is_file(), "plugins/hermes/CONNECTORS.md ausente"
+    texto = CONECTORES.read_text(encoding="utf-8")
+    for categoria in CATEGORIAS_DE_CONECTOR:
+        linhas = _linhas_de_tabela_com(texto, categoria)
+        assert linhas, f"CONNECTORS.md sem linha de tabela para a categoria {categoria!r}"
+        alvos = [a for l in linhas for a in re.findall(r"references/adaptadores/([\w.-]+\.md)", l)]
+        assert alvos, f"a categoria {categoria!r} não aponta para references/adaptadores/<canal>.md"
+        for alvo in alvos:
+            assert (ADAPTADORES / alvo).is_file(), f"adaptador citado e ausente: {alvo}"
+
+
+def test_c3_ha_adaptador_de_meta_ads_com_doutrina_limites_e_campos() -> None:
+    assert ADAPTADORES.is_dir(), "references/adaptadores/ ausente"
+    meta = [p for p in ADAPTADORES.glob("*.md") if "meta" in p.stem.lower()]
+    assert meta, "o adaptador de Meta Ads é o mínimo da entrega"
+    for adaptador in ADAPTADORES.glob("*.md"):
+        texto = adaptador.read_text(encoding="utf-8")
+        for secao in ("doutrina", "limites", "campos"):
+            assert re.search(rf"^#{{1,4}} .*{secao}", texto, re.IGNORECASE | re.MULTILINE), (
+                f"{adaptador.name} sem seção de {secao}"
+            )
+
+
+def test_c3_nenhuma_skill_nem_referencia_fora_de_adaptadores_nomeia_tool_de_fornecedor() -> None:
+    # disallowedTools dos agents (frontmatter) fica fora da varredura; o corpo dos agents entra.
+    alvos: list[tuple[Path, str]] = []
+    for path in PLUGIN_DIR.rglob("*"):
+        if path.is_dir() or path.suffix not in {".md", ".mjs", ".py"} or "__pycache__" in path.parts:
+            continue
+        relativo = path.relative_to(PLUGIN_DIR)
+        if relativo.parts[0] in {"tests", "scripts"} or relativo.name in {"CHANGELOG.md", "CONNECTORS.md"}:
+            continue
+        if relativo.parts[:2] == ("references", "adaptadores"):
+            continue
+        texto = path.read_text(encoding="utf-8")
+        if relativo.parts[0] == "agents":
+            texto = re.sub(r"\A---\n.*?\n---\n", "", texto, count=1, flags=re.DOTALL)
+        alvos.append((relativo, texto))
+    assert len(alvos) > 25, f"varredura viu só {len(alvos)} arquivos — escopo quebrou"
+    for relativo, texto in alvos:
+        assert "mcp__" not in texto, f"{relativo} nomeia tool de fornecedor (mcp__); isso vive em references/adaptadores/"
+
+
+GATILHOS_DA_REGUA = (
+    "aprendizado-edicao", "aprendizado-eventos", "janela-minima", "janela-mista", "piso-diagnostico",
+    "degrau-recente", "piso-reversao", "reverter-degrau", "pausa", "piso-pausa", "sinais-divergentes",
+    "escala-sem-sinal", "intervalo-degrau", "escala", "dentro-da-regua",
+)
+PARAMETROS_DO_ANALISAR_PRODUTO = (
+    "fatiaAlta", "fatiaBaixa", "razaoConversaoBaixa", "razaoConversaoAlta", "minViewsSinal",
+    "jaccardMinimo", "lacunaMaxItens", "razaoCliqueAlta", "razaoCompraBaixa",
+)
+
+
+def test_c4_regras_origem_lista_cada_regra_com_origem_e_a_oficial_com_fonte() -> None:
+    arquivo = PLUGIN_DIR / "references" / "regras-origem.md"
+    assert arquivo.is_file(), "references/regras-origem.md ausente"
+    linhas = arquivo.read_text(encoding="utf-8").splitlines()
+    problemas: list[str] = []
+    for regra in (*GATILHOS_DA_REGUA, *PARAMETROS_DO_ANALISAR_PRODUTO):
+        citadas = [l for l in linhas if l.lstrip().startswith("|") and f"`{regra}`" in l]
+        if not citadas:
+            problemas.append(f"{regra}: sem linha de tabela com a regra entre crases")
+            continue
+        linha = citadas[0].lower()
+        origens = [o for o in ("oficial", "heurística", "metodologia") if f"| {o} |" in linha]
+        oficial = origens == ["oficial"]
+        if len(origens) != 1:
+            problemas.append(f"{regra}: a linha deve rotular exatamente uma origem (oficial, heurística ou metodologia)")
+        elif oficial and not re.search(r"https?://", linha):
+            problemas.append(f"{regra}: regra oficial sem fonte (URL)")
+    assert problemas == []

@@ -1,0 +1,1 @@
+Prepare um prompt para uma sessão Codex continuar esta entrega amanhã: branch feat/exemplo, dois commits feitos, testes unitários verdes, teste de integração não rodou por falta de banco local, e falta decidir com o dono se o limite padrão é 50 ou 100.

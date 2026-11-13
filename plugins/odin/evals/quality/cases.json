@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "boundary-unchecked",
+      "category": "boundaries",
+      "prompt": "Revise a fronteira pública de entrada. Demonstre o comportamento com uma identificação vazia antes de concluir.",
+      "files": [
+        {
+          "path": "src/account.js",
+          "content": "export function createAccount(input, store) {\n  const account = { id: input.id, balance: input.balance };\n  store.save(account);\n  return account;\n}\n"
+        }
+      ],
+      "expected": [
+        {
+          "id": "Q-BOUNDARIES",
+          "status": "issue",
+          "rationale": "createAccount aceita id vazio e balance não numérico antes de persistir. Um chamador externo consegue gravar conta inválida; a responsabilidade pela validação não está em outra fronteira documentada."
+        }
+      ]
+    },
+    {
+      "id": "boundary-single-consumer",
+      "category": "boundaries",
+      "prompt": "Revise o adaptador usado por um consumidor. Considere o isolamento de I/O e a possibilidade de testar falhas sem rede.",
+      "files": [
+        {
+          "path": "src/checkout.js",
+          "content": "export async function checkout(total, paymentGateway) {\n  if (!Number.isInteger(total) || total <= 0) throw new TypeError('Invalid total');\n  return paymentGateway.charge(total);\n}\n"
+        },
+        {
+          "path": "src/payment-gateway.js",
+          "content": "export function paymentGateway(client) {\n  return { charge: total => client.post('/charges', { total }) };\n}\n"
+        },
+        {
+          "path": "tests/checkout.test.js",
+          "content": "import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { checkout } from '../src/checkout.js';\ntest('rejects invalid total before external I/O', async () => {\n  let called = false;\n  await assert.rejects(checkout(0, { charge() { called = true; } }), TypeError);\n  assert.equal(called, false);\n});\n"
+        }
+      ],
+      "expected": [
+        {
+          "id": "Q-BOUNDARIES",
+          "status": "satisfied",
+          "rationale": "checkout valida seu total antes de I/O. O adaptador com um consumidor isola o serviço remoto e permite simular falhas; contagem de chamadores não demonstra abstração indevida."
+        }
+      ]
+    },
+    {
+      "id": "comments-process-noise",
+      "category": "comments",
+      "prompt": "Avalie se os comentários ajudam a entender a restrição real. Diferencie documentação útil de relato do processo do agente.",
+      "files": [
+        {
+          "path": "src/format-label.js",
+          "content": "// Ponytail: P1-P5 avaliados; escolhi uma linha e evitei criar arquivo.\n// A função abaixo retorna o nome formatado.\nexport function formatLabel(name) { return name.trim(); }\n"
+        }
+      ],
+      "expected": [
+        {
+          "id": "Q-COMMENTS",
+          "status": "issue",
+          "rationale": "Os dois comentários narram processo e repetem a expressão sem explicar contrato, restrição ou risco. O relato de decisão pertence ao plano, não é documentação útil desta função."
+        }
+      ]
+    },
+    {
+      "id": "comments-domain-reason",
+      "category": "comments",
+      "prompt": "Revise a documentação desta regra de calendário. Não remova o motivo de domínio só porque a implementação é curta.",
+      "files": [
+        {
+          "path": "src/billing.js",
+          "content": "/** Meses começam em zero na API Date; no contrato externo começam em um. */\nexport function billingMonth(date) {\n  return date.getUTCMonth() + 1;\n}\n"
+        }
+      ],
+      "expected": [
+        {
+          "id": "Q-COMMENTS",
+          "status": "satisfied",
+          "rationale": "O comentário português explica a diferença entre a convenção da plataforma e o contrato público. Preserva conhecimento de fronteira que a soma isolada não explica."
+        }
+      ]
+    },
+    {
+      "id": "decomposition-mixed-responsibilities",
+      "category": "decomposition",
+      "prompt": "Revise as responsabilidades da unidade de cadastro. Identifique uma fronteira concreta, sem propor framework ou reescrever o projeto.",
+      "files": [
+        {
+          "path": "src/register.js",
+          "content": "import { writeFileSync } from 'node:fs';\nexport async function register(input, connection, smtp) {\n  const customer = JSON.parse(input);\n  if (!customer.email.includes('@')) throw new TypeError('Invalid email');\n  await connection.query('INSERT INTO customers(email) VALUES (?)', [customer.email]);\n  writeFileSync('daily-report.csv', customer.email + '\\n', { flag: 'a' });\n  await smtp.send({ to: customer.email, subject: 'Welcome', text: 'Welcome aboard' });\n  return `<h1>${customer.email}</h1>`;\n}\n"
+        }
+      ],
+      "expected": [
+        {
+          "id": "Q-COHESION",
+          "status": "issue",
+          "rationale": "Uma função mistura parsing, política de cadastro, persistência, relatório local, entrega de email e HTML. Falha de email ocorre após gravar cliente e relatório; fronteiras explícitas permitem testar e decidir a consistência dessa operação."
+        }
+      ]
+    },
+    {
+      "id": "decomposition-cohesive-large",
+      "category": "decomposition",
+      "prompt": "Revise a tabela do protocolo com mais de 400 linhas. Registre decisão de decomposição considerando coesão e manutenção, sem usar tamanho como reprovação automática.",
+      "files": [
+        {
+          "path": "src/protocol-names.js",
+          "content": "// Tabela sintética de códigos do protocolo; cada código é independente e estável.\nexport const protocolNames = new Map([\n  [0, 'signal-000'],\n  [1, 'signal-001'],\n  [2, 'signal-002'],\n  [3, 'signal-003'],\n  [4, 'signal-004'],\n  [5, 'signal-005'],\n  [6, 'signal-006'],\n  [7, 'signal-007'],\n  [8, 'signal-008'],\n  [9, 'signal-009'],\n  [10, 'signal-010'],\n  [11, 'signal-011'],\n  [12, 'signal-012'],\n  [13, 'signal-013'],\n  [14, 'signal-014'],\n  [15, 'signal-015'],\n  [16, 'signal-016'],\n  [17, 'signal-017'],\n  [18, 'signal-018'],\n  [19, 'signal-019'],\n  [20, 'signal-020'],\n  [21, 'signal-021'],\n  [22, 'signal-022'],\n  [23, 'signal-023'],\n  [24, 'signal-024'],\n  [25, 'signal-025'],\n  [26, 'signal-026'],\n  [27, 'signal-027'],\n  [28, 'signal-028'],\n  [29, 'signal-029'],\n  [30, 'signal-030'],\n  [31, 'signal-031'],\n  [32, 'signal-032'],\n  [33, 'signal-033'],\n  [34, 'signal-034'],\n  [35, 'signal-035'],\n  [36, 'signal-036'],\n  [37, 'signal-037'],\n  [38, 'signal-038'],\n  [39, 'signal-039'],\n  [40, 'signal-040'],\n  [41, 'signal-041'],\n  [42, 'signal-042'],\n  [43, 'signal-043'],\n  [44, 'signal-044'],\n  [45, 'signal-045'],\n  [46, 'signal-046'],\n  [47, 'signal-047'],\n  [48, 'signal-048'],\n  [49, 'signal-049'],\n  [50, 'signal-050'],\n  [51, 'signal-051'],\n  [52, 'signal-052'],\n  [53, 'signal-053'],\n  [54, 'signal-054'],\n  [55, 'signal-055'],\n  [56, 'signal-056'],\n  [57, 'signal-057'],\n  [58, 'signal-058'],\n  [59, 'signal-059'],\n  [60, 'signal-060'],\n  [61, 'signal-061'],\n  [62, 'signal-062'],\n  [63, 'signal-063'],\n  [64, 'signal-064'],\n  [65, 'signal-065'],\n  [66, 'signal-066'],\n  [67, 'signal-067'],\n  [68, 'signal-068'],\n  [69, 'signal-069'],\n  [70, 'signal-070'],\n  [71, 'signal-071'],\n  [72, 'signal-072'],\n  [73, 'signal-073'],\n  [74, 'signal-074'],\n  [75, 'signal-075'],\n  [76, 'signal-076'],\n  [77, 'signal-077'],\n  [78, 'signal-078'],\n  [79, 'signal-079'],\n  [80, 'signal-080'],\n  [81, 'signal-081'],\n  [82, 'signal-082'],\n  [83, 'signal-083'],\n  [84, 'signal-084'],\n  [85, 'signal-085'],\n  [86, 'signal-086'],\n  [87, 'signal-087'],\n  [88, 'signal-088'],\n  [89, 'signal-089'],\n  [90, 'signal-090'],\n  [91, 'signal-091'],\n  [92, 'signal-092'],\n  [93, 'signal-093'],\n  [94, 'signal-094'],\n  [95, 'signal-095'],\n  [96, 'signal-096'],\n  [97, 'signal-097'],\n  [98, 'signal-098'],\n  [99, 'signal-099'],\n  [100, 'signal-100'],\n  [101, 'signal-101'],\n  [102, 'signal-102'],\n  [103, 'signal-103'],\n  [104, 'signal-104'],\n  [105, 'signal-105'],\n  [106, 'signal-106'],\n  [107, 'signal-107'],\n  [108, 'signal-108'],\n  [109, 'signal-109'],\n  [110, 'signal-110'],\n  [111, 'signal-111'],\n  [112, 'signal-112'],\n  [113, 'signal-113'],\n  [114, 'signal-114'],\n  [115, 'signal-115'],\n  [116, 'signal-116'],\n  [117, 'signal-117'],\n  [118, 'signal-118'],\n  [119, 'signal-119'],\n  [120, 'signal-120'],\n  [121, 'signal-121'],\n  [122, 'signal-122'],\n  [123, 'signal-123'],\n  [124, 'signal-124'],\n  [125, 'signal-125'],\n  [126, 'signal-126'],\n  [127, 'signal-127'],\n  [128, 'signal-128'],\n  [129, 'signal-129'],\n  [130, 'signal-130'],\n  [131, 'signal-131'],\n  [132, 'signal-132'],\n  [133, 'signal-133'],\n  [134, 'signal-134'],\n  [135, 'signal-135'],\n  [136, 'signal-136'],\n  [137, 'signal-137'],\n  [138, 'signal-138'],\n  [139, 'signal-139'],\n  [140, 'signal-140'],\n  [141, 'signal-141'],\n  [142, 'signal-142'],\n  [143, 'signal-143'],\n  [144, 'signal-144'],\n  [145, 'signal-145'],\n  [146, 'signal-146'],\n  [147, 'signal-147'],\n  [148, 'signal-148'],\n  [149, 'signal-149'],\n  [150, 'signal-150'],\n  [151, 'signal-151'],\n  [152, 'signal-152'],\n  [153, 'signal-153'],\n  [154, 'signal-154'],\n  [155, 'signal-155'],\n  [156, 'signal-156'],\n  [157, 'signal-157'],\n  [158, 'signal-158'],\n  [159, 'signal-159'],\n  [160, 'signal-160'],\n  [161, 'signal-161'],\n  [162, 'signal-162'],\n  [163, 'signal-163'],\n  [164, 'signal-164'],\n  [165, 'signal-165'],\n  [166, 'signal-166'],\n  [167, 'signal-167'],\n  [168, 'signal-168'],\n  [169, 'signal-169'],\n  [170, 'signal-170'],\n  [171, 'signal-171'],\n  [172, 'signal-172'],\n  [173, 'signal-173'],\n  [174, 'signal-174'],\n  [175, 'signal-175'],\n  [176, 'signal-176'],\n  [177, 'signal-177'],\n  [178, 'signal-178'],\n  [179, 'signal-179'],\n  [180, 'signal-180'],\n  [181, 'signal-181'],\n  [182, 'signal-182'],\n  [183, 'signal-183'],\n  [184, 'signal-184'],\n  [185, 'signal-185'],\n  [186, 'signal-186'],\n  [187, 'signal-187'],\n  [188, 'signal-188'],\n  [189, 'signal-189'],\n  [190, 'signal-190'],\n  [191, 'signal-191'],\n  [192, 'signal-192'],\n  [193, 'signal-193'],\n  [194, 'signal-194'],\n  [195, 'signal-195'],\n  [196, 'signal-196'],\n  [197, 'signal-197'],\n  [198, 'signal-198'],\n  [199, 'signal-199'],\n  [200, 'signal-200'],\n  [201, 'signal-201'],\n  [202, 'signal-202'],\n  [203, 'signal-203'],\n  [204, 'signal-204'],\n  [205, 'signal-205'],\n  [206, 'signal-206'],\n  [207, 'signal-207'],\n  [208, 'signal-208'],\n  [209, 'signal-209'],\n  [210, 'signal-210'],\n  [211, 'signal-211'],\n  [212, 'signal-212'],\n  [213, 'signal-213'],\n  [214, 'signal-214'],\n  [215, 'signal-215'],\n  [216, 'signal-216'],\n  [217, 'signal-217'],\n  [218, 'signal-218'],\n  [219, 'signal-219'],\n  [220, 'signal-220'],\n  [221, 'signal-221'],\n  [222, 'signal-222'],\n  [223, 'signal-223'],\n  [224, 'signal-224'],\n  [225, 'signal-225'],\n  [226, 'signal-226'],\n  [227, 'signal-227'],\n  [228, 'signal-228'],\n  [229, 'signal-229'],\n  [230, 'signal-230'],\n  [231, 'signal-231'],\n  [232, 'signal-232'],\n  [233, 'signal-233'],\n  [234, 'signal-234'],\n  [235, 'signal-235'],\n  [236, 'signal-236'],\n  [237, 'signal-237'],\n  [238, 'signal-238'],\n  [239, 'signal-239'],\n  [240, 'signal-240'],\n  [241, 'signal-241'],\n  [242, 'signal-242'],\n  [243, 'signal-243'],\n  [244, 'signal-244'],\n  [245, 'signal-245'],\n  [246, 'signal-246'],\n  [247, 'signal-247'],\n  [248, 'signal-248'],\n  [249, 'signal-249'],\n  [250, 'signal-250'],\n  [251, 'signal-251'],\n  [252, 'signal-252'],\n  [253, 'signal-253'],\n  [254, 'signal-254'],\n  [255, 'signal-255'],\n  [256, 'signal-256'],\n  [257, 'signal-257'],\n  [258, 'signal-258'],\n  [259, 'signal-259'],\n  [260, 'signal-260'],\n  [261, 'signal-261'],\n  [262, 'signal-262'],\n  [263, 'signal-263'],\n  [264, 'signal-264'],\n  [265, 'signal-265'],\n  [266, 'signal-266'],\n  [267, 'signal-267'],\n  [268, 'signal-268'],\n  [269, 'signal-269'],\n  [270, 'signal-270'],\n  [271, 'signal-271'],\n  [272, 'signal-272'],\n  [273, 'signal-273'],\n  [274, 'signal-274'],\n  [275, 'signal-275'],\n  [276, 'signal-276'],\n  [277, 'signal-277'],\n  [278, 'signal-278'],\n  [279, 'signal-279'],\n  [280, 'signal-280'],\n  [281, 'signal-281'],\n  [282, 'signal-282'],\n  [283, 'signal-283'],\n  [284, 'signal-284'],\n  [285, 'signal-285'],\n  [286, 'signal-286'],\n  [287, 'signal-287'],\n  [288, 'signal-288'],\n  [289, 'signal-289'],\n  [290, 'signal-290'],\n  [291, 'signal-291'],\n  [292, 'signal-292'],\n  [293, 'signal-293'],\n  [294, 'signal-294'],\n  [295, 'signal-295'],\n  [296, 'signal-296'],\n  [297, 'signal-297'],\n  [298, 'signal-298'],\n  [299, 'signal-299'],\n  [300, 'signal-300'],\n  [301, 'signal-301'],\n  [302, 'signal-302'],\n  [303, 'signal-303'],\n  [304, 'signal-304'],\n  [305, 'signal-305'],\n  [306, 'signal-306'],\n  [307, 'signal-307'],\n  [308, 'signal-308'],\n  [309, 'signal-309'],\n  [310, 'signal-310'],\n  [311, 'signal-311'],\n  [312, 'signal-312'],\n  [313, 'signal-313'],\n  [314, 'signal-314'],\n  [315, 'signal-315'],\n  [316, 'signal-316'],\n  [317, 'signal-317'],\n  [318, 'signal-318'],\n  [319, 'signal-319'],\n  [320, 'signal-320'],\n  [321, 'signal-321'],\n  [322, 'signal-322'],\n  [323, 'signal-323'],\n  [324, 'signal-324'],\n  [325, 'signal-325'],\n  [326, 'signal-326'],\n  [327, 'signal-327'],\n  [328, 'signal-328'],\n  [329, 'signal-329'],\n  [330, 'signal-330'],\n  [331, 'signal-331'],\n  [332, 'signal-332'],\n  [333, 'signal-333'],\n  [334, 'signal-334'],\n  [335, 'signal-335'],\n  [336, 'signal-336'],\n  [337, 'signal-337'],\n  [338, 'signal-338'],\n  [339, 'signal-339'],\n  [340, 'signal-340'],\n  [341, 'signal-341'],\n  [342, 'signal-342'],\n  [343, 'signal-343'],\n  [344, 'signal-344'],\n  [345, 'signal-345'],\n  [346, 'signal-346'],\n  [347, 'signal-347'],\n  [348, 'signal-348'],\n  [349, 'signal-349'],\n  [350, 'signal-350'],\n  [351, 'signal-351'],\n  [352, 'signal-352'],\n  [353, 'signal-353'],\n  [354, 'signal-354'],\n  [355, 'signal-355'],\n  [356, 'signal-356'],\n  [357, 'signal-357'],\n  [358, 'signal-358'],\n  [359, 'signal-359'],\n  [360, 'signal-360'],\n  [361, 'signal-361'],\n  [362, 'signal-362'],\n  [363, 'signal-363'],\n  [364, 'signal-364'],\n  [365, 'signal-365'],\n  [366, 'signal-366'],\n  [367, 'signal-367'],\n  [368, 'signal-368'],\n  [369, 'signal-369'],\n  [370, 'signal-370'],\n  [371, 'signal-371'],\n  [372, 'signal-372'],\n  [373, 'signal-373'],\n  [374, 'signal-374'],\n  [375, 'signal-375'],\n  [376, 'signal-376'],\n  [377, 'signal-377'],\n  [378, 'signal-378'],\n  [379, 'signal-379'],\n  [380, 'signal-380'],\n  [381, 'signal-381'],\n  [382, 'signal-382'],\n  [383, 'signal-383'],\n  [384, 'signal-384'],\n  [385, 'signal-385'],\n  [386, 'signal-386'],\n  [387, 'signal-387'],\n  [388, 'signal-388'],\n  [389, 'signal-389'],\n  [390, 'signal-390'],\n  [391, 'signal-391'],\n  [392, 'signal-392'],\n  [393, 'signal-393'],\n  [394, 'signal-394'],\n  [395, 'signal-395'],\n  [396, 'signal-396'],\n  [397, 'signal-397'],\n  [398, 'signal-398'],\n  [399, 'signal-399'],\n  [400, 'signal-400'],\n  [401, 'signal-401'],\n  [402, 'signal-402'],\n  [403, 'signal-403'],\n  [404, 'signal-404'],\n]);\nexport function protocolName(code) {\n  if (!Number.isInteger(code) || !protocolNames.has(code)) throw new RangeError('Unknown code');\n  return protocolNames.get(code);\n}\n"
+        },
+        {
+          "path": "docs/decision.md",
+          "content": "A tabela é uma única fonte de códigos estáveis do protocolo sintético. Mantê-la em um arquivo facilita revisar duplicatas e cobertura; o consumidor recebe somente a consulta protocolName. Verifique limites e unicidade dos 405 códigos; não separar blocos arbitrários por tamanho.\n"
+        }
+      ],
+      "expected": [
+        {
+          "id": "Q-COHESION",
+          "status": "satisfied",
+          "rationale": "O volume vem de dados coesos de um único protocolo, com decisão explícita e função de consulta mínima. Separar por contagem de linhas esconderia a tabela completa; conferir unicidade, limites e contrato da consulta é a verificação pertinente."
+        }
+      ]
+    },
+    {
+      "id": "tests-self-fulfilling",
+      "category": "tests",
+      "prompt": "Revise se a asserção detectaria uma implementação que sempre devolve true. Explique o oráculo sem reproduzir a lógica sob teste.",
+      "files": [
+        {
+          "path": "src/is-even.js",
+          "content": "export function isEven(value) { return true; }\n"
+        },
+        {
+          "path": "tests/is-even.test.js",
+          "content": "import assert from 'node:assert/strict';\nimport { isEven } from '../src/is-even.js';\nassert.equal(isEven(3), isEven(3));\n"
+        }
+      ],
+      "expected": [
+        {
+          "id": "Q-TESTABILITY",
+          "status": "issue",
+          "rationale": "A asserção compara a função com ela mesma; a implementação sempre true passa mesmo para 3. Um resultado esperado independente, false para número ímpar, expõe o defeito."
+        }
+      ]
+    },
+    {
+      "id": "tests-independent-oracle",
+      "category": "tests",
+      "prompt": "Revise a evidência de casos pares e ímpares. Verifique se uma implementação constante seria percebida pelo teste.",
+      "files": [
+        {
+          "path": "src/is-even.js",
+          "content": "export function isEven(value) { return value % 2 === 0; }\n"
+        },
+        {
+          "path": "tests/is-even.test.js",
+          "content": "import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { isEven } from '../src/is-even.js';\ntest('distinguishes parity at the public boundary', () => {\n  assert.equal(isEven(2), true);\n  assert.equal(isEven(3), false);\n  assert.equal(isEven(0), true);\n  assert.equal(isEven(-3), false);\n});\n"
+        }
+      ],
+      "expected": [
+        {
+          "id": "Q-TESTABILITY",
+          "status": "satisfied",
+          "rationale": "Resultados literais derivam da definição de paridade, sem chamar a implementação para calcular o esperado. Sempre true falha em 3 e -3; sempre false falha em 2 e 0."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,237 @@
+{
+  "aportes_por_mes": [
+    {
+      "mes": "2026-05",
+      "valor": "0.00"
+    },
+    {
+      "mes": "2026-06",
+      "valor": "0.00"
+    }
+  ],
+  "categorias_novas_no_mes": null,
+  "compatibilidade": "1 livro(s) com cabecalho antigo (sem coluna `tipo`): todas as linhas deles lidas como despesa",
+  "criterios": {
+    "aporte": "despesa na categoria 'Investimentos' (sem caixa nem acento) e aporte: transferencia para o proprio patrimonio, fora das despesas e de toda a analise por categoria; aparece em `investido_no_mes` e em `aportes_por_mes`",
+    "base_da_media": "media historica = SO os meses anteriores ao analisado; o mes nao entra na base contra a qual e medido",
+    "categorias": "a quebra por categoria e so de DESPESA; receita entra so na visao do mes",
+    "comparacao_com_mes_anterior": "a poupanca (`poupanca_delta`) e o saldo que mede o mes; a variacao do caixa e poupanca_delta - investido_delta + resgatado_delta, entao queda do caixa explicada por aporte maior nao e piora",
+    "desvio": "amostral (n-1), a definicao unica do estatistica.py",
+    "fora_do_padrao": "acima de media + 1 desvio OU mais de 30% acima da media; o simetrico marca o desvio para baixo",
+    "limitrofe": "nao ha rotulo de limitrofe: a skill chama os limiares de heuristica de apresentacao mas nao define a banda, entao o script devolve `folga_sobre_o_limite` (menor distancia ate um limiar atingido) e a leitura fica com quem narra",
+    "meses_sem_gasto_na_categoria": "contam como R$ 0,00 na media, para que o n seja o mesmo em toda categoria e 'media de N meses' seja verdade em toda linha",
+    "precisao": "as comparacoes rodam na precisao cheia e o arredondamento para 2 casas acontece so na exibicao; num caso muito justo o `valor` pode sair igual ao limite exibido e ainda assim ter cruzado o limite real",
+    "resgate": "receita na categoria 'Investimentos' (sem caixa nem acento) e resgate: transferencia de volta do proprio patrimonio, fora das receitas e da taxa de poupanca; aparece em `resgatado_no_mes` e em `resgates_por_mes`",
+    "taxa_de_poupanca": "(receitas - despesas) / receitas: o aporte conta como poupanca e o resgate nao conta como renda; o saldo em caixa e receitas + resgates - despesas - aportes, porque o resgate entrou na conta e o aporte saiu dela",
+    "tendencia": "monotonicidade estrita nos ultimos 3 meses da janela; qualquer zigue-zague e 'estavel'"
+  },
+  "evolucao_por_categoria": [
+    {
+      "categoria": "Moradia",
+      "serie": [
+        {
+          "mes": "2026-05",
+          "valor": "2200.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "2714.20"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 2",
+      "total_na_janela": "4914.20"
+    },
+    {
+      "categoria": "Alimentação",
+      "serie": [
+        {
+          "mes": "2026-05",
+          "valor": "300.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "2640.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 2",
+      "total_na_janela": "2940.00"
+    },
+    {
+      "categoria": "Saúde",
+      "serie": [
+        {
+          "mes": "2026-05",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "480.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 2",
+      "total_na_janela": "480.00"
+    },
+    {
+      "categoria": "Educação",
+      "serie": [
+        {
+          "mes": "2026-05",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "400.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 2",
+      "total_na_janela": "400.00"
+    },
+    {
+      "categoria": "Casa",
+      "serie": [
+        {
+          "mes": "2026-05",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "350.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 2",
+      "total_na_janela": "350.00"
+    },
+    {
+      "categoria": "Lazer",
+      "serie": [
+        {
+          "mes": "2026-05",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "320.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 2",
+      "total_na_janela": "320.00"
+    },
+    {
+      "categoria": "Transporte",
+      "serie": [
+        {
+          "mes": "2026-05",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "289.00"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 2",
+      "total_na_janela": "289.00"
+    },
+    {
+      "categoria": "Assinaturas",
+      "serie": [
+        {
+          "mes": "2026-05",
+          "valor": "0.00"
+        },
+        {
+          "mes": "2026-06",
+          "valor": "66.80"
+        }
+      ],
+      "tendencia": null,
+      "tendencia_motivo": "tendencia exige 3 meses de janela; ha 2",
+      "total_na_janela": "66.80"
+    }
+  ],
+  "janela": [
+    "2026-05",
+    "2026-06"
+  ],
+  "maiores_mudancas": {
+    "mais_cairam": [],
+    "mais_subiram": [
+      {
+        "categoria": "Alimentação",
+        "delta": "2340.00",
+        "valor": "2640.00",
+        "valor_anterior": "300.00"
+      },
+      {
+        "categoria": "Moradia",
+        "delta": "514.20",
+        "valor": "2714.20",
+        "valor_anterior": "2200.00"
+      },
+      {
+        "categoria": "Saúde",
+        "delta": "480.00",
+        "valor": "480.00",
+        "valor_anterior": "0.00"
+      }
+    ],
+    "mes_anterior": "2026-05"
+  },
+  "mes": "2026-06",
+  "meses_de_base": [
+    "2026-05"
+  ],
+  "recorrencias_x_realidade": null,
+  "resgates_por_mes": [
+    {
+      "mes": "2026-05",
+      "valor": "0.00"
+    },
+    {
+      "mes": "2026-06",
+      "valor": "0.00"
+    }
+  ],
+  "secoes_puladas": {
+    "recorrencias_x_realidade": "nao ha recorrencias cadastradas (recorrencias.csv nao informado)",
+    "variacoes_fora_do_padrao": "a media historica exige 2 meses ANTERIORES ao analisado (3 meses de dados); a janela tem 2"
+  },
+  "simplificacoes": [
+    "'mes anterior' e o mes imediatamente anterior PRESENTE nos livros informados, que pode nao ser o mes calendario anterior se houver buraco na janela",
+    "mes que nao veio nos livros nao entra na janela nem vira R$ 0,00 — a base e o que foi informado, e nao um calendario preenchido por conta propria"
+  ],
+  "variacoes_fora_do_padrao": null,
+  "visao_do_mes": {
+    "comparacao_com_mes_anterior": {
+      "despesas_anterior": "2500.00",
+      "despesas_delta": "4760.00",
+      "investido_anterior": "0.00",
+      "investido_delta": "0.00",
+      "mes_anterior": "2026-05",
+      "poupanca_anterior": "-2500.00",
+      "poupanca_delta": "3740.00",
+      "receitas_anterior": "0.00",
+      "receitas_delta": "8500.00",
+      "resgatado_anterior": "0.00",
+      "resgatado_delta": "0.00",
+      "saldo_em_caixa_anterior": "-2500.00",
+      "saldo_em_caixa_delta": "3740.00",
+      "taxa_de_poupanca_anterior_motivo": "mes sem receita lancada (resgate nao conta: e dinheiro do proprio patrimonio voltando). A taxa exige dividir pelas receitas, e 0% seria uma afirmacao falsa em vez de uma ausencia",
+      "taxa_de_poupanca_anterior_pct": null
+    },
+    "despesas": "7260.00",
+    "investido_no_mes": "0.00",
+    "mes": "2026-06",
+    "poupanca_do_mes": "1240.00",
+    "receitas": "8500.00",
+    "resgatado_no_mes": "0.00",
+    "saldo_em_caixa": "1240.00",
+    "taxa_de_poupanca_pct": "14.59"
+  }
+}

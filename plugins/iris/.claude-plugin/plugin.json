@@ -1,0 +1,17 @@
+{
+  "name": "iris",
+  "version": "0.1.2",
+  "description": "Íris — prompts e briefs de delegação no tamanho certo para o modelo de destino (Claude, GPT/Codex, Gemini ou desconhecido), com orientações oficiais datadas e fontes citadas.",
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "repository": "https://github.com/sallzzbr/hefesto-publico",
+  "license": "MIT",
+  "keywords": [
+    "prompts",
+    "agentes",
+    "delegacao",
+    "portuguese"
+  ]
+}

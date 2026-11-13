@@ -1,0 +1,9 @@
+data;tipo;categoria;descricao;valor;metodo
+2026-06-01;receita;Salário;Salário do mês;8500,00;transferência
+2026-06-03;despesa;Alimentação;Compra no mercado;352,90;crédito
+2026-06-05;despesa;Transporte;Gasolina;200,00;débito
+2026-06-10;despesa;Moradia;Conta de luz;187,45;pix
+2026-06-10;despesa;Moradia;Aluguel;2200,00;transferência
+2026-06-12;despesa;Assinaturas;Netflix;44,90;crédito
+2026-06-15;receita;Freela;Projeto X;1200,00;pix
+2026-06-20;despesa;Alimentação;Feira;98,30;débito

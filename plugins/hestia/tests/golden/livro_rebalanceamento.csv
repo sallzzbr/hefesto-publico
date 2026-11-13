@@ -1,0 +1,5 @@
+data;tipo;categoria;descricao;valor;metodo
+2026-08-01;receita;Salário;Salário do mês;8500,00;transferência
+2026-08-05;despesa;Moradia;Aluguel;3000,00;pix
+2026-08-10;receita;Investimentos;Resgate CDB Banco X;10000,00;transferência
+2026-08-11;despesa;Investimentos;Aporte Tesouro IPCA;10000,00;transferência

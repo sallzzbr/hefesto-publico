@@ -1,0 +1,39 @@
+{
+  "aportes": [
+    {
+      "data": "2026-07-06",
+      "descricao": "Aporte CDB Banco X",
+      "valor": "2000.00"
+    }
+  ],
+  "criterios": {
+    "aporte": "despesa na categoria 'Investimentos' (sem caixa nem acento) e aporte: transferencia para o proprio patrimonio, fora de `despesas`, da quebra por categoria e das maiores despesas, somada em `investido_no_mes`",
+    "resgate": "receita na categoria 'Investimentos' (sem caixa nem acento) e resgate: transferencia de volta do proprio patrimonio, fora de `receitas` e da taxa de poupanca, somada em `resgatado_no_mes`",
+    "saldo_em_caixa": "receitas + resgatado_no_mes - despesas - investido_no_mes: o resgate entrou na conta e o aporte saiu dela",
+    "taxa_de_poupanca": "poupanca_do_mes / receitas, com poupanca_do_mes = receitas - despesas: o aporte conta como poupanca e o resgate nao conta como renda"
+  },
+  "despesas": "3000.00",
+  "despesas_por_categoria": [
+    {
+      "categoria": "Moradia",
+      "pct_das_despesas": "100.00",
+      "valor": "3000.00"
+    }
+  ],
+  "investido_no_mes": "2000.00",
+  "lancamentos": 3,
+  "maiores_despesas": [
+    {
+      "categoria": "Moradia",
+      "data": "2026-07-05",
+      "descricao": "Aluguel",
+      "valor": "3000.00"
+    }
+  ],
+  "poupanca_do_mes": "5500.00",
+  "receitas": "8500.00",
+  "resgatado_no_mes": "0.00",
+  "resgates": [],
+  "saldo_em_caixa": "3500.00",
+  "taxa_de_poupanca_pct": "64.71"
+}

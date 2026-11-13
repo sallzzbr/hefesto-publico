@@ -1,0 +1,4 @@
+{
+  "formato": "^[a-z0-9][a-z0-9_-]{0,80}$",
+  "reservados": ["item", "impressoes", "cliques", "views", "compras", "taxa_compra", "fatia_impressoes", "sinal_vitrine", "bloco"]
+}

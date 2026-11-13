@@ -1,0 +1,1 @@
+Monta o brief de um subagente revisor rodando em opus para revisar a mudança em src/fatura.ts contra os critérios C1 (total com desconto), C2 (arredondamento bancário) e C3 (moeda BRL). Acho que o bug está no arredondamento.

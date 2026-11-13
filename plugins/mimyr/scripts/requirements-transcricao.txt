@@ -1,0 +1,4 @@
+# Extras para o pipeline de transcrição (extrair_audio.py + transcrever.py).
+# Pesado: torch + Whisper; roda melhor com GPU (CUDA). Exige ffmpeg no PATH.
+openai-whisper>=20250625
+torch>=2.6

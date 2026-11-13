@@ -1,0 +1,31 @@
+{
+  "aviso": "Simulacao e hipotese, nao promessa. Rentabilidade passada nao garante futura.",
+  "cenarios": [
+    {
+      "cenario": "cenario_1",
+      "imposto": {
+        "criterio": "IR pela idade de CADA aporte; IOF antes do IR",
+        "iof": "0.00",
+        "iof_inalcancavel_aqui": "a tranche mais nova tem ~30 dias, e o IOF ja zerou no 30o dia",
+        "ir": "0.00",
+        "regime": "lci",
+        "simplificacao": "idade convertida por 365/12 dias/mes; o calculo real usa dias corridos entre a data de cada aporte e a do resgate",
+        "total": "0.00",
+        "tranches_tributadas": 60
+      },
+      "montante_final_bruto": "77354.08",
+      "montante_final_liquido": "77354.08",
+      "rendimento_bruto": "19354.08",
+      "taxa_anual_pct": "10.00",
+      "taxa_mensal_equivalente_pct": "0.7974",
+      "total_aportado": "58000.00"
+    }
+  ],
+  "modo": "projecao",
+  "premissas": {
+    "aporte_mensal": "800.00",
+    "capital_inicial": "10000.00",
+    "meses": 60,
+    "regime": "aporte postecipado (fim do mes), taxa mensal equivalente"
+  }
+}

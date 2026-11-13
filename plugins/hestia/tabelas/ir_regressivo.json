@@ -1,0 +1,13 @@
+{
+  "_comment": "Tabela regressiva de IR sobre rendimento de renda fixa tributada (CDB, Tesouro Direto, debenture comum, LC). E REGRA, nao premissa: por isso mora no plugin e nao chega por parametro. Mora em JSON e nao em codigo porque muda por LEI sem o codigo mudar — assim a alteracao aparece no diff e passa pelo golden test.",
+  "_ao_atualizar": "Mude `vigencia_inicio`, some a faixa nova e BUMPE a versao do plugin. O golden test vai reprovar: isso e o esperado, e o diff dele e a revisao que voce quer ler. Nao regrave o golden sem conferir.",
+  "vigencia_inicio": "2005-01-01",
+  "fonte": "Lei 11.033/2004, art. 1o",
+  "base": "rendimento, apos IOF quando houver",
+  "faixas": [
+    { "ate_dias": 180, "aliquota_pct": "22.5" },
+    { "ate_dias": 360, "aliquota_pct": "20.0" },
+    { "ate_dias": 720, "aliquota_pct": "17.5" },
+    { "ate_dias": null, "aliquota_pct": "15.0" }
+  ]
+}

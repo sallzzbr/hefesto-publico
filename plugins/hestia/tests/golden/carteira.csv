@@ -1,0 +1,6 @@
+ativo;classe;instituicao;indexador;vencimento;quantidade;saldo;atualizado_em
+CDB Sintetico A;renda-fixa;Instituicao Sintetica;100% CDI;2027-06-30;;1000,00;2026-03-31
+ETF SINTETICO B;bolsa;Instituicao Sintetica;;;10;2000,00;2026-03-31
+Titulo Sintetico C;renda-fixa;Instituicao Sintetica;IPCA+4;2029-05-15;;3000,00;2026-03-31
+Fundo Sintetico D;fundo;Instituicao Sintetica;;;;0,00;2026-03-31
+LCI Sintetica E;renda-fixa;Instituicao Sintetica;90% CDI;2026-12-01;;4000,00;2026-03-31

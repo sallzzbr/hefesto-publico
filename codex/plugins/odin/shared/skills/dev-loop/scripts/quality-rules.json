@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "profiles": {
+    "base": ["Q-NAMES", "Q-COMMENTS", "Q-BOUNDARIES", "Q-TESTABILITY", "Q-COHESION", "Q-ERRORS", "Q-PROJECT"],
+    "typescript": ["TS-TYPES", "TS-IMPORTS", "TS-ASYNC"],
+    "frontend": ["FE-STATE", "FE-EFFECTS", "FE-ACCESSIBILITY"],
+    "backend": ["BE-BOUNDARIES", "BE-CONSISTENCY", "BE-MIGRATIONS"]
+  },
+  "nonWaivable": ["Q-NAMES", "Q-COMMENTS", "Q-TESTABILITY", "Q-COHESION", "Q-PROJECT"]
+}

@@ -1,0 +1,298 @@
+# Hefesto
+
+[![CI](https://github.com/sallzzbr/hefesto-publico/actions/workflows/ci.yml/badge.svg)](https://github.com/sallzzbr/hefesto-publico/actions/workflows/ci.yml)
+
+> Forja de skills reutilizáveis para Claude Code e Codex. O nome vem do deus grego da metalurgia e do artesanato — este repo é onde as ferramentas são marteladas, afiadas e distribuídas.
+
+O repo é um **marketplace** que publica oito plugins: **hefesto** (a forja de plugins), **bragir** (voz, escrita e editorial), **mimyr** (cursos e didática), **hestia** (economia doméstica), **hermes** (marketing de performance e criativos), **odin** (desafios pelo double diamond), **titbits** (game design, GDD vivo e produção: 11 skills; dados privados fora do pacote) e **iris** (prompts e briefs de delegação adequados ao modelo de destino).
+
+> **Migração v3**: as skills de voz (`escrever-como-autor`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
+
+> Snapshot 6.0.1: oito plugins, 64 skills Claude e 66 skills Codex, com Iris 0.1.2. A instalação por tag abaixo requer esta versão publicada no espelho. O Bragir usa `escrever-como-autor` e exige perfil preenchido fora do pacote.
+
+## Como instalar no Codex
+
+A distribuição nativa Codex contém os mesmos oito plugins da distribuição Claude, com manifestos e runtime próprios em [`codex/`](codex/README.md). São 66 skills: as 64 da distribuição Claude e duas entradas do Odin que adaptam comandos. Para instalar a release publicada:
+
+```sh
+git clone --branch v6.0.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+cd hefesto-publico
+codex plugin marketplace add ./codex
+codex plugin add hefesto@hefesto
+```
+
+Troque o nome antes de `@` para instalar outro plugin. Bragir é a dependência de voz de Mimyr. Abra uma nova sessão para carregar as skills. [Instalação, dependências e uso Codex](codex/README.md).
+
+## Como instalar no Claude Code
+
+Dentro do Claude Code:
+
+    /plugin marketplace add sallzzbr/hefesto-publico
+    /plugin install hefesto@hefesto     # forja de plugins
+    /plugin install bragir@hefesto      # voz e escrita
+    /plugin install mimyr@hefesto       # cursos e didática
+    /plugin install hestia@hefesto      # economia doméstica
+    /plugin install hermes@hefesto      # marketing de performance e criativos
+    /plugin install odin@hefesto        # double diamond de desafios
+    /plugin install titbits@hefesto     # game design, GDD vivo e produção
+    /plugin install iris@hefesto        # prompts adequados ao modelo de destino
+
+A primeira linha registra o marketplace; as demais instalam os plugins que você quiser (sintaxe `<plugin>@<marketplace>`). Verifique com `/plugin`.
+
+## Plugin hefesto — forja de plugins
+
+| Skill | O que faz |
+|---|---|
+| `criar-plugin` | Scaffolda um plugin novo num repo-marketplace (manifesto, README, registro no `marketplace.json`). Oferece scaffoldar o próprio marketplace se não existir. |
+| `criar-skill` | Scaffolda um SKILL.md com frontmatter válido, gatilhos concretos e corpo no padrão da casa. |
+| `validar-plugin` | Valida marketplace e plugins via script determinístico (`validar.mjs`): manifestos, versões em sincronia, frontmatter, portabilidade de paths. |
+| `versionar-plugin` | Bump semver sincronizado nos três lugares (plugin.json, entrada e metadata do marketplace.json). |
+
+Cada skill tem um command atalho homônimo: `/criar-plugin`, `/criar-skill`, `/validar-plugin`, `/versionar-plugin`.
+
+A partir da 4.1.0, a forja exige o plugin **iris**, declarado em `dependencies` no `plugin.json`: no Claude Code, instalar `hefesto` instala também a `iris`, e desativar a `iris` desativa a forja. `criar-plugin` usa `iris:delegar-agente` ao escrever agentes e `criar-skill` usa `iris:escrever-prompt` para calibrar corpo e `description`. A distribuição Codex ainda não declara essa dependência.
+
+## Plugin bragir — voz, escrita e editorial
+
+| Skill | O que faz |
+|---|---|
+| `escrever-como-autor` | Escreve na voz do autor. Resolve o perfil na ordem `local_voz` (CLAUDE.md do workspace) → `local_voz` (`~/.claude/bragir/defaults.md`, se configurado) → `./perfil-de-voz.md` (projeto) → `./voz/perfil-de-voz.md` (workspace de conteúdo) → `./voice-profile.md` (legado, só leitura) → `~/.claude/bragir/perfil-de-voz.md` (perfil pessoal). Perfil só-scaffold conta como ausente. Descobre personas em `./personas/`. |
+| `analisar-voz` | Analisa documentos de um autor e grava o perfil no `local_voz` resolvido pela mesma cadeia, até o perfil pessoal `~/.claude/bragir/perfil-de-voz.md`, nunca no plugin. Antes de sobrescrever, anuncia destino e nível e pede ok. |
+| `revisar-naturalidade` | Revisa ritmo, clareza e fidelidade à voz em rascunhos, preservando fatos e incertezas. Integra a escrita de artigos e posts e pode ser chamada isoladamente. |
+| `gerenciar-personas` | Cria, lista e edita personas de audiência em `./personas/` do projeto atual. |
+| `planejar-agenda` | Planeja o ciclo do calendário editorial (12 slots, 3 posts/semana) a partir de ideias e rascunhos do workspace. Sem a estrutura no cwd, PARA. |
+| `analisar-metricas` | Analisa o CSV de métricas do workspace, ranqueia posts e gera relatório datado; propõe aprendizados para o perfil de voz. Só leitura no CSV. |
+| `mapear-perfil-profissional` | Mapear Perfil Profissional. |
+| `avaliar-vagas` | Avaliar Vagas. |
+| `revisar-linkedin` | Revisar LinkedIn. |
+| `curar-portfolio` | Curar Portfólio. |
+| `preparar-candidatura` | Preparar Candidatura. |
+| `direcionar-comunicacao-visual` | Direcionar Comunicação Visual. |
+
+### Como usar
+
+- "Escreve um post sobre X na minha voz" → aciona `escrever-como-autor`
+- "Agora pensando no meu cliente X" → a skill procura `./personas/<nome>.md` no projeto. Se não existir, oferece criar.
+- "Cria uma persona nova pra esse projeto" → aciona `gerenciar-personas`
+- "Analisa esses artigos e posts e gera meu perfil de voz" → aciona `analisar-voz` (DOCX requer leitor compatível com o runtime)
+- "Revisa a naturalidade desse rascunho, preservando minha voz" → aciona `revisar-naturalidade`
+
+### Onde ficam as personas
+
+Personas são **do projeto**, não do plugin. A skill procura nesta ordem no diretório atual:
+
+1. `./personas/<nome>.md` (preferido — um arquivo por persona)
+2. `./personas.md` (fallback — tudo num arquivo)
+
+Se não existir, a skill se oferece pra criar via `gerenciar-personas`. Cada projeto tem suas próprias personas sem editar o plugin.
+
+### Onde fica o perfil de voz
+
+Mesma filosofia das personas. `escrever-como-autor` resolve o perfil nesta ordem:
+
+1. Campo `local_voz` na seção `## Paths do workspace` do `CLAUDE.md` do projeto, se declarado.
+2. Campo `local_voz` nos defaults do usuário (`~/.claude/bragir/defaults.md`), se você o configurou.
+3. `./perfil-de-voz.md` no cwd: perfil específico do projeto. Permite tunar a voz por contexto.
+4. `./voz/perfil-de-voz.md` no cwd: convenção de workspaces de conteúdo que organizam a voz em `voz/` (ex.: o repo bragir).
+5. `./voice-profile.md` no cwd: nome legado, só leitura; a skill oferece renomear.
+6. `~/.claude/bragir/perfil-de-voz.md`: perfil pessoal, default documentado, fora do plugin. Sobrevive à atualização e vale sem registro nos defaults.
+
+Perfil que seja só scaffold (placeholders `<!-- -->`) conta como **ausente** e a cadeia segue para o próximo nível: um workspace recém-scaffoldado nunca escreve com perfil vazio.
+
+`analisar-voz` grava no `local_voz` que a mesma cadeia resolve, até o nível 6: sem `local_voz` configurado nem perfil no projeto, o destino é o perfil pessoal. Antes de sobrescrever um perfil existente, a skill anuncia o destino e de qual nível ele veio e pede ok. Para criar o perfil de um projeto que ainda não tem nenhum, peça explicitamente: a skill grava em `./perfil-de-voz.md`. Ela não registra `local_voz` nos defaults, porque esse registro prevaleceria sobre o perfil de todo projeto sem `local_voz` no `CLAUDE.md`. O pacote não contém perfil de voz. Sem perfil preenchido, a escrita para e oferece `analisar-voz`. Em sessão de nuvem, `~/.claude` não persiste entre sessões; lá só o perfil no projeto sobrevive.
+
+## Plugin mimyr — cursos e didática
+
+| Skill | O que faz |
+|---|---|
+| `gerar-curso` | Orquestra um mini-curso completo em `./courses/<curso>/`: fontes, personas, diagnósticos, módulos, capítulos, revisão e SEO. |
+| `gerar-modulo` | Gera um módulo (índice + capítulos) a partir de transcrições, docx e diagnósticos. |
+| `escrever-capitulo` | Escreve ou reescreve uma página de capítulo na voz do autor, com exercícios e checagem rápida. |
+| `revisar-capitulo` | Revisa um capítulo antes da publicação: voz, personas, estrutura, links, acessibilidade, SEO. |
+| `analise-de-aula` | Cruza docx + transcrição de uma unidade e produz diagnóstico pedagógico em `./diagnostics/`. |
+
+As skills operam sobre um **workspace de curso** (o repo mimyr é o canônico) e consomem o plugin `bragir` para voz e personas. O plugin também traz scripts Python (transcrição Whisper, extração de docx/áudio, checagens de acentos/SVG/SEO/a11y) com bootstrap de venv documentado — nada é instalado automaticamente. Detalhes em [plugins/mimyr/README.md](plugins/mimyr/README.md).
+
+Até a v3.1 do marketplace, essas skills eram locais do repo mimyr; foram promovidas a plugin na v3.2.
+
+## Plugin hestia — economia doméstica
+
+| Skill / Command | O que faz |
+|---|---|
+| `orcamento` (skill) | O livro: despesas E receitas em CSVs mensais (`AAAA-MM.csv`, coluna `tipo`) em `Financas/hestia/orcamento/` no Google Drive + cadastro `recorrencias.csv`. Somas do mês e do cadastro por script determinístico (`resumo_mes.py`, `recorrencias.py`), sob golden test. BRL na tela, formato cru no arquivo, confirmação antes de toda escrita, zero conselho de investimento. |
+| `analisar-gastos` (skill) | O entendimento: evolução por categoria, variações fora do padrão (média + desvio), recorrências × realidade — tudo por script determinístico (`scripts/gastos.py`), sob golden test. 100% leitura; descreve, não prescreve. |
+| `/hestia:lancar` | Registra despesa ou receita (evita categorias duplicadas, confirma antes de gravar). |
+| `/hestia:abrir-mes` | Lança recorrências em lote com confirmação única do efeito completo, journal e reconciliação. |
+| `/hestia:recorrencias` | Gerencia contas fixas, assinaturas e parcelamentos. |
+| `/hestia:status` | Receitas, despesas, saldo do mês, quebra por categoria e comprometido restante. |
+| `/hestia:analisar` | Análise histórica dos gastos — só leitura. |
+| `/hestia:fechar-mes` | Fechamento do mês com saldo e taxa de poupança — só leitura. |
+| `mercado` (skill) | Registra notas de supermercado (foto/PDF/ditado) em `Financas/hestia/mercado/`, com catálogo vivo de produtos (`produtos.csv`) e lançamento no orçamento agrupado por categoria — agrupamento, conferência de extração e total da nota por script determinístico (`nota.py`), sob golden test. |
+| `analisar-mercado` (skill) | Preço unitário por produto/marca ao longo do tempo, quantidades fora do padrão semanal, pesquisa de preço online sob demanda. 100% leitura. |
+| `/hestia:nota` | Registra uma nota de mercado e oferece o lançamento agrupado. |
+| `/hestia:catalogo` | Gerencia o catálogo de produtos. |
+| `/hestia:mercado` | Análise das compras de mercado — só leitura. |
+| `/hestia:preco` | Pesquisa preço online e compara com o que você pagou. |
+| `investimentos` (skill) | Carteira em `Financas/hestia/investimentos/`: movimentos, posições por print da corretora (com snapshots), ativos e metas. Antes/depois das posições por script determinístico (`posicoes.py`), sob golden test. Guardrail explícito: educa/calcula/simula, opina só sob pedido e só entre classes — nunca recomenda ativo. |
+| `analisar-investimentos` (skill) | Visão da carteira, proventos & rendimento, evolução, acompanhamento de metas e simulações em 3 cenários com premissas explícitas. |
+| `/hestia:carteira` | Registra movimentos e atualiza posições. |
+| `/hestia:meta` | Metas de investimento com planejamento de aporte. |
+| `/hestia:investimentos` | Análise dos investimentos — só leitura. |
+| `/hestia:simular` | Projeções e objetivos com juros compostos. |
+
+Requer um conector do Google Drive ativo. Era o plugin `economia-domestica` (skill `budget`); quem tem dados no caminho antigo (`Financas/economia-domestica/budget/`) é lido por fallback com oferta de migração. Filosofia da fase atual: entender antes de controlar — sem metas/limites impostos; sugestões virão do histórico. Detalhes em [plugins/hestia/README.md](plugins/hestia/README.md).
+
+## Plugin hermes — marketing de performance e criativos
+
+Metodologia de marketing de performance e criativos (Fase 7 do megaplano), em forma de plugin; a
+operação acoplada a dados e credenciais fica no workspace do consumidor.
+
+| Skill | O que faz |
+|---|---|
+| `criativo-fluxo` | Fluxo de estúdio multi-agente via harness `criativo.mjs` (2 estágios): rotas visuais em rough → humano escolhe VENDO → candidatos em paralelo → seleção → composição → pre-flight → crítica adversarial fail-closed → pacote com rationale. |
+| `direcao-de-arte` | Rotas e decisões estéticas ancoradas em referência, com princípios de design de estúdio. |
+| `sugerir-criativos` | Portfólio de 5 conceitos (escalar vencedor · dor · resultado · prova social · não testado). |
+| `validar-criativo` | Crítica adversarial avulsa (critérios A-Q: inclui PT-BR correto, legibilidade em thumbnail, completude da mensagem, voz da copy) — qualquer bloqueante = fail. |
+| `evoluir-vencedor` | 3 variações controladas de um vencedor sustentado — 1 variável por variação. |
+| `analisar-criativos` | Hook × framework × formato × tom vs performance + ângulos não testados. |
+| `unit-economics` | Margens, CAC breakeven/alvo, ROAS alvo + cenários de verba — fonte canônica das réguas. |
+| `pnl-mensal` | DRE simplificada do mês + CAC/ROAS reais vs régua. |
+| `fadiga-criativa` | Fadiga (→ ITERATE) × fraqueza (→ KILL) com plano por anúncio. |
+| `otimizar-verba` | Efficiency Score, realocação com a matemática à mostra, pacing. |
+| `auditoria-de-estrutura` | Scorecard de 9 dimensões da estrutura da conta. |
+| `auditoria-cro` | Auditoria CRO por modo (própria ou concorrente), celular a 390 px primeiro, checklist operacional de loja (margem por pedido, descontos, frete, prazo, site próprio) e estado do achado entre rodadas, com evidência e P1/P2/P3. |
+| `analise-diaria` | Ritual diário de leitura do portfólio: 3 níveis, série dia-a-dia, réguas por lookup, veredito fechado. |
+| `saude-do-funil` | Funil topo/meio/fundo com benchmark citado e gargalo nomeado. |
+| `sintese-semanal` | Fecha o briefing semanal: 3 ações ranqueadas com número-prova e próximo passo. |
+| `diagnostico-site-funil` | SITE ou ANÚNCIO? Comportamento × custo × registry × ledger, veredito por destino + AOV. |
+| `analisar-produto` | Algum eixo do perfil decide a venda? Teste de proporções com controle de confusão, junção de nomes, blocos Produzir/Investir/Rever, lacunas de portfólio e candidatas a re-estética. |
+| `regua-decisao` | Fonte única da árvore pausar / manter / escalar / reverter degrau, por script, com pisos de gasto, janela mínima de 7 dias e lucro do período ao lado do veredito. |
+
+4 agents de papel fixo (`diretor-de-arte` fable, `produtor-de-criativo`, `validador-de-criativo`,
+`mecanico-de-criativo`) com tiering por step whitelisted em código, no padrão odin/mimyr. Sem
+dependência do bragir (voz da marca ≠ voz pessoal — deliberado). Detalhes em
+[plugins/hermes/README.md](plugins/hermes/README.md).
+
+## Plugin odin
+
+**O plugin É o double diamond** — cada fase é uma skill; desafios (design challenges) documentados em `docs/desafios/` do projeto. Pro usuário, tudo é apresentado como uma jornada de 5 etapas (Descobrir · Definir · Explorar e especificar · Entregar · Acompanhar e aprender) roteada pelo `/desafio`.
+
+Até a v1.x o vocabulário era 'missão' (`/missao`, `docs/missoes/`). O `/desafio` detecta `docs/missoes/` legado e oferece migrar.
+
+Desde a v2.1, desafio novo passa por uma **régua de proporcionalidade**: a IA classifica o tamanho (risco, reversibilidade, urgência, pessoas afetadas, evidência disponível) e oferece o tier — `expresso` (uma conversa fecha problema, placar e hipóteses) ou `completo` (as 4 fases com gate em cada uma). O dono escolhe; o expresso não corta os invariantes (régua fixada, critério de sucesso e abandono, evidência antes de "validado").
+
+| Skill | O que faz |
+|---|---|
+| `descobrir` | Diamante 1 · DISCOVER: levanta evidência antes de opinião, mapeia o problema sem dossiê ainda. |
+| `definir` | Diamante 1 · DEFINE: fecha problema, placar e hipóteses a partir das descobertas. |
+| `desenvolver` | Diamante 2 · DEVELOP: ranqueia alavancas (aprendizado × reversibilidade) e fecha o plano da rodada. |
+| `entregar` | Diamante 2 · DELIVER: leva a entrega do plano — software ou não (dashboard, prompt, documento, processo, experimento) — até SPEC, execução validada e PR/publicação; retoma entrega interrompida sem duplicar trabalho. |
+| `dev-loop` | Diamante 2 · DELIVER (execução): roda o harness operário × arquiteto até a spec ficar verde. |
+| `acompanhar` | Cadência transversal: re-mede o placar e força perseverar/pivotar/encerrar. |
+
+Odin 3.0.0 (Codex 1.0.0) prepara um contrato obrigatório de qualidade na SPEC, com comandos,
+inventário e revisão independente por regra. SPECs anteriores devem ser completadas e executadas
+em run novo.
+
+Documentação completa em [plugins/odin/README.md](plugins/odin/README.md).
+
+A partir da 2.6.0, o odin exige o plugin **iris**, declarado em `dependencies` no `plugin.json`: no Claude Code, instalar `odin` instala também a `iris`, e desativar a `iris` desativa o odin. O planner da SPEC monta o brief do arquiteto com `iris:delegar-agente`. No Codex, a etapa de autoria verifica a disponibilidade real da skill Iris na sessão e bloqueia se ela estiver ausente, sem instalação automática. A distribuição Codex tem ainda as entradas nativas `desafio` e `defaults` (66 skills no total); veja [o contrato de dependência](codex/plugins/odin/DEPENDENCIAS.md).
+
+## Plugin titbits — game design e produção
+
+Veja [TitBits](plugins/titbits/README.md): onze skills, seis papéis, GDD vivo e histórico privado. Cada jogo é autossuficiente; acervo e Munin são opcionais.
+
+## Plugin iris — prompts adequados ao modelo de destino
+
+| Skill | O que faz |
+|---|---|
+| `escrever-prompt` | Escreve, melhora ou encurta um prompt para o modelo de destino (Claude, GPT/Codex, Gemini ou desconhecido), separando texto de configuração e citando a orientação oficial usada. |
+| `delegar-agente` | Monta brief de subagente, definição de agente ou prompt de continuidade para outra sessão, ajustado ao modelo que vai executar. |
+
+Orientações datadas, com fontes e procedimento de atualização: [plugins/iris/README.md](plugins/iris/README.md).
+
+## Desenvolvimento local
+
+    git clone git@github.com:sallzzbr/hefesto-publico.git
+    # No Claude Code, adicione pelo caminho absoluto do clone (ajuste ao seu OS):
+    /plugin marketplace add /caminho/para/hefesto-publico
+
+### Verificação
+
+    npm run validar            # validador de marketplace/plugins
+    npm test                   # as suítes node (todo plugin com tests/) + as pytest
+    npm run cobertura:hestia   # piso de cobertura dos scripts que mexem com dinheiro
+    npm run mutation           # mutation testing do validar.mjs
+
+O CI roda esses quatro em todo PR (`.github/workflows/ci.yml`) **mais dois greps de repo** que
+só existem como steps do workflow — então local verde não equivale a CI verde. Pré-requisitos
+(inclusive Python ≥ 3.10 para o mimyr), armadilhas e o que cada gate significa estão em
+[AGENTS.md](AGENTS.md), seção "Verificação antes de commitar" — fonte única, para não divergir
+daqui.
+
+## Estrutura
+
+    hefesto/                               # raiz = marketplace
+    ├── .claude-plugin/
+    │   └── marketplace.json               # manifesto do marketplace
+    ├── plugins/
+    │   ├── hefesto/                       # forja de plugins (4 skills + 4 commands)
+    │   │   ├── .claude-plugin/plugin.json
+    │   │   ├── commands/                  # /criar-plugin, /criar-skill, /validar-plugin, /versionar-plugin
+    │   │   └── skills/
+    │   │       ├── criar-plugin/          # + references/layout-canonico.md
+    │   │       ├── criar-skill/           # + references/convencoes-skill.md
+    │   │       ├── validar-plugin/        # + scripts/validar.mjs
+    │   │       └── versionar-plugin/
+    │   ├── bragir/                        # voz, escrita, editorial e carreira (12 skills)
+    │   │   ├── .claude-plugin/plugin.json
+    │   │   └── skills/                    # escrever-como-autor, analisar-voz, gerenciar-personas,
+    │   │                                  #   planejar-agenda, analisar-metricas
+    │   ├── mimyr/                         # cursos e didática (5 skills + 3 agents + harness curso.mjs)
+    │   │   ├── .claude-plugin/plugin.json
+    │   │   ├── agents/                    # escritor-de-capitulo, revisor-de-curso, mecanico-de-curso
+    │   │   ├── skills/                    # gerar-curso (+harness), gerar-modulo, escrever-capitulo,
+    │   │   │                              #   revisar-capitulo, analise-de-aula
+    │   │   ├── scripts/                   # transcrição, extração, checagens (+ requirements.txt)
+    │   │   └── tests/                     # contratos das skills + testes dos scripts (pytest)
+    │   ├── hestia/                        # economia doméstica (6 skills, 14 commands, scripts Python)
+    │   │   ├── .claude-plugin/plugin.json
+    │   │   ├── commands/                  # /lancar, /abrir-mes, /recorrencias, /status, /analisar,
+    │   │   │                              #   /fechar-mes, /nota, /catalogo, /mercado, /preco,
+    │   │   │                              #   /carteira, /meta, /investimentos, /simular
+    │   │   ├── skills/                    # orcamento, analisar-gastos, mercado, analisar-mercado,
+    │   │   │                              #   investimentos, analisar-investimentos
+    │   │   ├── scripts/                   # as contas de dinheiro (Decimal, sob golden test)
+    │   │   └── tests/                     # golden tests (pytest, piso de cobertura no CI)
+    │   ├── hermes/                        # marketing e criativos (18 skills, 4 agents, harness criativo.mjs)
+    │   │   ├── .claude-plugin/plugin.json
+    │   │   ├── agents/                    # diretor-de-arte, produtor, validador, mecanico
+    │   │   ├── skills/                    # criativo-fluxo (+harness), direcao-de-arte, ... (18)
+    │   │   └── tests/                     # contratos do harness e das skills (pytest)
+    │   └── odin/                          # double diamond de desafios (6 skills, 9 comandos, 4 agents, harness loop.mjs)
+    ├── AGENTS.md                          # contrato de manutenção do repo (IAs e humanos)
+    ├── CLAUDE.md                          # importa o AGENTS.md para o Claude Code
+    └── README.md
+
+## Atualizar
+
+    /plugin marketplace update hefesto
+
+## Desenvolvimento e espelho
+
+O desenvolvimento acontece num repositório privado (histórico completo, specs e
+planos internos em `docs/superpowers/`). O repositório público
+[`sallzzbr/hefesto-publico`](https://github.com/sallzzbr/hefesto-publico) é o
+**espelho publicado** do marketplace — gerado a cada release por snapshot sanitizado
+do commit taggeado, via script de publicação do repo privado. Cada versão tem uma
+Release com as notas dos CHANGELOGs dos plugins. Issues e sugestões são bem-vindas
+no espelho; PRs diretos não são aceitos lá (o espelho é regenerado a cada versão).
+
+---
+
+<!-- Para IAs: antes de fazer qualquer manutenção neste repo (adicionar skill,
+editar SKILL.md, bump de versão, refatoração), leia AGENTS.md. Ele contém as
+regras de layout, convenções de nomenclatura, como evitar paths hard-coded e
+o contrato entre skills. -->
+
+TitBits inclui `planejar-prototipo` para experimentos de design e `preparar-lancamento` para prontidão/distribuição/recuperação. Hooks consultivos exigem ativação explícita por jogo; métodos públicos e dados privados permanecem separados.

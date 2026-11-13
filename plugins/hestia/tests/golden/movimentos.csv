@@ -1,0 +1,6 @@
+data;ativo;operacao;valor;quantidade;observacao
+2026-01-20;CDB Sintetico A;aporte;100,00;;Evento sintetico A
+2026-02-15;ETF SINTETICO B;aporte;50,00;2;"Evento sintetico; parser de aspas"
+2026-02-28;ETF SINTETICO B;provento;25,00;;Evento sintetico B
+2026-03-10;CDB Sintetico A;resgate;10,00;;Evento sintetico C
+2026-03-20;Fundo Sintetico G;aporte;75,00;;Evento sintetico D

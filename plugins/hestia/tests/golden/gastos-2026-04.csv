@@ -1,0 +1,13 @@
+data;tipo;categoria;descricao;valor;metodo
+2026-04-01;receita;Salário;Salário do mês;8500,00;transferência
+2026-04-05;despesa;Educação;Curso de inglês;500,00;crédito
+2026-04-05;despesa;Saúde;Plano de saúde;480,00;débito
+2026-04-06;despesa;Alimentação;Mercado do mês;1650,00;crédito
+2026-04-08;despesa;Moradia;Conta de luz;188,60;pix
+2026-04-10;despesa;Moradia;Aluguel do apê;2200,00;transferência
+2026-04-12;despesa;Assinaturas;Netflix;44,90;crédito
+2026-04-12;despesa;Assinaturas;Spotify;21,90;crédito
+2026-04-14;despesa;Transporte;Gasolina;270,00;débito
+2026-04-15;despesa;Moradia;Internet fibra 500MB;129,90;débito
+2026-04-18;despesa;Lazer;Cinema e bar;240,00;crédito
+2026-04-20;despesa;Alimentação;Feira;450,00;débito

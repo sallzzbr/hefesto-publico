@@ -1,0 +1,60 @@
+{
+  "fora_do_calculo": {
+    "aportes": "75.00",
+    "nota": "movimentos reais, fora do total porque o rendimento deles nao e calculavel",
+    "proventos": "0.00",
+    "resgates": "0.00"
+  },
+  "formula": "rendimento = (saldo_final - saldo_inicial) - aportes + resgates",
+  "periodo": {
+    "ativo": null,
+    "fim": null,
+    "inicio": null
+  },
+  "por_ativo": [
+    {
+      "aportes": "100.00",
+      "ativo": "CDB Sintetico A",
+      "primeiro_snapshot": "2026-01-05",
+      "proventos": "0.00",
+      "rendimento": "110.00",
+      "rendimento_pct_sobre_base": "10.00",
+      "resgates": "10.00",
+      "saldo_final": "1200.00",
+      "saldo_inicial": "1000.00",
+      "ultimo_snapshot": "2026-03-31"
+    },
+    {
+      "aportes": "50.00",
+      "ativo": "ETF SINTETICO B",
+      "primeiro_snapshot": "2026-01-05",
+      "proventos": "25.00",
+      "rendimento": "50.00",
+      "rendimento_pct_sobre_base": "2.44",
+      "resgates": "0.00",
+      "saldo_final": "2100.00",
+      "saldo_inicial": "2000.00",
+      "ultimo_snapshot": "2026-03-31"
+    }
+  ],
+  "sem_base_de_calculo": [
+    {
+      "aportes": "75.00",
+      "ativo": "Fundo Sintetico G",
+      "motivo": "rendimento exige 2+ snapshots do ativo no periodo",
+      "proventos": "0.00",
+      "resgates": "0.00",
+      "snapshots_no_periodo": 1
+    }
+  ],
+  "total": {
+    "aportes": "150.00",
+    "cobertura": "so ativos com 2+ snapshots no periodo; o resto esta em fora_do_calculo",
+    "proventos": "25.00",
+    "rendimento": "160.00",
+    "rendimento_pct_sobre_base": "5.08",
+    "resgates": "10.00",
+    "saldo_final": "3300.00",
+    "saldo_inicial": "3000.00"
+  }
+}
