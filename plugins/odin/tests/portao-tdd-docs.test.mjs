@@ -74,16 +74,16 @@ test('a revisão de contratos do harness mudou e a skill cita a mesma', () => {
   assert.ok(ler('skills/dev-loop/SKILL.md').includes(`odin-dev-loop: revisão de contratos ${REVISAO}`));
 });
 
-test('odin 3.0.1 com marketplace sincronizado, CHANGELOG e dependência da iris', () => {
+test('odin 3.0.2 com marketplace sincronizado, CHANGELOG e dependência da iris', () => {
   const plugin = JSON.parse(ler('.claude-plugin/plugin.json'));
-  assert.equal(plugin.version, '3.0.1');
+  assert.equal(plugin.version, '3.0.2');
   // O planner monta o brief do arquiteto com iris:delegar-agente sem condicional (docs-fluxo-14):
   // a iris é dependência declarada, resolvida neste marketplace.
   assert.deepEqual(plugin.dependencies, ['iris']);
   const mp = JSON.parse(readFileSync(resolve(RAIZ, '.claude-plugin', 'marketplace.json'), 'utf8'));
-  assert.equal(mp.plugins.find((p) => p.name === 'odin').version, '3.0.1');
+  assert.equal(mp.plugins.find((p) => p.name === 'odin').version, '3.0.2');
   assert.ok(mp.plugins.some((p) => p.name === 'iris'), 'iris fora do marketplace: a dependência não resolve');
-  assert.match(ler('CHANGELOG.md'), /^## 3\.0\.1(\s|$)/m);
+  assert.match(ler('CHANGELOG.md'), /^## 3\.0\.2(\s|$)/m);
 });
 
 // Iteração 2 (revisão adversarial): o portão antigo sobrevivia na entregar e no resumo canônico.

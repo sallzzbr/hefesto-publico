@@ -98,6 +98,10 @@ function responder(label, overrides) {
   };
 }
 
+// Inventário que o teste entrega como o script real o devolveria: o agente falso não o reescreve.
+const INVENTARIO_LITERAL = new WeakSet();
+const inventarioLiteral = inv => { INVENTARIO_LITERAL.add(inv); return inv; };
+
 async function rodar({ args, overrides = {}, atraso = 0 }) {
   const chamadas = [];
   const logs = [];
@@ -128,7 +132,7 @@ async function rodar({ args, overrides = {}, atraso = 0 }) {
     if (opts.label.startsWith('impl:') && response?.arquivosTocados) {
       for (const path of response.arquivosTocados) addQualityPath(path);
     }
-    if (opts.label.startsWith('validar:') && response?.qualityInventory) {
+    if (opts.label.startsWith('validar:') && response?.qualityInventory && !INVENTARIO_LITERAL.has(response.qualityInventory)) {
       response.qualityInventory = { ...response.qualityInventory, files: [...qualityPaths].map(path => ({ path, lines: 12, bytes: 240, status: 'text' })) };
     }
     return response;
@@ -2818,4 +2822,169 @@ test('parada por ambiente preserva histórico anterior e acrescenta a iteração
   assert.equal(resultado.historico[1].verdeDeclaradoComFalhas, true);
   assert.equal(resultado.historico[1].validacaoVerde, false);
   assert.deepEqual(resultado.historico[1].findings, []);
+});
+
+// ── Caminhos relatados por agente (odin 3.0.2) ───────────────────────────────
+// Run wf_9dd8d7f9-e7d (munin, onda 3.2-B, 2026-11-13): os operários relataram arquivosTocados com
+// o caminho absoluto da worktree. O harness juntou esses caminhos crus ao inventário de qualidade,
+// o `inspecionar-git.mjs quality` recusou ("path de qualidade inválido") e o run terminou em
+// `erro` na fase Validar antes de a falha funcional voltar ao operário. A regra: todo caminho
+// relatado por agente vira relativo à raiz do workspace antes de ser usado; fora dela é recusado
+// com diagnóstico próprio, nunca com erro genérico.
+const comandoQuality = prompt => prompt.split('\n').find(l => l.includes('inspecionar-git.mjs') && l.includes(' quality '));
+const comandoDiff = prompt => prompt.split('\n').find(l => l.includes('inspecionar-git.mjs') && l.includes(' diff '));
+
+test('arquivosTocados absoluto dentro do workspace vira relativo e a falha funcional volta ao operário', async () => {
+  let vez = 0;
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: ['/workspace/src/a.js', '/workspace/./src/b.js'] }),
+    'validar:': o => vez++ === 0
+      ? { ...DEFAULTS['validar:'](o), verde: false, falhas: [FALHA_FUNCIONAL], execucoes: idsDoSchema(o).map(t => execucao(t, false)) }
+      : DEFAULTS['validar:'](o),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe));
+  assert.equal(resultado.iteracoes, 2, 'a falha funcional da 1ª iteração virou correção, não erro');
+  assert.equal(chamadas.filter(c => c.label.startsWith('impl:')).length, 2);
+  const validar = chamadas.find(c => c.label === 'validar:i1');
+  assert.ok(comandoQuality(validar.prompt).includes(JSON.stringify(['src/a.js', 'src/b.js', TESTE, 'docs/plans/spec.md'])), comandoQuality(validar.prompt));
+  assert.ok(!comandoQuality(validar.prompt).includes('/workspace/src'), 'o inventário só recebe caminho relativo');
+  const auditoria = chamadas.find(c => c.label === 'ponytail:i1');
+  assert.ok(!comandoDiff(auditoria.prompt).includes('/workspace/src'), 'o diff dos revisores só recebe caminho relativo');
+  assert.ok(chamadas.find(c => c.label === 'impl:U1').prompt.includes('relativo à raiz do workspace'), 'o pedido ao operário exige caminho relativo');
+});
+
+test('arquivosTocados fora do workspace bloqueia na implementação com diagnóstico, antes da validação', async () => {
+  for (const fora of ['/outro/checkout/src/a.js', '../vizinho/a.js', 'C:\\temp\\a.js']) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: ['src/a.js', fora] }),
+    } });
+    assert.equal(resultado.status, 'bloqueado', fora);
+    assert.equal(resultado.fase, 'Implementar');
+    assert.equal(resultado.motivo, 'arquivos-fora-do-workspace');
+    assert.deepEqual(resultado.arquivosForaDoWorkspace, [{ unidade: 'U1', path: fora }]);
+    assert.match(resultado.acao, /fora da worktree/);
+    assert.ok(!chamadas.some(c => c.label.startsWith('validar:')), 'não gasta validação com relato inválido');
+  }
+});
+
+test('apoio do portão fora do workspace bloqueia o TDD com diagnóstico em vez de sumir', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [repro('C1')], apoio: ['/outro/tests/helpers/f.js'] }),
+  } });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.equal(resultado.fase, 'TDD');
+  assert.match(resultado.detalhe, /apoio fora do workspace.*\/outro\/tests\/helpers\/f\.js/);
+  assert.ok(!chamadas.some(c => c.label.startsWith('impl:')));
+});
+
+test('apoio do portão absoluto dentro do workspace vira relativo', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [repro('C1')], apoio: ['/workspace/tests/helpers/f.js'] }),
+    ...VERDE_COM(ALTERADO([TESTE, 'tests/helpers/f.js'], { adicionados: [TESTE, 'tests/helpers/f.js'] })),
+  } });
+  assert.deepEqual(resultado.tdd.apoio, ['tests/helpers/f.js']);
+});
+
+test('evidência de qualityReview com caminho absoluto dentro do workspace conta como o arquivo relativo', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), qualityReview: LEGACY_REVIEW.map(r => ({ ...r, evidence: r.evidence.map(e => ({ ...e, path: `/workspace/${e.path}` })) })) }),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe));
+});
+
+test('evidência de qualityReview fora do workspace é recusada nomeando o caminho', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), qualityReview: LEGACY_REVIEW.map(r => ({ ...r, evidence: r.evidence.map(e => ({ ...e, path: '/outro/src/a.js' })) })) }),
+  } });
+  assert.equal(resultado.status, 'erro');
+  assert.equal(resultado.fase, 'Auditar');
+  assert.match(String(resultado.detalhe), /fora do workspace.*\/outro\/src\/a\.js/);
+});
+
+test('inventário de qualidade com erro nomeia o erro do script e os caminhos omitidos', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: { files: [], uninspected: ['src/a.js'], errors: ['src/a.js: arquivo ausente ou ignorado: src/a.js'] } }),
+  } });
+  assert.equal(resultado.status, 'erro');
+  assert.equal(resultado.fase, 'Validar');
+  assert.match(resultado.detalhe.join(' '), /arquivo ausente ou ignorado: src\/a\.js/);
+});
+
+// ── Relato de arquivos que não fecha com a worktree (odin 3.0.2, item 4) ─────
+// Arquivo relatado que não existe (ou é ignorado) e arquivo novo que o operário criou sem relatar
+// terminavam em `erro` no inventário de qualidade. Retomar o run devolve o mesmo relato do cache,
+// então o erro era terminal. Agora viram correção ao operário, dentro do teto de iterações.
+const linhaInventario = path => ({ path, lines: 12, bytes: 240, status: 'text' });
+const INVENTARIO_OK = ['src/a.js', TESTE, 'docs/plans/spec.md'];
+
+test('arquivo relatado que não existe vira correção ao operário e sai do inventário seguinte', async () => {
+  let vezImpl = 0, vezVal = 0;
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: vezImpl++ === 0 ? ['src/a.js', 'src/fantasma.js'] : ['src/a.js'] }),
+    'validar:': o => vezVal++ === 0
+      ? { ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: ['src/fantasma.js'], errors: ['src/fantasma.js: arquivo ausente ou ignorado: src/fantasma.js'] }) }
+      : DEFAULTS['validar:'](o),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe));
+  assert.equal(resultado.iteracoes, 2);
+  assert.match(chamadas.find(c => c.label === 'impl:U1' && c.prompt.includes('CORREÇÕES')).prompt, /src\/fantasma\.js/);
+  assert.ok(!comandoQuality(chamadas.find(c => c.label === 'validar:i2').prompt).includes('fantasma'), 'o relato corrigido não pede de novo o arquivo inexistente');
+});
+
+test('arquivo novo criado e não relatado vira correção ao operário em vez de erro', async () => {
+  let vezImpl = 0, vezVal = 0;
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: vezImpl++ === 0 ? ['src/a.js'] : ['src/a.js', 'src/novo.js'] }),
+    'validar:': o => vezVal++ === 0
+      ? { ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: ['src/novo.js'], errors: [] }) }
+      : DEFAULTS['validar:'](o),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe));
+  assert.equal(resultado.iteracoes, 2);
+  assert.match(chamadas.find(c => c.label === 'impl:U1' && c.prompt.includes('CORREÇÕES')).prompt, /src\/novo\.js/);
+  assert.ok(comandoQuality(chamadas.find(c => c.label === 'validar:i2').prompt).includes('src/novo.js'));
+});
+
+test('relato que nunca fecha com a worktree escala no teto com natureza procedimento, sem erro', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: ['src/a.js', 'src/fantasma.js'] }),
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: ['src/fantasma.js'], errors: ['src/fantasma.js: arquivo ausente ou ignorado: src/fantasma.js'] }) }),
+  } });
+  assert.equal(resultado.status, 'escalado', JSON.stringify(resultado.detalhe));
+  assert.equal(resultado.fase, 'Loop');
+  assert.deepEqual(resultado.resumoDaEscalada.bloqueantesPorNatureza, { procedimento: 1 });
+  assert.equal(chamadas.filter(c => c.label.startsWith('impl:')).length, 3);
+});
+
+test('controle: erro do inventário que não vem do relato do operário continua erro com diagnóstico', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ files: [], uninspected: [], errors: ['índice unmerged: src/a.js'] }) }),
+  } });
+  assert.equal(resultado.status, 'erro');
+  assert.equal(resultado.fase, 'Validar');
+  assert.match(resultado.detalhe.join(' '), /índice unmerged: src\/a\.js/);
+});
+
+test('arquivo não relatado que reaparece depois da correção bloqueia como artefato, sem gastar o teto', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: ['.coverage'], errors: [] }) }),
+  } });
+  assert.equal(resultado.status, 'bloqueado', JSON.stringify(resultado.detalhe));
+  assert.equal(resultado.fase, 'Validar');
+  assert.equal(resultado.motivo, 'artefato-nao-rastreado');
+  assert.deepEqual(resultado.artefatos, ['.coverage']);
+  assert.match(resultado.acao, /\.gitignore/);
+  assert.equal(chamadas.filter(c => c.label.startsWith('impl:')).length, 2, 'uma correção, depois bloqueio');
+});
+
+test('a correção de arquivo não relatado nunca manda apagar arquivo que o operário não criou', async () => {
+  let vezVal = 0;
+  const { chamadas } = await rodar({ args: ARGS, overrides: {
+    'validar:': o => vezVal++ === 0
+      ? { ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: ['notas.md'], errors: [] }) }
+      : DEFAULTS['validar:'](o),
+  } });
+  const correcao = chamadas.find(c => c.label === 'impl:U1' && c.prompt.includes('CORREÇÕES')).prompt;
+  assert.match(correcao, /não apague/i);
+  assert.doesNotMatch(correcao, /apague-o/);
 });

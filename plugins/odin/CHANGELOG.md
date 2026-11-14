@@ -3,6 +3,10 @@
 > Histórico anterior à 2.4.6 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 3.0.2
+
+- Dev-loop: todo caminho relatado por agente vira relativo à raiz do workspace antes de ser usado. `arquivosTocados` absoluto sob a raiz deixava o inventário de qualidade vazio (`inspecionar-git.mjs quality` recusa caminho absoluto) e o run terminava em `erro` na fase Validar, antes de a falha funcional voltar ao operário. Fora da raiz, `arquivosTocados` bloqueia na fase Implementar com `motivo: "arquivos-fora-do-workspace"`, `apoio` fora da raiz bloqueia o portão TDD (antes sumia em silêncio) e a evidência de `qualityReview` é normalizada ou recusada nomeando o caminho. O erro do inventário passa a citar os erros do script e os caminhos omitidos. O pedido ao operário e a definição do agente exigem caminho relativo. Relato de arquivos que não fecha com a worktree (arquivo relatado inexistente ou ignorado, arquivo novo não relatado) volta como correção ao operário, natureza `procedimento`, em vez de `erro` terminal; arquivo não rastreado que reaparece depois da correção bloqueia com `motivo: "artefato-nao-rastreado"` e nenhum agente o apaga.
+
 ## 3.0.1
 
 - Portão TDD do dev-loop: o pedido ao operário declara a exigência que a conferência já cobrava (o comando de cada teste cita o caminho relativo do arquivo protegido por hash) e traz exemplos por ecossistema, incluindo unittest por arquivo com -k. O bloqueio por comando sem vínculo passa a ensinar a troca do módulo pontilhado pelo caminho. A conferência não mudou: módulo pontilhado segue recusado, por decisão do dono.

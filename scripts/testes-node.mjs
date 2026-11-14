@@ -30,6 +30,7 @@ const PLUGINS = join(RAIZ, 'plugins');
 const PISO_ARQUIVOS = 47;
 // Suítes da Forja e guards do repositório; arquivos complementam o piso de testes.
 const PISO_ARQUIVOS_HEFESTO = 8;
+// Contagem medida em 2026-11-14 (odin 3.0.2): 1171 testes públicos e 126 da publicação. Sobre 1158: +13 do harness do dev-loop (caminhos relatados por agente: arquivosTocados absoluto sob a raiz vira relativo e a falha funcional volta ao operário, arquivosTocados fora do workspace bloqueia na implementação, apoio fora do workspace bloqueia o TDD, apoio absoluto sob a raiz vira relativo, evidência de qualityReview absoluta normalizada e fora do workspace recusada nomeando o caminho, erro do inventário com o diagnóstico do script; relato que não fecha com a worktree: arquivo relatado inexistente e arquivo novo não relatado viram correção, relato persistente escala no teto, erro do script fora do relato segue erro, não relatado reincidente bloqueia como artefato e a correção nunca manda apagar).
 // Contagem medida em 2026-11-13 (odin 3.0.1): 1158 testes públicos e 126 da publicação. Sobre 1156: +2 do harness do dev-loop (o pedido do portão TDD declara a exigência do caminho do arquivo no comando, com exemplo de unittest, e unittest por arquivo com -k chega à medição).
 // Contagem medida em 2026-11-11 (decisões do dono, segunda rodada do PR 20): 1156 testes públicos e 126 da publicação. Sobre 1152: +4 do harness (segmentos por rota na mesma execução, lista de segmentos recusada quando inválida, fidelidade_mockup coagida a bloqueante e logRender com marcadores); a publicação segue com 126 (casos reescritos, não somados). Os casos novos de preflight são Python.
 // Contagem medida em 2026-11-11 (segunda rodada da revisão do PR 20): 1152 testes públicos e 126 da publicação. Sobre a rodada anterior (1149 e 121): +3 do harness (args.python com espaço no caminho estruturado, execução com argv[0] único e saída do compor presa ao slug e à extensão); a publicação ganha os casos das regras novas do guard de vocabulário, dos controles de sigla, tamanho e cor hexadecimal, e do limite do mapa de migração. Os casos novos do preflight de manifesto são Python e não entram aqui.
@@ -43,7 +44,7 @@ const PISO_ARQUIVOS_HEFESTO = 8;
 // do odin dava 23 reais + 2 passes de arquivo vazio = 25, e passava. Verificado.
 // Ao adicionar teste, o piso continua satisfeito; ao remover de propósito, baixe aqui no
 // mesmo commit e diga por quê.
-const PISO_TESTES = 1158;
+const PISO_TESTES = 1171;
 // Publicador e suíte são privados. O package privado solicita a flag; o scrub a
 // remove do package público. Path literal ausente falha, sem skip por existência.
 const PISO_TESTES_PUBLICACAO = 126;

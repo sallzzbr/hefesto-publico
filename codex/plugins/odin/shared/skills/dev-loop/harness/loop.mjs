@@ -874,10 +874,13 @@ const criteriosComTeste = new Set(tdd.testes.map(t => t.criterio))
 const semProva = spec.criterios.filter(c => !criteriosComTeste.has(c.id) && !idsManuais.has(c.id))
 if (semProva.length > 0) return bloqueioTdd({ detalhe: `critérios sem teste executável nem verificacaoComplementar explícita: ${semProva.map(c => c.id).join(', ')}`, acao: 'mapear cada critério funcional a um teste; validação genérica não substitui esse vínculo' })
 // Apoio do portão (2.6.0): helpers e fixtures de teste. Fica fora da detecção de implementação
-// anterior e entra na cópia da base. Path que não é do workspace sai da lista (conta como
-// implementação: falha fechada). Apoio declarado num arquivo de unidade é produção, não apoio:
+// anterior e entra na cópia da base. Caminho absoluto sob a raiz vira relativo; fora do workspace
+// bloqueia nomeando o caminho (3.0.2: antes saía da lista em silêncio e o helper não ia para a
+// cópia da base). Apoio declarado num arquivo de unidade é produção, não apoio:
 // sem esta checagem, declará-lo escondia código da detecção.
-const apoioDoTdd = [...new Set((Array.isArray(tdd.apoio) ? tdd.apoio : []).map(p => typeof p === 'string' ? pathNoWorkspace(p) : null).filter(p => p && !testesDaSpec.includes(p)))]
+const apoioForaDoWorkspace = (Array.isArray(tdd.apoio) ? tdd.apoio : []).filter(p => typeof p !== 'string' || (p.trim() && pathNoWorkspace(p) === null))
+if (apoioForaDoWorkspace.length > 0) return bloqueioTdd({ detalhe: `apoio fora do workspace ou inválido: ${apoioForaDoWorkspace.map(String).join(', ')}`, acao: `apoio[] leva caminhos relativos à raiz do workspace (${ARGS.workspaceRoot}), sem "..", ":" ou "\\". Se o helper foi criado fora da worktree, movê-lo para dentro; repetir o portão em run novo` })
+const apoioDoTdd = [...new Set((Array.isArray(tdd.apoio) ? tdd.apoio : []).map(p => pathNoWorkspace(p)).filter(p => p && !testesDaSpec.includes(p)))]
 const apoioEmUnidade = apoioDoTdd.filter(emArquivoDeUnidade)
 if (apoioEmUnidade.length > 0) return bloqueioTdd({ detalhe: `apoio do portão declarado em arquivo de unidade de trabalho: ${apoioEmUnidade.join(', ')}`, acao: 'o portão TDD não implementa produção: apoio é helper ou fixture de teste. Retirar o path de apoio (ou mover o helper para fora da unidade) e repetir o portão em run novo' })
 
@@ -1183,6 +1186,8 @@ ${listaDeTestes}
 // ── Fases 3-5: loop implementar → validar → revisar ─────────────────────────
 const consultasLog = []
 const arquivosParaRevisao = new Set(testesDaSpec)
+const relatadosPeloOperario = new Set()
+const naoRelatadosJaCorrigidos = new Set()
 const historicoFalhas = []
 const escadaReportada = []
 const auditoriasLog = []
@@ -1241,6 +1246,8 @@ while (iteracao < MAX_ITERACOES && !verde) {
         Critérios cobertos: ${u.criterios.join(', ')}. Faça os testes desses critérios passarem SEM editá-los
         (teste de reprodução passa a verde; controle de preservação continua verde).
         Toque APENAS nos arquivos da sua unidade (P14: fora de escopo vira pendência, não diff).${orientacao}${correcoes}
+        Em arquivosTocados liste cada arquivo com o caminho relativo à raiz do workspace
+        (ex.: src/modulo.py), sem o prefixo absoluto da worktree, sem :linha e sem "..".
         RELATO DE ESCADA (obrigatório, campo "escada"): para CADA função, arquivo ou dependência
         que você criar, um item com o que é, em que degrau da escada ponytail (1-7) você parou e
         por quê. Degrau 5 (dependência já instalada) ou dependência NOVA exigem o porquê escrito
@@ -1286,12 +1293,34 @@ while (iteracao < MAX_ITERACOES && !verde) {
     return { quality: qualityReport, status: 'escalado', fase: 'Implementar', iteracao, detalhe: escaladas, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), tdd: relatorioTdd(), acao: 'decisão humana necessária — o harness não improvisa' }
   }
 
+  // Caminhos relatados (3.0.2): arquivosTocados alimenta o inventário de qualidade e o diff dos
+  // revisores, e os dois scripts só aceitam caminho relativo. Absoluto sob a raiz vira relativo
+  // aqui, uma vez; o que não é do workspace bloqueia antes de gastar validação. No run
+  // wf_9dd8d7f9-e7d o caminho cru chegou ao inventário e o run morreu em `erro` na fase Validar.
+  const arquivosForaDoWorkspace = []
+  for (const r of resultados) {
+    if (!Array.isArray(r.arquivosTocados)) continue
+    r.arquivosTocados = [...new Set(r.arquivosTocados.flatMap(p => {
+      const rel = typeof p === 'string' ? pathNoWorkspace(p) : null
+      if (rel === null) arquivosForaDoWorkspace.push({ unidade: r.unidade, path: String(p) })
+      return rel ? [rel] : []
+    }))]
+  }
+  if (arquivosForaDoWorkspace.length > 0) {
+    return { quality: qualityReport, status: 'bloqueado', fase: 'Implementar', motivo: 'arquivos-fora-do-workspace', iteracao, arquivosForaDoWorkspace, detalhe: `operário relatou arquivo fora do workspace ${ARGS.workspaceRoot}: ${arquivosForaDoWorkspace.map(x => `${x.unidade} → ${x.path}`).join('; ')}`, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), tdd: relatorioTdd(),
+      acao: 'conferir cada caminho: se o operário editou fora da worktree (outro checkout, pasta vizinha), desfazer lá à mão e refazer a unidade na worktree; se foi só relato malformado, o arquivo existe sob a raiz e basta iniciar run novo (resumeFromRunId devolveria o mesmo relato do cache)' }
+  }
+
   // Latch: uma vez que qualquer unidade tocou arquivos, a branch TEM diff. Fica true para sempre —
   // em iterações seguintes o operário pode não tocar nada (arquivosTocados vazio) e o diff acumulado
   // continua existindo. É o sinal que a guarda de auditoria cega (abaixo) cruza contra o 0 da auditoria.
   if (resultados.some(r => (r.arquivosTocados || []).length > 0)) houveTrabalhoNaBranch = true
 
   for (const r of resultados) for (const p of (r.arquivosTocados || [])) arquivosParaRevisao.add(p)
+  // Só do relato: o que veio de arquivosTocados e não é teste, apoio, SPEC nem alvo aprovado do
+  // contrato. É o que pode virar correção de relato no inventário (abaixo).
+  const naoSaoDoRelato = new Set([...testesDaSpec, ...apoioDoTdd, pathNoWorkspace(ARGS.specPath), ...qualityContract.checks.filter(c => c.applicability === 'required').flatMap(c => c.paths)])
+  for (const r of resultados) for (const p of (r.arquivosTocados || [])) if (!naoSaoDoRelato.has(p)) relatadosPeloOperario.add(p)
   const qualityTargets = [...new Set([...qualityContract.checks.filter(c => c.applicability === 'required').flatMap(c => c.paths), ...[...arquivosParaRevisao].filter(p => !testesDaSpec.includes(p))])]
   const qualitySpecPath = pathNoWorkspace(ARGS.specPath)
   const qualityInventoryPaths = [...new Set([...qualityTargets, ...testesDaSpec, ...apoioDoTdd, ...(qualitySpecPath === null ? [] : [qualitySpecPath])])]
@@ -1446,8 +1475,41 @@ ${listaDeTestes}
     }
   }
 
-  const inventory = val.qualityInventory
-  if (!objetoPlano(inventory) || !Array.isArray(inventory.files) || !Array.isArray(inventory.uninspected) || inventory.uninspected.length || !Array.isArray(inventory.errors) || inventory.errors.length || inventory.files.some(f => !objetoPlano(f) || !isQualityPath(f.path) || !Number.isInteger(f.lines) || f.lines < 0 || !Number.isInteger(f.bytes) || f.bytes < 0 || !['text', 'binary', 'deleted', 'symlink'].includes(f.status) || (f.status !== 'text' && f.lines !== 0) || (f.status === 'deleted' && f.bytes !== 0) || (f.status === 'symlink' && f.bytes === 0)) || new Set(inventory.files.map(f => f.path)).size !== inventory.files.length || qualityInventoryPaths.some(p => !inventory.files.some(f => f.path === p))) qualityErrors.push('qualityInventory: inventário ausente, inválido, com omissões ou erros; reconcilie todos os arquivos relatados.')
+  // Relato que não fecha com a worktree (3.0.2). Arquivo em arquivosTocados que não existe (ou que
+  // o git ignora) e arquivo novo que o operário criou sem relatar são erros do RELATO, não da
+  // evidência: viram correção ao operário na iteração seguinte, dentro do teto. Antes caíam em
+  // `erro` aqui, e retomar o run devolvia o mesmo relato do cache: erro terminal. Só converte
+  // quando TODO problema do inventário se explica assim; qualquer outro erro do script (índice
+  // unmerged, flag sparse, symlink) segue erro com o diagnóstico abaixo.
+  let inventory = val.qualityInventory
+  const correcoesDeRelato = []
+  if (objetoPlano(inventory) && Array.isArray(inventory.files) && Array.isArray(inventory.uninspected) && Array.isArray(inventory.errors)) {
+    const ausentes = inventory.errors.map(e => { const m = /^([^:]+): arquivo ausente ou ignorado: (.+)$/.exec(String(e)); return m && m[1] === m[2] ? m[1] : null })
+    const naoRelatados = inventory.uninspected.filter(p => typeof p === 'string' && !ausentes.includes(p) && !qualityInventoryPaths.includes(p) && pathNoWorkspace(p) === p)
+    const restante = inventory.uninspected.filter(p => !ausentes.includes(p) && !naoRelatados.includes(p))
+    if (ausentes.every(p => p !== null && relatadosPeloOperario.has(p)) && restante.length === 0 && ausentes.length + naoRelatados.length > 0) {
+      for (const p of ausentes) { correcoesDeRelato.push({ path: p, tipo: 'ausente' }); arquivosParaRevisao.delete(p); relatadosPeloOperario.delete(p) }
+      // Não relatado que já voltou como correção e reaparece não é relato: é artefato que a
+      // validação recria (cache, saída de teste). Repetir a correção só gastaria o teto.
+      const reincidentes = naoRelatados.filter(p => naoRelatadosJaCorrigidos.has(p))
+      if (reincidentes.length > 0) {
+        return { quality: qualityReport, status: 'bloqueado', fase: 'Validar', motivo: 'artefato-nao-rastreado', iteracao, artefatos: reincidentes, detalhe: `arquivo não rastreado reaparece na worktree depois da correção ao operário: ${reincidentes.join(', ')}`, historico: historicoFalhas, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), tdd: relatorioTdd(),
+          acao: 'é provável que a validação ou um teste gere esse arquivo a cada rodada. Conferir o que o cria: se é artefato, incluí-lo no .gitignore do projeto; se faz parte da entrega, declará-lo na SPEC. Depois iniciar run novo. Nenhum agente apaga esse arquivo.' }
+      }
+      for (const p of naoRelatados) { correcoesDeRelato.push({ path: p, tipo: 'nao-relatado' }); naoRelatadosJaCorrigidos.add(p) }
+      inventory = { ...inventory, uninspected: [], errors: [] }
+      log(`Relato de arquivos da iteração ${iteracao} não fecha com a worktree: ${correcoesDeRelato.map(c => `${c.path} (${c.tipo})`).join(', ')}; volta como correção`)
+    }
+  }
+  const pedidosAoInventario = qualityInventoryPaths.filter(p => !correcoesDeRelato.some(c => c.tipo === 'ausente' && c.path === p))
+  if (!objetoPlano(inventory) || !Array.isArray(inventory.files) || !Array.isArray(inventory.uninspected) || inventory.uninspected.length || !Array.isArray(inventory.errors) || inventory.errors.length || inventory.files.some(f => !objetoPlano(f) || !isQualityPath(f.path) || !Number.isInteger(f.lines) || f.lines < 0 || !Number.isInteger(f.bytes) || f.bytes < 0 || !['text', 'binary', 'deleted', 'symlink'].includes(f.status) || (f.status !== 'text' && f.lines !== 0) || (f.status === 'deleted' && f.bytes !== 0) || (f.status === 'symlink' && f.bytes === 0)) || new Set(inventory.files.map(f => f.path)).size !== inventory.files.length || pedidosAoInventario.some(p => !inventory.files.some(f => f.path === p))) {
+    // Diagnóstico com o que o script disse e o que faltou (3.0.2): a frase genérica sozinha não
+    // separava relato inválido de arquivo ausente nem de transcrição incompleta.
+    const doScript = objetoPlano(inventory) && Array.isArray(inventory.errors) ? inventory.errors.map(String) : []
+    const naoInspecionados = objetoPlano(inventory) && Array.isArray(inventory.uninspected) ? inventory.uninspected.map(String) : []
+    const omitidos = objetoPlano(inventory) && Array.isArray(inventory.files) ? pedidosAoInventario.filter(p => !inventory.files.some(f => objetoPlano(f) && f.path === p)) : qualityInventoryPaths
+    qualityErrors.push(`qualityInventory: inventário ausente, inválido, com omissões ou erros; reconcilie todos os arquivos relatados.${doScript.length ? ` Erros do script: ${doScript.join('; ')}.` : ''}${naoInspecionados.length ? ` Não inspecionados: ${naoInspecionados.join(', ')}.` : ''}${omitidos.length ? ` Pedidos e ausentes do inventário: ${omitidos.join(', ')}.` : ''}`)
+  }
   if (!qualityErrors.length) for (const file of inventory.files) {
     if (file.status === 'text' && file.lines > 400 && !qualityContract.decomposition.some(d => d.path === file.path)) qualityErrors.push(`quality decomposition: ${file.path} tem ${file.lines} linhas; falta decisão explícita e verificável de coesão/decomposição.`)
   }
@@ -1478,6 +1540,7 @@ ${listaDeTestes}
     cenário quando a saída revelar ausência de verificação, sem preencher satisfied por protocolo.
     Preencha qualityReview exatamente uma vez por check: status satisfied/issue/not-applicable,
     evidence não vazia vinculada a cada path aprovado do check, line textual válida e observation concreta.
+    evidence.path é o caminho relativo à raiz do workspace, escrito como no inventário.
     Citação de outro arquivo inventariado não cobre o alvo. A SPEC citada precisa constar medida
     como texto no inventário, com linha dentro do limite, inclusive para dispensa e nontext.
     Dispensa só a aprovada no contrato; cite a SPEC como fonte. Para arquivo binary/deleted/symlink,
@@ -1520,6 +1583,18 @@ ${listaDeTestes}
   // null aborta o run; este também. Portão que falha aberto não é portão.
   if (!aud) return { quality: qualityReport, status: 'erro', fase: 'Auditar', iteracao, tdd: relatorioTdd(), consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), acao: 'a auditoria ponytail não retornou — sem ela não há como afirmar que P10 foi respeitado; reinvocar com resumeFromRunId' }
   const auditoria = aud
+  // Evidência com caminho absoluto sob a raiz vira relativa antes do confronto com o inventário
+  // (3.0.2); fora do workspace fica crua, reprova abaixo e é nomeada no diagnóstico.
+  const evidenciaForaDoWorkspace = []
+  if (Array.isArray(auditoria.qualityReview)) for (const r of auditoria.qualityReview) {
+    if (!objetoPlano(r) || !Array.isArray(r.evidence)) continue
+    r.evidence = r.evidence.map(e => {
+      if (!objetoPlano(e) || typeof e.path !== 'string') return e
+      const rel = pathNoWorkspace(e.path)
+      if (rel === null) { evidenciaForaDoWorkspace.push(`${r.id}: ${e.path}`); return e }
+      return { ...e, path: rel }
+    })
+  }
   qualityIteration.review = auditoria.qualityReview
   const qualityReview = auditoria.qualityReview
   if (!Array.isArray(qualityReview) || qualityReview.length !== qualityContract.checks.length || new Set(qualityReview.map(r => r?.id)).size !== qualityContract.checks.length || qualityReview.some(r => {
@@ -1538,7 +1613,7 @@ ${listaDeTestes}
       const requiresSpecEvidence = target && (target.status !== 'text' || (target.lines === 0 && target.bytes === 0))
       return !target || !r.evidence.some(e => e.path === (requiresSpecEvidence ? pathNoWorkspace(ARGS.specPath) : path))
     }))
-  })) return { status: 'erro', fase: 'Auditar', iteracao, detalhe: 'qualityReview: cobertura incompleta ou evidência inválida; confira IDs, dispensas, finding e linhas de arquivos efetivamente inspecionados.', quality: qualityReport, tdd: relatorioTdd() }
+  })) return { status: 'erro', fase: 'Auditar', iteracao, detalhe: `qualityReview: cobertura incompleta ou evidência inválida; confira IDs, dispensas, finding e linhas de arquivos efetivamente inspecionados.${evidenciaForaDoWorkspace.length ? ` Evidência fora do workspace ${ARGS.workspaceRoot}: ${evidenciaForaDoWorkspace.join('; ')}.` : ''}`, quality: qualityReport, tdd: relatorioTdd() }
   auditoriasLog.push({ iteracao, linhasAdicionadasAcumuladas: auditoria.linhasAdicionadasAcumuladas, deps: auditoria.dependenciasNovas.length, dup: auditoria.duplicacoes.length, abs: auditoria.abstracoesUsoUnico.length })
 
   // GUARDA DE AUDITORIA CEGA. Se a branch tem trabalho (arquivos tocados) mas a auditoria reporta 0
@@ -1559,7 +1634,12 @@ ${listaDeTestes}
   // modelo, sem casar nome de pacote com texto livre da escada. Quem quer a dependência escreve
   // o porquê no código — que é onde a justificativa serve pra quem vier depois, não num campo
   // que morre com o run. Bloqueante automático: não passa pela confirmação.
-  const bloqueantesAutomaticos = []
+  const bloqueantesAutomaticos = correcoesDeRelato.map(c => ({
+    arquivo: c.path,
+    resumo: c.tipo === 'ausente' ? `Relato de arquivo inexistente: ${c.path} está em arquivosTocados, mas não existe na worktree ou é ignorado pelo git` : `Arquivo novo não relatado: ${c.path} apareceu na worktree e não está em arquivosTocados`,
+    cenario: c.tipo === 'ausente' ? `Corrija o relato: liste em arquivosTocados só arquivos que existem, com o caminho relativo à raiz do workspace. Se ${c.path} devia existir, crie-o; se foi apagado de propósito e era rastreado, ele aparece como removido.` : `Se você criou ${c.path}, inclua-o em arquivosTocados. Se não foi você (artefato de teste, cache, arquivo do dono), não apague: reporte como pendência, sem relatá-lo.`,
+    severidade: 'bloqueante', confianca: 'confirmado', origem: 'inventario-quality', natureza: 'procedimento',
+  }))
 
   // ── REGRA DURA: TESTES DA SPEC INTACTOS — decidida em código ─────────────────
   // Hash de cada teste após a implementação comparado à baseline do `tdd:vermelho`. Diferente

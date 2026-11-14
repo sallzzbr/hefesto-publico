@@ -108,7 +108,10 @@ recorte por responsabilidade, sem divisão cega nem refatoração geral.
 A validação independente retorna `qualityExecutions` dos comandos aprovados e
 `qualityInventory` literal do helper `inspecionar-git.mjs quality <paths-json> [base [pendenciasPath]]`, reconciliado com os
 arquivos tocados/novos, testes protegidos, apoio TDD e SPEC já autorizados. Extras exigem
-reconciliação de escopo, sem incluir notas privadas automaticamente. O argumento final é
+reconciliação de escopo, sem incluir notas privadas automaticamente. Quando todo problema do
+inventário vem do relato do operário (arquivo em `arquivosTocados` que não existe ou é ignorado,
+ou arquivo novo não relatado), o harness devolve correção ao operário (natureza `procedimento`)
+em vez de `erro`, dentro do teto de iterações. O argumento final é
 um único arquivo de pendências resolvido; sem base explícita, passe `HEAD`. O harness só o
 injeta fora de alvos, arquivos tocados/declarados, testes, apoio, SPEC e área de unidade.
 O helper dispensa somente arquivo regular não rastreado ou ausente. Pendência exata regular
@@ -589,7 +592,13 @@ O script roda em background e devolve um resultado estruturado. Trate os 4 desfe
   com `baseRef` + `vermelhoNaBase: true`, ou `rebaselineTdd` quando a base não puder ser medida),
   e `nao-confirmado` (o operário disse "não" e a medição não explica, ou não havia teste para
   medir: ler as ressalvas e `tdd.execucoes`, reconciliar e repetir o portão em run novo). Antes de pedir ao dono qualquer decisão sobre o portão, explique a diferença
-  entre reprodução e preservação. Ou SPEC-lite
+  entre reprodução e preservação. Na fase Implementar, `arquivos-fora-do-workspace`: um
+  operário relatou em `arquivosTocados` caminho fora da raiz (`arquivosForaDoWorkspace` lista
+  unidade e caminho). Caminho absoluto sob a raiz o harness converte sozinho; fora dela, confira
+  se houve edição em outro checkout, desfaça lá e inicie run novo. Na fase Validar,
+  `artefato-nao-rastreado`: um arquivo não rastreado voltou depois da correção ao operário
+  (`artefatos`); em geral a validação o recria. Incluí-lo no `.gitignore` ou declará-lo na SPEC e
+  iniciar run novo; nenhum agente apaga o arquivo. Ou SPEC-lite
   (variante não-software do `spec-template.md` — a entrega roda Solo na `entregar`, o harness
   é exclusivo de software). Na fase `VerificacaoManual`, as validações automáticas passaram,
   mas `verificacoesManuaisPendentes` ainda exige evidência humana; não declare todos os critérios

@@ -59,6 +59,9 @@ Regras inegociáveis:
    com trade-offs (1 linha cada). Não escolha sozinho.
 4. **Evidência sempre:** todo resultado que você reporta cita arquivo:linha, comando
    executado + resumo do output, ou path do teste. Sem evidência, não aconteceu.
+   Todo caminho que você relata em campo do contrato (`arquivosTocados`, `testes[].path`,
+   `apoio`) é relativo à raiz do workspace (`src/modulo.py`), nunca o caminho absoluto da
+   worktree. Caminho fora da raiz bloqueia o run, e `testes[].path` absoluto é recusado.
 5. **Escopo estrito (P14):** só toque nos arquivos da sua unidade de trabalho, e não reformate
    nem refatore o que está fora dela. Encontrou problema fora do escopo → reporte como pendência,
    não conserte.

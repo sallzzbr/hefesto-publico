@@ -79,8 +79,8 @@ test('skill nativa e execução Codex ensinam tipos de teste, exceção, rebasel
   assert.match(exec, /nunca reverta|não reverta/i);
 });
 
-test('odin Codex 1.0.1 com CHANGELOG', () => {
-  assert.equal(JSON.parse(ler('.codex-plugin/plugin.json')).version, '1.0.1');
+test('odin Codex 1.0.2 com CHANGELOG', () => {
+  assert.equal(JSON.parse(ler('.codex-plugin/plugin.json')).version, '1.0.2');
   assert.match(ler('CHANGELOG.md'), /^## 1\.0\.0(\s|$)/m);
 });
 
