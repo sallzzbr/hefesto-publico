@@ -22,6 +22,7 @@ async function fixture() {
     cp(join(REPO, 'codex'), join(root, 'codex'), { recursive: true }),
     cp(join(REPO, 'plugins'), join(root, 'plugins'), { recursive: true }),
     cp(join(REPO, 'LICENSE'), join(root, 'LICENSE')),
+    cp(join(REPO, '.agents'), join(root, '.agents'), { recursive: true }),
   ]);
   const moduleUrl = `${pathToFileURL(join(root, 'codex/scripts/sync-resources.mjs')).href}?fixture=${Date.now()}-${Math.random()}`;
   const { sincronizar } = await import(moduleUrl);
@@ -116,6 +117,48 @@ test('rejects an absolute marketplace source path even when it points inside cod
     marketplace.plugins[0].source.path = join(codexRoot, 'plugins', marketplace.plugins[0].name);
     await writeFile(path, `${JSON.stringify(marketplace, null, 2)}\n`);
   }, /path deve ser relativo/i);
+});
+
+// Manifesto da raiz: é o que o Codex lê ao instalar por git. Derivado do manifesto de codex/, nunca editado à mão.
+const RAIZ = '.agents/plugins/marketplace.json';
+
+test('rejects a missing root marketplace', async () => {
+  await expectFailure(async ({ root }) => {
+    await unlink(join(root, RAIZ));
+  }, /marketplace da raiz ausente/i);
+});
+
+test('rejects a root marketplace edited apart from the codex marketplace', async () => {
+  await expectFailure(async ({ root }) => {
+    const path = join(root, RAIZ);
+    const marketplace = JSON.parse(await readFile(path, 'utf8'));
+    marketplace.plugins[0].source.path = './plugins/' + marketplace.plugins[0].name;
+    await writeFile(path, `${JSON.stringify(marketplace, null, 2)}\n`);
+  }, /marketplace da raiz diverge/i);
+});
+
+test('rejects a codex marketplace change not carried to the root marketplace', async () => {
+  await expectFailure(async ({ codexRoot }) => {
+    const path = join(codexRoot, '.agents/plugins/marketplace.json');
+    const marketplace = JSON.parse(await readFile(path, 'utf8'));
+    marketplace.plugins[0].category = 'Outra';
+    await writeFile(path, `${JSON.stringify(marketplace, null, 2)}\n`);
+  }, /marketplace da raiz diverge/i);
+});
+
+test('sync rewrites the root marketplace pointing at codex/plugins', async () => {
+  const fx = await fixture();
+  try {
+    await unlink(join(fx.root, RAIZ));
+    const { sincronizar } = await import(`${pathToFileURL(join(fx.codexRoot, 'scripts/sync-resources.mjs')).href}?write=${Date.now()}`);
+    sincronizar({ escrever: true });
+    const raiz = JSON.parse(await readFile(join(fx.root, RAIZ), 'utf8'));
+    const fonte = JSON.parse(await readFile(join(fx.codexRoot, '.agents/plugins/marketplace.json'), 'utf8'));
+    assert.deepEqual(raiz.plugins.map(p => p.source.path), fonte.plugins.map(p => `./codex/plugins/${p.name}`));
+    await checkDistribution({ repoRoot: fx.root, codexRoot: fx.codexRoot, synchronize: fx.synchronize });
+  } finally {
+    await rm(fx.root, { recursive: true, force: true });
+  }
 });
 
 test('resource inventory keys agree on Windows and POSIX paths', () => {

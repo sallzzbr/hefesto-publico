@@ -13,22 +13,31 @@ Oito plugins e 66 skills nativas Codex, distribuídos no [marketplace público H
 | TitBits | 11 | GDD, direção audiovisual, produção, playtests e aprendizados privados |
 | Iris | 2 | Prompts e briefs de delegação adequados ao modelo de destino |
 
-> Snapshot 6.1.0: oito plugins, 66 skills nesta distribuição. A instalação por tag abaixo requer esta versão publicada no espelho.
+> Snapshot 6.2.0: oito plugins, 66 skills nesta distribuição. A instalação por tag abaixo requer esta versão publicada no espelho.
 
 ## Instalação
 
-Com Git e a CLI Codex disponíveis, obtenha a release pública e registre a pasta do marketplace:
+Por git, com a CLI Codex disponível, registre o repositório público como marketplace:
 
 ```sh
-git clone --branch v6.1.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
-cd hefesto-publico
-codex plugin marketplace add ./codex
+codex plugin marketplace add sallzzbr/hefesto-publico --ref master
 codex plugin add hefesto@hefesto
 ```
 
-Troque o nome antes de `@` por outro plugin da tabela. Instale Bragir junto de Mimyr para cumprir a dependência de voz. Abra uma nova sessão para carregar as skills instaladas. O registro local do marketplace e a instalação foram verificados com `codex-cli 0.153.4`.
+O Codex lê o manifesto `.agents/plugins/marketplace.json` da raiz do repositório, derivado do manifesto desta pasta, com paths para `codex/plugins/<nome>`. Para atualizar, rode `codex plugin marketplace upgrade` e abra uma nova sessão: o Codex busca o commit novo e atualiza os plugins instalados.
 
-A instalação usa a configuração de quem executar os comandos. Os testes de distribuição usam somente perfis descartáveis. Ao atualizar, obtenha a nova release e repita o registro e a instalação a partir dela; preserve os dados do seu workspace fora do checkout de distribuição.
+Para fixar uma release, registre o marketplace a partir de um checkout da tag:
+
+```sh
+git clone --branch v6.2.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+cd hefesto-publico
+codex plugin marketplace add .
+codex plugin add hefesto@hefesto
+```
+
+Troque o nome antes de `@` por outro plugin da tabela. Instale Bragir junto de Mimyr para cumprir a dependência de voz. Abra uma nova sessão para carregar as skills instaladas. O registro por git, a atualização e a instalação a partir da raiz foram verificados com `codex-cli 0.155.1`.
+
+A instalação usa a configuração de quem executar os comandos. Os testes de distribuição usam somente perfis descartáveis. Com a instalação por tag, ao atualizar, obtenha a nova release e repita o registro e a instalação a partir dela; preserve os dados do seu workspace fora do checkout de distribuição.
 
 ## Uso e dependências
 

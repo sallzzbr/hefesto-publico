@@ -18,6 +18,25 @@ function caminho(base, p) {
   }
   return dest;
 }
+// Manifesto Codex da raiz do repositório: o Codex instala por git só com `.agents/plugins/marketplace.json`
+// na raiz. É derivado do manifesto de `codex/` (fonte única), com cada path relativo à raiz.
+export const MARKETPLACE_RAIZ = '.agents/plugins/marketplace.json';
+export function marketplaceRaiz(textoFonte) {
+  const dados = JSON.parse(textoFonte);
+  for (const p of dados.plugins ?? []) {
+    const path = p?.source?.path;
+    if (typeof path !== 'string' || !path.startsWith('./plugins/')) throw new Error(`marketplace Codex: path fora de ./plugins/ para ${String(p?.name)}`);
+    p.source.path = `./codex/${path.slice(2)}`;
+  }
+  return `${JSON.stringify(dados, null, 2)}\n`;
+}
+function sincronizarRaiz(escrever, erros) {
+  const esperado = marketplaceRaiz(readFileSync(resolve(codex, '.agents/plugins/marketplace.json'), 'utf8'));
+  const destino = caminho(repo, MARKETPLACE_RAIZ);
+  if (escrever) { mkdirSync(dirname(destino), { recursive: true }); writeFileSync(destino, esperado); return; }
+  try { if (readFileSync(destino, 'utf8') !== esperado) erros.push(`marketplace da raiz diverge de codex/.agents/plugins/marketplace.json: ${MARKETPLACE_RAIZ} (rode npm --prefix codex run sync)`); }
+  catch (err) { if (err.code === 'ENOENT') erros.push(`marketplace da raiz ausente: ${MARKETPLACE_RAIZ} (rode npm --prefix codex run sync)`); else throw err; }
+}
 export function sincronizar({ escrever = false } = {}) {
   const entradas = JSON.parse(readFileSync(resolve(codex, 'resources.json'), 'utf8')).arquivos;
   if (!Array.isArray(entradas) || !entradas.length) throw new Error('inventário de recursos vazio');
@@ -30,6 +49,7 @@ export function sincronizar({ escrever = false } = {}) {
     return { ...e, targetPath: target, bytes: readFileSync(source) };
   });
   const erros = [];
+  sincronizarRaiz(escrever, erros);
   for (const e of plano) {
     if (escrever) { mkdirSync(dirname(e.targetPath), { recursive: true }); writeFileSync(e.targetPath, e.bytes); }
     else {

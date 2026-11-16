@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { createInterface } from 'node:readline';
 const codex = resolve(import.meta.dirname, '..');
+// Raiz do repositório: é o manifesto que a instalação por git lê (.agents/plugins/marketplace.json).
+const repo = resolve(codex, '..');
 const temp = mkdtempSync(join(tmpdir(), 'hefesto-codex-smoke-'));
 const profile = join(temp, 'profile'), workspace = join(temp, 'workspace');
 mkdirSync(profile); mkdirSync(workspace);
@@ -52,7 +54,7 @@ async function descobrir() {
 }
 try {
   const version = cli(['--version']).trim();
-  const marketplace = JSON.parse(cli(['plugin', 'marketplace', 'add', codex, '--json']));
+  const marketplace = JSON.parse(cli(['plugin', 'marketplace', 'add', repo, '--json']));
   if (marketplace.marketplaceName !== 'hefesto') throw new Error('marketplace incorreto');
   const esperado = { hefesto: 4, bragir: 12, hestia: 6, odin: 8, mimyr: 5, hermes: 18, titbits: 11, iris: 2 };
   const installed = [];
