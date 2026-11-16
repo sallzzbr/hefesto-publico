@@ -74,8 +74,11 @@ test('Odin real: SPEC → TDD → implementação → auditoria → três lentes
     args: { workspaceRoot: '/workspace', scriptsDir: '/plugin/scripts', specPath: 'spec.md', branch: 'feat/x', perfil: 'maximo', validacoes: ['npm test'], hoje: DATA },
   });
   assert.equal(resultado.status, 'verde');
-  assert.equal(chamadas.length, 10);
-  assert.deepEqual(chamadas.slice(0, 4).map(c => c.label), ['spec:ids', 'spec:validar', 'tdd:portao', 'tdd:vermelho']);
+  // 3.0.4: as duas medições cedo (`spec:inventario` e `tdd:inventario`) entram em todo run;
+  // 3.1.0: o perfil máximo acrescenta a medição `mutar:medir` da fase Mutar.
+  assert.equal(chamadas.length, 13);
+  assert.equal(chamadas.filter(c => c.label === 'mutar:medir:i1').length, 1);
+  assert.deepEqual(chamadas.slice(0, 6).map(c => c.label), ['spec:ids', 'spec:validar', 'spec:inventario', 'tdd:portao', 'tdd:vermelho', 'tdd:inventario']);
   assert.equal(chamadas.filter(c => c.label.startsWith('rev:')).length, 3);
   assert.ok(chamadas.some(c => c.label.startsWith('ponytail:')));
 });

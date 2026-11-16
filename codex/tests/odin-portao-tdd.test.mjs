@@ -79,9 +79,14 @@ test('skill nativa e execução Codex ensinam tipos de teste, exceção, rebasel
   assert.match(exec, /nunca reverta|não reverta/i);
 });
 
-test('odin Codex 1.0.2 com CHANGELOG', () => {
-  assert.equal(JSON.parse(ler('.codex-plugin/plugin.json')).version, '1.0.2');
+// A versão não é fixada: cada release do pacote mudaria este caso sem mudar o que ele prova (o piso
+// 1.0.2 e a entrada da versão publicada no CHANGELOG, além da 1.0.0 que abriu o contrato).
+test('odin Codex com CHANGELOG', () => {
+  const { version } = JSON.parse(ler('.codex-plugin/plugin.json'));
+  const [maior, menor, correcao] = version.split('.').map(Number);
+  assert.ok(maior > 1 || (maior === 1 && (menor > 0 || correcao >= 2)), `odin Codex ${version} abaixo do piso 1.0.2`);
   assert.match(ler('CHANGELOG.md'), /^## 1\.0\.0(\s|$)/m);
+  assert.match(ler('CHANGELOG.md'), new RegExp(`^## ${version.replaceAll('.', '\\.')}(\\s|$)`, 'm'));
 });
 
 test('replay Codex: suíte mista com 4 regressões vermelhas e 6 controles verdes fecha verde', async (t) => {
@@ -200,7 +205,7 @@ test('replay Codex: semCriacao, criacoesSemRelato e buscaChamadores passam pelo 
   const { resultado, chamadas } = await replay(t, ARGS, {
     'impl:': () => ({ status: 'concluida', resumo: 'corrigi o comando do README', escada: [], semCriacao: true, arquivosTocados: ['README.md'] }),
     'validar:': o => { const value = DEFAULTS['validar:'](o); value.qualityInventory.files.push({ path: 'README.md', lines: 12, bytes: 240, status: 'text' }); return value; },
-    'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), criacoesSemRelato: [], abstracoesUsoUnico: [{ arquivo: 'src/a.js', oQue: 'Wrapper', unicoChamador: 'src/b.js', buscaChamadores: 'git grep -n -w Wrapper: 3' }] }),
+    'ponytail:': (pedido) => ({ ...DEFAULTS['ponytail:'](pedido), criacoesSemRelato: [], abstracoesUsoUnico: [{ arquivo: 'src/a.js', oQue: 'Wrapper', unicoChamador: 'src/b.js', buscaChamadores: 'git grep -n -w Wrapper: 3' }] }),
     'confirmar:': () => ({ real: false, bloqueante: false, porque: 'três chamadores' }),
   });
   assert.equal(resultado.status, 'verde', JSON.stringify(resultado));

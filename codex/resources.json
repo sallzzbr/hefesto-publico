@@ -557,6 +557,10 @@
       "target": "plugins/odin/shared/skills/dev-loop/scripts/inspecionar-git.mjs"
     },
     {
+      "source": "plugins/odin/skills/dev-loop/scripts/mutantes.mjs",
+      "target": "plugins/odin/shared/skills/dev-loop/scripts/mutantes.mjs"
+    },
+    {
       "source": "plugins/odin/skills/dev-loop/scripts/spec-ids.mjs",
       "target": "plugins/odin/shared/skills/dev-loop/scripts/spec-ids.mjs"
     },

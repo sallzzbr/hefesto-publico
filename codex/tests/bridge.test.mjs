@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { iniciar, proximo, responder } from '../runtime/bridge.mjs';
-import { contract } from '../../plugins/odin/tests/support/quality-fixtures.mjs';
+import { contract, legacyDefaults } from '../../plugins/odin/tests/support/quality-fixtures.mjs';
 const ROOT = resolve(import.meta.dirname, '../plugins');
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'codex-bridge-'));
@@ -40,6 +40,9 @@ test('resposta funcional leva ao TDD; modelo final não é inventado como Claude
   state = await responder(plugin, f.run, state.solicitacoes[0].id, { resultado: specOK });
   assert.equal(state.solicitacoes[0].label, 'spec:validar');
   state = await responder(plugin, f.run, state.solicitacoes[0].id, { resultado: { ok: true, criterios: [{ id: 'C1', texto: 'soma' }], unidades: [{ id: 'U1', titulo: 'soma', arquivos: 'soma.js', criterios: ['C1'] }], pendenciasBloqueadoras: [] } });
+  // 3.0.4: a medição cedo vem entre `spec:validar` e o portão; a resposta traz os caminhos que o comando pediu.
+  assert.equal(state.solicitacoes[0].label, 'spec:inventario');
+  state = await responder(plugin, f.run, state.solicitacoes[0].id, { resultado: { qualityInventory: legacyDefaults()['spec:inventario'](null, null, state.solicitacoes[0].prompt).qualityInventory } });
   assert.equal(state.solicitacoes[0].label, 'tdd:portao');
   state = await responder(plugin, f.run, state.solicitacoes[0].id, { resultado: { vermelhoConfirmado: false, testes: [], problemas: ['teste nasceu verde'] } });
   assert.equal(state.resultado.fase, 'TDD');

@@ -47,14 +47,27 @@ function crc32(texto) {
   }
   return ((c ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0');
 }
-export function hashesDeTestes(paths, root = realpathSync(process.cwd())) {
+// `opcoes.sentinelas` (odin 3.0.3, só a CLI usa): caminho sintaticamente válido e dentro do projeto,
+// mas inexistente (ENOENT/ENOTDIR) ou não regular, vira `ausente` / `nao-regular` em vez de derrubar o
+// lote inteiro. Sem a opção o export segue estrito. Path inválido ou fora do projeto lança sempre.
+export function hashesDeTestes(paths, root = realpathSync(process.cwd()), opcoes = {}) {
   if (!Array.isArray(paths) || paths.some(p => typeof p !== 'string')) throw new Error('esperado array JSON de paths');
+  const sentinelas = opcoes.sentinelas === true;
   const entries = paths.map(p => {
     if (!p.trim() || p !== p.trim() || isAbsolute(p) || /[:\\]/.test(p) || p.split('/').includes('..')) throw new Error(`path de teste inválido: ${p}`);
     const canonical = posix.normalize(p);
-    const real = realpathSync(resolve(root, canonical));
+    let real;
+    try { real = realpathSync(resolve(root, canonical)); }
+    catch (e) {
+      if (sentinelas && (e.code === 'ENOENT' || e.code === 'ENOTDIR')) return [canonical, 'ausente'];
+      throw e;
+    }
     const rel = relative(root, real);
-    if (rel === '..' || rel.startsWith('../') || rel.startsWith('..\\') || isAbsolute(rel) || !statSync(real).isFile()) throw new Error(`teste fora do projeto ou não regular: ${p}`);
+    if (rel === '..' || rel.startsWith('../') || rel.startsWith('..\\') || isAbsolute(rel)) throw new Error(`teste fora do projeto ou não regular: ${p}`);
+    if (!statSync(real).isFile()) {
+      if (sentinelas) return [canonical, 'nao-regular'];
+      throw new Error(`teste fora do projeto ou não regular: ${p}`);
+    }
     const sha = createHash('sha256').update(readFileSync(real)).digest('hex');
     return [canonical, `${sha}-${crc32(`${canonical}\n${sha}`)}`];
   });
@@ -167,7 +180,7 @@ if (principal) {
       const lista = i => process.argv[i] === undefined ? [] : excluidosValidos(JSON.parse(process.argv[i]));
       console.log(JSON.stringify({ impressao: impressaoWorktree(realpathSync(process.cwd()), lista(3), lista(4)) }));
     } else {
-      console.log(JSON.stringify(hashesDeTestes(JSON.parse(process.argv[2]))));
+      console.log(JSON.stringify(hashesDeTestes(JSON.parse(process.argv[2]), undefined, { sentinelas: true })));
     }
   } catch (e) {
     console.error(`ERRO: ${e.message}`);

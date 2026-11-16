@@ -54,7 +54,7 @@ function fixture(t, quality = contract(), { support = false } = {}) {
     assert.equal(result.status, 0, result.stderr);
     return JSON.parse(result.stdout);
   };
-  return { root, env, write, paths, inspect };
+  return { root, env, write, paths, inspect, git };
 }
 
 function blocked(result, context) {
@@ -311,6 +311,7 @@ for (const perfil of profiles) {
     assert.equal(result.status, 'verde', JSON.stringify(result));
   });
 
+  // 3.0.4: o ramo sem decisão sai `bloqueado` na fase Validar (teste protegido intacto acima de 400 linhas); o ramo com omissão passa pela recoleta sem resposta e sai `erro` nomeado.
   test(`R8 omitting a measured 401-line test cannot bypass decomposition in ${perfil}`, async t => {
     const quality = contract();
     const workspace = fixture(t, quality, { support: true });
@@ -409,3 +410,191 @@ for (const perfil of profiles) {
     blocked(result, 'External SPEC is outside the inspected workspace inventory');
   });
 }
+
+// ── odin 3.0.3: os scripts reais num repositório git temporário (A25, A26) ───────────────────────
+// O harness roda com `workspaceRoot` e `scriptsDir` reais e o agente falso EXECUTA os comandos que o
+// pedido emite (`inspecionar-git.mjs quality` e `hashes-testes.mjs`): a saída real volta ao harness.
+// Sem inventário nem hash escritos à mão, o par script e controlador é medido junto, e o acordo
+// sobre o formato do hash (conferência CRC-32) deixa de depender de dois vetores que concordam.
+const emitidos = (prompt, nome, fora = null) => [...prompt.matchAll(/```bash\s*\n([\s\S]*?)```/g)]
+  .map(match => match[1].trim()).filter(command => command.includes(nome) && (fora === null || !command.includes(fora)));
+function executar(workspace, command) {
+  const execution = spawnSync(command, { cwd: workspace.root, env: workspace.env, shell: true, encoding: 'utf8' });
+  assert.equal(execution.error, undefined);
+  return execution;
+}
+// Resposta de validação com o inventário e os hashes que os scripts reais produziram.
+function validacaoReal(table, workspace, registro) {
+  return (options, calls, prompt) => {
+    const [inventario] = emitidos(prompt, 'inspecionar-git.mjs');
+    const [hashes] = emitidos(prompt, 'hashes-testes.mjs', '--impressao');
+    assert.ok(inventario && hashes, 'a validação emite o comando do inventário e o dos hashes');
+    const quality = executar(workspace, inventario);
+    const medidos = executar(workspace, hashes);
+    registro.push({ comando: inventario, status: quality.status, inventario: JSON.parse(quality.stdout), hashesStatus: medidos.status });
+    return { ...table['validar:'](options), qualityInventory: JSON.parse(quality.stdout), hashesDosTestes: JSON.parse(medidos.stdout) };
+  };
+}
+const hashesReais = (table, workspace) => (options, calls, prompt) => {
+  const [hashes] = emitidos(prompt, 'hashes-testes.mjs', '--impressao');
+  assert.ok(hashes, 'o pedido do portão emite o comando dos hashes');
+  const medidos = executar(workspace, hashes);
+  assert.equal(medidos.status, 0, medidos.stderr);
+  return { ...table['tdd:vermelho'](options), hashesDosTestes: JSON.parse(medidos.stdout) };
+};
+
+test('A25: relato que difere do nome do git só na caixa fecha verde com core.ignoreCase=true, medido pelo nome do git', async t => {
+  const quality = contract();
+  const workspace = fixture(t, quality);
+  workspace.git('config', 'core.ignoreCase', 'true');
+  const table = responses(quality);
+  const registro = [];
+  const { result, calls } = await runHarness({ quality, options: { workspaceRoot: workspace.root, scriptsDir, specPath }, overrides: {
+    'tdd:vermelho': hashesReais(table, workspace),
+    'impl:': () => { workspace.write('src/modulo.js', 'export const modulo = 1;\n'); return { ...table['impl:'](), arquivosTocados: ['src/Modulo.js'] }; },
+    'validar:': validacaoReal(table, workspace, registro),
+  } });
+  assert.equal(result.status, 'verde', JSON.stringify(result.detalhe ?? result));
+  assert.equal(result.iteracoes, 1, 'sem correção ao operário');
+  assert.equal(registro[0].status, 0, 'o script real sai 0');
+  assert.deepEqual(registro[0].inventario.aliases, [{ requested: 'src/Modulo.js', path: 'src/modulo.js' }]);
+  assert.ok(registro[0].inventario.files.some(file => file.path === 'src/modulo.js' && file.status === 'text' && file.lines > 0));
+  assert.deepEqual(registro[0].inventario.errors, []);
+  const diff = calls.find(call => call.label === 'ponytail:i1').prompt.split('\n').find(line => line.includes('inspecionar-git.mjs') && line.includes(' diff '));
+  assert.ok(diff.includes('src/modulo.js') && !diff.includes('src/Modulo.js'), `o diff da auditoria usa o nome do git: ${diff}`);
+});
+
+test('A25: alvo required ausente do contrato vira correção e fecha verde depois de criado, com o inventário real', async t => {
+  const quality = contract();
+  for (const check of quality.checks) check.paths = ['src/a.js', 'src/novo-modulo.js'];
+  const workspace = fixture(t, quality);
+  const table = responses(quality);
+  const registro = [];
+  let vez = 0;
+  const { result, calls } = await runHarness({ quality, options: { workspaceRoot: workspace.root, scriptsDir, specPath }, overrides: {
+    'tdd:vermelho': hashesReais(table, workspace),
+    'impl:': () => { if (vez++ === 1) workspace.write('src/novo-modulo.js', 'export const novo = 1;\n'); return table['impl:'](); },
+    'validar:': validacaoReal(table, workspace, registro),
+    'ponytail:': () => ({ ...table['ponytail:'](), qualityReview: quality.checks.map(check => ({ id: check.id, status: 'satisfied', finding: {},
+      evidence: check.paths.map(path => ({ path, line: 1, observation: 'Inspected the module boundary and its explicit error handling.' })) })) }),
+  } });
+  assert.equal(result.status, 'verde', JSON.stringify(result.detalhe ?? result));
+  assert.equal(result.iteracoes, 2);
+  assert.equal(registro[0].status, 1, 'o script real recusa o alvo ausente');
+  assert.ok(registro[0].inventario.errors.some(error => error.includes('src/novo-modulo.js') && error.includes('arquivo ausente ou ignorado')));
+  assert.equal(registro[1].status, 0);
+  assert.deepEqual(registro[1].inventario.errors, []);
+  assert.ok(!calls.some(call => call.label === 'ponytail:i1'), 'sem auditoria enquanto o alvo do contrato falta');
+  assert.ok(calls.filter(call => call.label.startsWith('impl:'))[1].prompt.includes('inventario-quality'), 'o operário recebe a correção');
+});
+
+test('A25: apoio editado entre o portão e a validação vira bloqueante apoio-intacto com os hashes reais', async t => {
+  const quality = contract();
+  const workspace = fixture(t, quality, { support: true });
+  const table = responses(quality);
+  const registro = [];
+  let vez = 0;
+  const { result, calls } = await runHarness({ quality, options: { workspaceRoot: workspace.root, scriptsDir, specPath }, overrides: {
+    'tdd:portao': () => ({ ...table['tdd:portao'](), apoio: [supportPath] }),
+    'tdd:vermelho': hashesReais(table, workspace),
+    'impl:': () => { workspace.write(supportPath, vez++ === 0 ? 'export const invalidInput = "editado";\n' : 'export const invalidInput = null;\n'); return table['impl:'](); },
+    'validar:': validacaoReal(table, workspace, registro),
+  } });
+  assert.equal(result.status, 'verde', JSON.stringify(result.detalhe ?? result));
+  assert.equal(result.iteracoes, 2, 'a edição do apoio não fecha a primeira iteração');
+  const correcao = calls.filter(call => call.label.startsWith('impl:'))[1].prompt;
+  assert.match(correcao, /"origem":"apoio-intacto"/);
+  assert.match(correcao, /"natureza":"integridade-do-apoio"/);
+  assert.ok(correcao.includes(supportPath));
+  assert.ok(registro.every(item => item.hashesStatus === 0), 'o script real de hashes sai 0');
+  assert.ok(!calls.some(call => call.label.startsWith('confirmar:') || call.label.startsWith('hashes:')));
+});
+
+test('A26: arquivosTocados com caminho absoluto sob a raiz leva o relativo ao comando real, o script sai 0 e o run fecha verde', async t => {
+  const quality = contract();
+  const workspace = fixture(t, quality);
+  const table = responses(quality);
+  const registro = [];
+  const { result } = await runHarness({ quality, options: { workspaceRoot: workspace.root, scriptsDir, specPath }, overrides: {
+    'tdd:vermelho': hashesReais(table, workspace),
+    'impl:': () => ({ ...table['impl:'](), arquivosTocados: [join(workspace.root, 'src/a.js')] }),
+    'validar:': validacaoReal(table, workspace, registro),
+  } });
+  assert.equal(result.status, 'verde', JSON.stringify(result.detalhe ?? result));
+  assert.equal(registro.length, 1);
+  assert.equal(registro[0].status, 0, 'o script real sai 0');
+  assert.ok(registro[0].comando.includes(JSON.stringify(['src/a.js', testPath, specPath])), registro[0].comando);
+  assert.ok(!registro[0].comando.includes(`${workspace.root}/src`), 'o comando emitido não leva o absoluto');
+  assert.deepEqual(registro[0].inventario.errors, []);
+  assert.equal(Object.hasOwn(registro[0].inventario, 'aliases'), false, 'sem troca de nome, o JSON não ganha o campo aliases');
+});
+
+// ── odin 3.0.4: a medição cedo com os scripts reais (A24, A25) ───────────────────────────────────
+// O agente falso de `DEFAULTS` deriva o inventário do prompt e não prova o formato do script. Aqui o
+// agente EXECUTA o comando que `spec:inventario`, `tdd:inventario` e a validação emitem, num repositório
+// git temporário, e a saída real volta ao harness: filtro e flag do git, e arquivo de 401 linhas, são
+// medidos pelo script, não escritos à mão.
+function inventarioReal(workspace, registro) {
+  return (options, calls, prompt) => {
+    const [comando] = emitidos(prompt, 'inspecionar-git.mjs');
+    assert.ok(comando, 'o pedido emite o comando do inventário');
+    const execucao = executar(workspace, comando);
+    const inventario = JSON.parse(execucao.stdout);
+    registro.push({ comando, status: execucao.status, inventario });
+    return { qualityInventory: inventario };
+  };
+}
+const medicoesReais = (table, workspace, registro) => ({
+  'spec:inventario': inventarioReal(workspace, registro),
+  'tdd:inventario': inventarioReal(workspace, registro),
+  'tdd:vermelho': hashesReais(table, workspace),
+  'validar:': validacaoReal(table, workspace, registro),
+});
+
+test('304-A24: com os scripts reais, filtro clean e flag skip-worktree bloqueiam a fase Spec e teste de 401 linhas bloqueia a fase TDD', async t => {
+  const quality = contract();
+  const table = responses(quality);
+  const preparos = [
+    ['filtro clean sobre arquivo rastreado', 'src/a.js', workspace => {
+      workspace.write('.gitattributes', 'src/a.js filter=odin304\n');
+      workspace.git('config', 'filter.odin304.clean', 'cat');
+    }],
+    ['flag skip-worktree num alvo', 'src/a.js', workspace => workspace.git('update-index', '--skip-worktree', 'src/a.js')],
+  ];
+  for (const [nome, arquivo, preparar] of preparos) {
+    const workspace = fixture(t, quality);
+    preparar(workspace);
+    const registro = [];
+    const { result, calls } = await runHarness({ quality, options: { workspaceRoot: workspace.root, scriptsDir, specPath }, overrides: medicoesReais(table, workspace, registro) });
+    assert.equal(result.status, 'bloqueado', `${nome}: ${JSON.stringify(result.detalhe ?? result)}`);
+    assert.equal(result.fase, 'Spec', nome);
+    assert.ok(String(result.detalhe).includes(arquivo), `${nome}: o detalhe nomeia ${arquivo}: ${result.detalhe}`);
+    assert.equal(registro[0]?.status, 1, `${nome}: o script real recusa`);
+    assert.ok(!calls.some(call => call.label === 'tdd:portao'), `${nome}: bloqueia antes do portão`);
+  }
+  const workspace = fixture(t, quality);
+  workspace.write(testPath, 'import test from "node:test";\n' + Array.from({ length: 400 }, (_, index) => `test("boundary case ${index}", () => {});\n`).join(''));
+  const registro = [];
+  const { result, calls } = await runHarness({ quality, options: { workspaceRoot: workspace.root, scriptsDir, specPath }, overrides: medicoesReais(table, workspace, registro) });
+  assert.equal(result.status, 'bloqueado', JSON.stringify(result.detalhe ?? result));
+  assert.equal(result.fase, 'TDD');
+  assert.ok(String(result.detalhe).includes(testPath) && String(result.detalhe).includes('401'), `o detalhe nomeia o teste e a contagem: ${result.detalhe}`);
+  assert.ok(!calls.some(call => call.label.startsWith('impl:')), 'bloqueia antes da implementação');
+});
+
+test('304-A25: com os scripts reais e sem filtro, flag nem arquivo grande, todo comando de inventário emitido sai 0 e o run fecha verde', async t => {
+  const quality = contract();
+  const workspace = fixture(t, quality, { support: true });
+  const table = responses(quality);
+  const registro = [];
+  const { result } = await runHarness({ quality, options: { workspaceRoot: workspace.root, scriptsDir, specPath }, overrides: {
+    ...medicoesReais(table, workspace, registro),
+    'tdd:portao': () => ({ ...table['tdd:portao'](), apoio: [supportPath] }),
+  } });
+  assert.equal(result.status, 'verde', JSON.stringify(result.detalhe ?? result));
+  assert.ok(registro.length >= 1, 'ao menos o inventário da validação rodou');
+  for (const medicao of registro) {
+    assert.equal(medicao.status, 0, `o script real sai 0: ${medicao.comando}`);
+    assert.deepEqual(medicao.inventario.errors, [], medicao.comando);
+  }
+});

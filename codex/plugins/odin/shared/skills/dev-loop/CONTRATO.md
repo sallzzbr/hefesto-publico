@@ -111,7 +111,7 @@ arquivos tocados/novos, testes protegidos, apoio TDD e SPEC já autorizados. Ext
 reconciliação de escopo, sem incluir notas privadas automaticamente. Quando todo problema do
 inventário vem do relato do operário (arquivo em `arquivosTocados` que não existe ou é ignorado,
 ou arquivo novo não relatado), o harness devolve correção ao operário (natureza `procedimento`)
-em vez de `erro`, dentro do teto de iterações. O argumento final é
+em vez de `erro`, dentro do teto de iterações. Alvo `required` do contrato de qualidade ausente ou ignorado no inventário também volta como correção ao operário (origem `inventario-quality`, natureza `funcional`), sem chamar auditoria nem lentes nessa iteração; erro alheio ao relato e ao contrato continua `erro` na fase Validar. Com `core.ignoreCase=true`, relato que difere do nome do git só na caixa volta no campo `aliases` do inventário (`requested` e `path`) e o harness passa a usar o nome canônico no inventário, no relato e no diff da auditoria; `aliases` malformado é `erro` e alias de alvo do contrato não é reescrito. O argumento final é
 um único arquivo de pendências resolvido; sem base explícita, passe `HEAD`. O harness só o
 injeta fora de alvos, arquivos tocados/declarados, testes, apoio, SPEC e área de unidade.
 O helper dispensa somente arquivo regular não rastreado ou ausente. Pendência exata regular
@@ -128,6 +128,17 @@ de evidência; relato completo com exit não zero segue correção/revalidação
 ou parada operacional se ambiental. Issue semântico segue confirmação e pode ser refutado.
 Não confunda schema completo com qualidade provada.
 Preserve contrato, inventário, execuções, cobertura e limitações no relatório final.
+
+Evidência com falha de formato não mata o run na primeira falha (3.0.4). A recoleta é única por campo e por chamada de origem, em chamada própria com o prefixo `recoleta:` e o que falhou no prompt, registrada em `fallbacks`.
+O revisor recolhe `qualityReview` (`recoleta:quality-review:i<N>`), porque é evidência de julgamento; o operário recolhe `qualityExecutions`, `qualityInventory` e `execucoes` (`recoleta:quality-executions:i<N>`, `recoleta:quality-inventory:<spec, tdd ou i<N>>`, `recoleta:execucoes:i<N>`), nunca o mecânico, com "só execute e copie, não edite nada".
+Na segunda falha o desfecho é `erro` com `campo`, `chamada` e `recoleta` (o label), as duas mensagens em `detalhe` e `acao` que manda iniciar run novo, porque `resumeFromRunId` devolveria a mesma resposta do cache. A exceção é `execucoes`: na segunda falha a iteração leva o bloqueante de hoje (origem `portao-tdd`, natureza `evidencia`), cujo cenário cita a recoleta, e a iteração seguinte recolhe de novo.
+Recoleta válida não dispensa a prova: execução com `exitCode` diferente de 0, alvo `required` ausente, reprodução vermelha e dependência nova sem justificativa seguem como antes. Erro que o próprio script do inventário reporta (recusa global, ou erro de caminho que não é do relato nem do contrato) não dispara recoleta e continua `erro` na fase Validar com o diagnóstico do script.
+
+O inventário também é medido cedo, com o mesmo comando da validação: `spec:inventario` roda depois de `spec:validar` e antes de `tdd:portao`, com os alvos `required` e a SPEC; `tdd:inventario` roda depois de `tdd:vermelho` e antes de qualquer implementação, com testes e apoio, e não roda quando a SPEC não tem teste executável.
+Filtro ativo sobre arquivo rastreado (driver `clean` ou `process`, como os dois que o Git LFS configura; a ação manda achar o nome com `git check-attr filter` e desligar os dois), flag `skip-worktree` ou `assume-unchanged`, índice unmerged e SPEC ausente ou ignorada bloqueiam antes da implementação, na fase Spec ou TDD, com o diagnóstico do script e ação que manda corrigir o clone e iniciar run novo.
+SPEC, alvo ou arquivo alterado contra a base com mais de 400 linhas e sem entrada em `decomposition` também bloqueia nessas fases (na Spec vale para todo arquivo do inventário; depois do portão, para testes e apoio), com o arquivo e a contagem no `detalhe`; alvo que ainda não existe e não rastreados alheios não bloqueiam.
+Na validação, arquivo de produção acima de 400 linhas sem decisão em `decomposition` volta como correção ao operário (origem `inventario-quality`, natureza `qualidade`), sem `erro`; SPEC, teste ou apoio com hash do portão nessa situação bloqueia na fase Validar, porque ninguém no loop pode editá-los.
+Teste ou apoio protegido que sumiu depois do portão (hash `ausente`) volta como `testes-intactos` ou `apoio-intacto` antes da auditoria, mandando restaurar o arquivo, mesmo quando o contrato o cita num check `required`.
 
 Ausências sparse elegíveis usam um único lote NUL de membership; fallback prepara regras
 e configuração uma vez por inventário, sem cache persistente. Symlink interno válido para
@@ -209,7 +220,7 @@ Duas ressalvas que o código impõe e a prosa não deve esconder:
 - A auditoria enxerga o **diff acumulado**, não o da iteração: contra `baseRef` quando ele é
   passado (inclui os commits da entrega), senão a working tree contra HEAD. Não há recorte por
   iteração. Por isso ela deduplica achados entre iterações, e `linhasAdicionadasAcumuladas` é
-  acumulado: não leia como "cresceu tanto nesta rodada".
+  acumulado: não leia como "cresceu tanto nesta rodada". A auditoria também reporta `linhasRemovidasAcumuladas`: entrega que só remove código (0 adicionadas e mais de 0 removidas) não é auditoria cega, e o relatório registra as linhas removidas.
 - **P14 tem uma porta lateral:** a rota mecânica nunca transforma fora-de-escopo em retrabalho,
   mas no perfil Máximo a lente R3 revisa o mesmo diff e *pode* reportar o mesmo trecho como
   bloqueante por P1. Se isso acontecer, é julgamento adversarial legítimo — não um bug.
@@ -271,8 +282,8 @@ declarado, do arquivo da SPEC e do `pendenciasPath` (este só quando a base não
 com `implementacao-preexistente`: **não reverta**, siga pela retomada abaixo. Sem detecção, o
 motivo é `sem-vermelho` (critério já atendido ou teste inútil). Sem `baseRef`, a implementação já
 commitada na branch não aparece na lista. O `apoio` (array `apoio` no retorno do portão) são os
-helpers e fixtures que o portão criou ou editou fora da lista de testes da SPEC: não recebem hash
-nem contam como implementação; apoio declarado num arquivo de unidade de trabalho bloqueia
+helpers e fixtures que o portão criou ou editou fora da lista de testes da SPEC: não contam como
+implementação, mas o apoio do portão é protegido por hash como os testes (o hash entra na base medida e é conferido a cada validação). Apoio alterado depois do portão vira bloqueante automático (origem `apoio-intacto`, natureza `integridade-do-apoio`), sem chamar o confirmador. Apoio declarado com barra final (pasta) ou com hash `ausente` ou `nao-regular` bloqueia o portão, nomeando o caminho. Apoio declarado num arquivo de unidade de trabalho bloqueia
 antes da medição (o portão não implementa produção).
 
 **Exceção humana (`autorizacoesTdd`).** Só o dono autoriza continuar sem vermelho, e só para
@@ -418,6 +429,33 @@ O helper não prova a autorização dos paths, não detecta efeitos omitidos for
 isola o shell. O revisor nunca corrige, encena ou limpa o índice; o passo de commit pertence
 à `entregar`, que verifica todo o stage antes de prosseguir.
 
+## 🧬 Fase Mutar: os testes protegem o código que a entrega escreveu (3.1.0)
+
+Passar não prova que o teste perceberia o código mudando. O vermelho na base é uma mutação única; a fase Mutar acrescenta mutação dirigida às linhas que a entrega acrescentou.
+
+- A fase Mutar roda nos perfis balanceado e máximo, quando a iteração fecharia verde (validação verde e nenhum bloqueante confirmado), depois da Revisar e antes do verde; no perfil econômico ela não roda, nenhuma chamada acontece e o relatório traz `mutacao.status: 'nao-medida'` com a causa "perfil economico".
+- O harness pede ao mecânico (step `validar`, label `mutar:medir:i<N>`) um único comando de `scripts/mutantes.mjs medir` com a base da entrega, os excluídos (testes da SPEC, apoio, reforços, SPEC, pendências) e os comandos dos testes da SPEC e dos reforços aceitos; como a medição leva minutos, o pedido manda rodá-lo em segundo plano e esperar o término, em vez do timeout padrão do Bash.
+- O script gera mutantes só nas linhas acrescentadas dos arquivos `.js/.mjs/.cjs/.ts/.tsx/.jsx/.py` (comparação, lógicos, booleanos e retorno; nunca em comentário nem em texto entre aspas), sempre os mesmos para a mesma entrada, no máximo 20 por run: o rodízio por arquivo decide a cota de cada um e, dentro do arquivo, sai um mutante por linha, espalhado do começo ao fim (o teto que sobrar volta às outras trocas das mesmas linhas); aplica cada um numa cópia descartável da worktree, nunca nela; antes, roda um controle sem mutante.
+- O JSON traz `candidatos`, `amostrados`, `linhasAcrescentadas`, `controle`, `mutantes[]`, `removida`, `worktreeIntacta` e `conferencia` (CRC-32 que o controlador recalcula); evidência que não confere tem uma recoleta única, como as outras (3.0.4).
+- Nada de ambiente vira mutante morto: controle vermelho, erro do script, cópia não removida, worktree não intacta, zero candidato ou evidência que não confere nem na recoleta deixam a mutação `nao-medida` com a causa no relatório, e o run segue o desfecho que teria sem a fase.
+- Cada sobrevivente vai ao confirmador (`confirmar:mutante:i<N>`, revisor), que só diz `real` com um cenário concreto em que a saída muda; sem retorno do confirmador o desfecho é `erro`.
+- Sobrevivente real vira bloqueante de natureza `mutacao` na correção ao operário, com path:linha, a troca feita e o pedido de caso novo em arquivo de reforço, nunca no teste da SPEC nem no apoio.
+- Sobrevivente real fica pendente até prova de morte, identificado pela troca (path, `trecho` da linha, operador, de, para) e não pelo id, que muda com a linha: a medição seguinte o recebe em `--prioridade` antes do resto da amostra. Se ele não reaparecer (a linha mudou ou saiu), ou se a medição seguinte for `nao-medida`, segue como bloqueante de natureza `mutacao` até o teto, e o `escalado` nomeia o que ficou sem prova.
+- Sobrevivente equivalente (não muda comportamento) não bloqueia: aparece em `mutacao.equivalentes` com o porquê do revisor.
+- O operário declara o arquivo novo em `reforcos[]` (`path`, `comando`, `mutante`); o harness recusa path de teste da SPEC, apoio, SPEC, pendências ou fora do workspace, e o reforço só é aceito quando a fase Mutar seguinte mostra a mesma troca morta pelo comando dele (`mortoPor`), e a partir daí o arquivo é protegido por hash como os testes da SPEC (origem `reforco-intacto`).
+- Reforço declarado cujo comando falha no controle volta ao operário como correção, não como `nao-medida`.
+- Sobrevivente real que continua vivo ao fim da última iteração termina o run como `escalado`, com `mutacao.sobreviventes` (path:linha, troca, testes que rodaram) e a ação que diz o que reforçar; nunca `verde` nem `erro`.
+- O custo entra no piso: cada iteração que chega verde nos perfis balanceado e máximo soma 1 chamada (`mutar:medir`), e cada sobrevivente soma 1 de confirmação.
+- Esta fase não substitui Stryker, mutmut ou PIT quando o projeto tem um: a ferramenta do projeto segue nas `validacoes`.
+
+## 📋 Conferência rápida no relatório (3.1.0)
+
+Os desfechos `verde` e `escalado` trazem `paraConferir`, com no máximo três linhas para o dono olhar primeiro, e `numeros`.
+
+- `paraConferir` segue esta prioridade: mutação não medida ou com equivalentes; finding bloqueante que o confirmador refutou; o arquivo de produção com mais linhas acrescentadas, com o comando de `inspecionar-git.mjs diff` dele (a linha some no perfil econômico ou sem medição de mutação).
+- `numeros` traz testes, mutantes mortos, amostrados e candidatos, e iterações.
+- Leia essas linhas antes do relatório inteiro: o que o harness não conseguiu provar vem primeiro.
+
 ## 📋 A SPEC
 
 Formato canônico, regras e gate de prontidão: `references/spec-template.md`. Pré-condições que
@@ -472,16 +510,19 @@ Step em haiku que não retornar cai UMA vez pro operário (Sonnet) e desliga o h
 do run — o tier barato nunca aborta um run.
 
 Apresente: complexidade estimada, perfil sugerido com porquê e o nº esperado de agentes. **Piso**
-(nenhuma consulta, nenhum finding plausível): `3 + iterações × (unidades + lentes + 2)` — o `3`
-fixo é spec + portão TDD + a execução independente do vermelho (mecânico, haiku); o `+2` por
-iteração é o agente de validação e o da auditoria ponytail; as lentes rodam **por iteração**,
-não uma vez. Ex.: 3 unidades, Balanceado (2 lentes), 3 iterações → `3 + 3×(3+2+2)` = **24**.
+(nenhuma consulta, nenhum finding plausível): `6 + iterações × (unidades + lentes + 2)` — o `6`
+fixo é `spec:ids`, `spec:validar`, `spec:inventario`, o portão TDD, a execução independente do
+vermelho (mecânico, haiku) e `tdd:inventario`.
+Sem nenhum teste executável na SPEC não há `tdd:inventario`, e o piso fixo é 5.
+O `+2` por iteração é o agente de validação e o da auditoria
+ponytail; as lentes rodam **por iteração**, não uma vez. Ex.: 3 unidades, Balanceado (2 lentes),
+3 iterações → `6 + 3×(3+2+2)` = **27**.
 Nos perfis paralelos, no máximo 4 operários rodam ao mesmo tempo (lotes) — mais unidades não
 aumentam a concorrência, só o tempo.
 Somam-se por cima, e são imprevisíveis: cada consulta ao arquiteto custa 2 (o arquiteto + a
 re-invocação do operário), cada duplicação/abstração achada pela auditoria custa 1 de confirmação
 (sinal em teste da SPEC não custa: vira pendência sem confirmador), e cada evidência de hashes
-que não confere custa 1 de recoleta.
+que não confere, e cada campo de evidência com falha de formato (`recoleta:`), custa 1 de recoleta.
 Estime o piso, diga que é piso e a pergunta de **opt-in explícito**: *"posso orquestrar
 com multi-agentes? (~N agentes)"*. Sem opt-in → fallback sequencial (abaixo).
 
@@ -579,6 +620,7 @@ O script roda em background e devolve um resultado estruturado. Trate os 4 desfe
   em testes congelados) e os itens de `ponytail.duplicacoesEAbstracoes` com `confirmado: true`
   e `severidade: "nao-bloqueante"` (reais, julgados como pendência). O bloco `ponytail` sai
   também nos desfechos `escalado` e `erro` do loop, então essas listas não dependem do verde.
+  `paraConferir` e `numeros` (fase Mutar, 3.1.0) abrem o relatório: leia as três linhas antes do resto, e o campo `mutacao` diz se os testes protegem as linhas novas ou por que a medição não aconteceu.
 - **`status: "bloqueado"`** → a causa vem em `detalhe`/`acao`: na fase Spec/TDD, spec vazia ou
   com furo de formato, IDs de critério/unidade repetidos, unidade ligada a critério inexistente,
   pendência bloqueadora aberta, critério funcional sem teste, referência de teste inválida,
@@ -611,18 +653,20 @@ O script roda em background e devolve um resultado estruturado. Trate os 4 desfe
   (`validacaoVerde`), conta as falhas de validação por natureza (`falhasDeValidacaoPorNatureza`) e
   os bloqueantes da última iteração por natureza (`bloqueantesPorNatureza`): `procedimento`
   (relato de escada), `integridade-dos-testes` (teste da SPEC alterado), `dependencia` (P10),
+  `integridade-do-apoio` (helper ou fixture do portão alterado depois dele),
   `funcional` (teste da SPEC vermelho por asserção depois da implementação), `evidencia`
-  (execução faltando ou incoerente), `qualidade` (check semântico do contrato confirmado), `indeterminada`, `peso-de-diff` (sinal da auditoria) e
+  (execução faltando ou incoerente), `qualidade` (check semântico do contrato confirmado), `mutacao` (sobrevivente real da fase Mutar), `indeterminada`, `peso-de-diff` (sinal da auditoria) e
   `revisao` (lente). Com bloqueante funcional, loop que não converge é sinal de spec ruim, não de
   falta de força bruta. `somenteProcedimento: true` não é verde e não é falha funcional: a última
   validação fechou verde, sem falha registrada, e os bloqueantes restantes são só de procedimento,
   que se resolvem sem retrabalho de implementação; diga isso ao dono. O harness não converte isso
   em verde: aceitar é decisão do dono, registrada.
+  Sobrevivente real da fase Mutar que sobra na última iteração também escala, com `mutacao.sobreviventes` e a ação do que reforçar (arquivo de reforço, nunca o teste da SPEC); `paraConferir` e `numeros` saem aqui também.
 - **`status: "erro"`** → falha de infraestrutura de um agente; reinvocar com
   `resumeFromRunId` aproveita tudo que já completou. Exceções, em que o resume devolveria as
   mesmas respostas do cache e cabe **run novo** (siga o `acao` do relatório):
   execução independente incompleta pede run novo (teste sem execução, repetida ou desconhecida
-  no portão); erro de **evidência de hashes** (a coleta e a recoleta não conferiram); cópia da
+  no portão); erro de **evidência de hashes** (a coleta e a recoleta não conferiram); erro de evidência de campo (`campo`, `chamada` e `recoleta` no relatório: a coleta e a recoleta falharam); cópia da
   base com hashes divergentes, com sha que não confere com a `baseRef` ou com `alteracoes` de
   outra base; e
   `motivo: "ambiente"` na fase Validar (todas as falhas da iteração eram de ambiente: corrija o

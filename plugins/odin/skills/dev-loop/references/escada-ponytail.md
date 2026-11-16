@@ -98,6 +98,14 @@ Vale pra qualquer modo de implementação (Solo da `entregar` ou harness do `dev
   - Controles de preservação continuam podendo nascer verdes, sem exceção, e `rebaselineTdd` e
     `baseRef` não mudam em nenhum dos modos.
 - **O implementador não edita o teste** que precisa passar — nem afrouxa/skipa pra ficar verde.
+- **Teste que passa não prova teste que protege (3.1.0).** No harness, a fase Mutar (perfis
+  balanceado e máximo) muda as linhas acrescentadas numa cópia descartável (`../scripts/mutantes.mjs`)
+  e cobra que os testes da SPEC falhem; sobrevivente real volta ao operário como pedido de **caso novo
+  em arquivo de reforço**, declarado em `reforcos[]`, nunca edição do teste da SPEC nem do apoio. O
+  reforço só vale com o mutante morto na medição seguinte e passa a ser protegido por hash como os
+  testes. Mutante equivalente não bloqueia; ambiente e zero candidato são `nao-medida`, nunca "100%
+  morto". Sem o harness, a mesma pergunta cabe na autorrevisão: este teste perceberia a troca de `<`
+  por `<=` aqui?
 - Critério sem teste → volta pra SPEC (Step 4c da `entregar`).
 - Exceção justificada: critério puramente visual/não-executável → verificação complementar
   explícita (preview/screenshot/review); em entrega não-software, a variante SPEC-lite

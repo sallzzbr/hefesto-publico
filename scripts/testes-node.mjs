@@ -26,13 +26,18 @@ const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PLUGINS = join(RAIZ, 'plugins');
 
 // Pisos anti-regressão, não metas. Suba junto ao adicionar suíte.
-// Correção batch/links Odin 2026-11-08: 47 arquivos públicos descobertos recursivamente.
-const PISO_ARQUIVOS = 47;
+// Muralha de verificação, odin 3.1.0 (2026-11-15): 49 arquivos públicos descobertos recursivamente.
+const PISO_ARQUIVOS = 49;
 // Suítes da Forja e guards do repositório; arquivos complementam o piso de testes.
 const PISO_ARQUIVOS_HEFESTO = 8;
 // Contagem medida em 2026-11-14 (odin 3.0.2): 1171 testes públicos e 126 da publicação. Sobre 1158: +13 do harness do dev-loop (caminhos relatados por agente: arquivosTocados absoluto sob a raiz vira relativo e a falha funcional volta ao operário, arquivosTocados fora do workspace bloqueia na implementação, apoio fora do workspace bloqueia o TDD, apoio absoluto sob a raiz vira relativo, evidência de qualityReview absoluta normalizada e fora do workspace recusada nomeando o caminho, erro do inventário com o diagnóstico do script; relato que não fecha com a worktree: arquivo relatado inexistente e arquivo novo não relatado viram correção, relato persistente escala no teto, erro do script fora do relato segue erro, não relatado reincidente bloqueia como artefato e a correção nunca manda apagar).
 // Contagem medida em 2026-11-13 (odin 3.0.1): 1158 testes públicos e 126 da publicação. Sobre 1156: +2 do harness do dev-loop (o pedido do portão TDD declara a exigência do caminho do arquivo no comando, com exemplo de unittest, e unittest por arquivo com -k chega à medição).
 // Contagem medida em 2026-11-11 (decisões do dono, segunda rodada do PR 20): 1156 testes públicos e 126 da publicação. Sobre 1152: +4 do harness (segmentos por rota na mesma execução, lista de segmentos recusada quando inválida, fidelidade_mockup coagida a bloqueante e logRender com marcadores); a publicação segue com 126 (casos reescritos, não somados). Os casos novos de preflight são Python.
+// Contagem medida em 2026-11-16 (revisão da odin 3.1.0): 1287 testes públicos e 126 da publicação. Sobre 1275: +12 dos achados da revisão adversarial (pedido de medição em segundo plano, amostra espalhada um por linha, trecho no mutante, --prioridade, sobrevivente real retido até prova: na prioridade, sumido bloqueia, reforço pela mesma troca com id novo, nao-medida não fecha verde; reforço só aceito com mortoPor igual ao comando dele, mortoPor obrigatório e coerente na evidência, sinal limpa a cópia e o comando em andamento, link simbólico e binário fora das linhas acrescentadas, --vincular nunca escreve através de link da cópia).
+// Contagem medida em 2026-11-15 (odin 3.1.0): 1275 testes públicos e 126 da publicação, em 49 arquivos. Sobre 1237: +38 da muralha de verificação (script `mutantes.mjs` rodando de verdade num repositório git temporário, fase Mutar pelo harness embrulhado com agente falso, relatório `mutacao`, `paraConferir` e `numeros`, critérios Dado/Quando/Então e contratos de documentação). Os 2 arquivos novos são `mutantes.test.mjs` e `harness-mutar.test.mjs`.
+// Contagem medida em 2026-11-15 (odin 3.0.4): 1231 testes públicos e 126 da publicação. Sobre 1204: +27 do dev-loop (recoleta única por campo, medições cedo na fase Spec e depois do portão TDD, arquivo acima de 400 linhas, teste removido citado no contrato, casos com scripts reais, contrato de documentação e replay pelo bridge Codex).
+// Contagem medida em 2026-11-14 (revisão da odin 3.0.3): 1204 testes públicos e 126 da publicação. Sobre 1203: +1 do harness do dev-loop (sentinela de teste ou apoio na validação com o inventário no formato real do script, caminho em uninspected e pasta não rastreada como ausente ou ignorado, vira bloqueante e não erro).
+// Contagem medida em 2026-11-14 (odin 3.0.3): 1203 testes públicos e 126 da publicação. Sobre 1171: +32 do dev-loop (apoio do portão protegido por hash, sentinelas, alvo ausente, aliases do inventário, remoção acumulada, schema do veredito, casos com scripts reais e contrato de documentação).
 // Contagem medida em 2026-11-11 (segunda rodada da revisão do PR 20): 1152 testes públicos e 126 da publicação. Sobre a rodada anterior (1149 e 121): +3 do harness (args.python com espaço no caminho estruturado, execução com argv[0] único e saída do compor presa ao slug e à extensão); a publicação ganha os casos das regras novas do guard de vocabulário, dos controles de sigla, tamanho e cor hexadecimal, e do limite do mapa de migração. Os casos novos do preflight de manifesto são Python e não entram aqui.
 // Contagem medida em 2026-11-11 (revisão do PR 20, hermes 2.0.0 sobre o merge da E2): 1149 testes públicos e 121 da publicação. Do merge: o harness do criativo-fluxo perde os casos do comando legado e ganha os da saída presa ao segmento (H1 a H4); analisar-produto ganha lacunas por par de eixos, eixos recusados e chave desconhecida; regua-decisao ganha origem de metodologia e piso efetivo; a publicação ganha os casos do plugin excluído fictício, dos contornos de vocabulário e do resíduo semântico.
 // Contagem medida em 2026-11-11: 1137 testes públicos (+27 do harness do criativo-fluxo na revisão do PR 18: um caso por guarda nova, legado preservado, manifesto presente e entradas do caminho estruturado; a suíte privada de publicação desta branch segue com 31).
@@ -44,7 +49,7 @@ const PISO_ARQUIVOS_HEFESTO = 8;
 // do odin dava 23 reais + 2 passes de arquivo vazio = 25, e passava. Verificado.
 // Ao adicionar teste, o piso continua satisfeito; ao remover de propósito, baixe aqui no
 // mesmo commit e diga por quê.
-const PISO_TESTES = 1171;
+const PISO_TESTES = 1287;
 // Publicador e suíte são privados. O package privado solicita a flag; o scrub a
 // remove do package público. Path literal ausente falha, sem skip por existência.
 const PISO_TESTES_PUBLICACAO = 126;

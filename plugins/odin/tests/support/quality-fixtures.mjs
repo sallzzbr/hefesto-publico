@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { crc32 } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 export const root = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -34,8 +35,31 @@ export function responses(quality = contract()) {
     ...defaults,
     'spec:ids': () => ({ ...defaults['spec:ids'](), quality: structuredClone(quality) }),
     'validar:': opts => ({ ...defaults['validar:'](opts), qualityExecutions: executions(quality), qualityInventory: inventory(quality) }),
-    'ponytail:': () => ({ ...defaults['ponytail:'](), qualityReview: review(quality) }),
+    'ponytail:': opts => ({ ...defaults['ponytail:'](opts), qualityReview: review(quality) }),
   };
+}
+// Hash de apoio no formato `<sha256>-<conferência>`, com a conferência (CRC-32 de `path\nsha`)
+// calculada pelo zlib do Node, fora do harness. O sha é uma letra repetida: serve de fixture, não
+// de hash de arquivo real (os casos com scripts reais usam a saída do script).
+export function hashDeApoio(path, letra = 'e') {
+  const sha = letra.repeat(64);
+  return `${sha}-${crc32(`${path}\n${sha}`).toString(16).padStart(8, '0')}`;
+}
+// Paths do comando de hashes que o harness emite no pedido (`hashes-testes.mjs '<json>'`); o modo
+// `--impressao` não casa. null = o pedido não traz o comando.
+export function pathsDoComandoDeHashes(prompt) {
+  const achado = typeof prompt === 'string' ? /hashes-testes\.mjs' '(\[[^\n']*\])'/.exec(prompt) : null;
+  return achado ? JSON.parse(achado[1]) : null;
+}
+// O harness 3.0.3 pede também o hash do apoio do portão. Os casos que declaram apoio mas não tratam
+// de hash respondem só com os testes: este complemento acrescenta o apoio que o comando pediu e o
+// mapa não trouxe. Com a lista de paths antiga (só testes) não acrescenta nada.
+export function completarHashesDeApoio(prompt, resposta, apoio) {
+  const mapa = resposta?.hashesDosTestes;
+  const pedidos = pathsDoComandoDeHashes(prompt);
+  if (!mapa || typeof mapa !== 'object' || Array.isArray(mapa) || !pedidos) return;
+  const faltando = pedidos.filter(path => apoio.has(path) && !Object.hasOwn(mapa, path));
+  if (faltando.length) resposta.hashesDosTestes = { ...mapa, ...Object.fromEntries(faltando.map(path => [path, hashDeApoio(path)])) };
 }
 export const args = { workspaceRoot: '/workspace', scriptsDir: '/plugin/scripts', specPath: 'docs/plans/spec.md', branch: 'feat/quality', perfil: 'economico', validacoes: ['npm test'], hoje: '2026-11-07' };
 export async function runHarness({ quality = contract(), overrides = {}, options = {} } = {}) {
@@ -43,12 +67,16 @@ export async function runHarness({ quality = contract(), overrides = {}, options
   const lines = source.split('\n');
   const body = lines.slice(lines.findIndex(line => line === '}') + 1).join('\n');
   const calls = [];
+  const apoio = new Set();
   const table = { ...responses(quality), ...overrides };
   const agent = async (prompt, opts) => {
     calls.push({ ...opts, prompt });
     const key = Object.keys(table).find(k => opts.label === k || (k.endsWith(':') && opts.label.startsWith(k)));
     assert.ok(key, `No response for ${opts.label}`);
-    return table[key](opts, calls, prompt);
+    const response = table[key](opts, calls, prompt);
+    if (opts.label === 'tdd:portao') for (const path of response?.apoio || []) apoio.add(path);
+    completarHashesDeApoio(prompt, response, apoio);
+    return response;
   };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   const result = await new AsyncFunction('args', 'agent', 'parallel', 'phase', 'log', body)({ ...args, ...options }, agent, thunks => Promise.all(thunks.map(fn => Promise.resolve().then(fn).catch(() => null))), () => {}, () => {});

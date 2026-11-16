@@ -8,7 +8,9 @@
 // harness: o check de sync só cobra as cópias em `shared/`, e uma nativa desatualizada passava.
 
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -74,16 +76,20 @@ test('a revisão de contratos do harness mudou e a skill cita a mesma', () => {
   assert.ok(ler('skills/dev-loop/SKILL.md').includes(`odin-dev-loop: revisão de contratos ${REVISAO}`));
 });
 
-test('odin 3.0.2 com marketplace sincronizado, CHANGELOG e dependência da iris', () => {
+// A versão não é fixada aqui: cada release do odin mudaria este caso sem mudar o que ele prova (os
+// manifestos concordam entre si e o CHANGELOG tem a entrada da versão publicada). O piso 3.0.2 é o
+// da última versão que alterou o contrato desta família de testes.
+test('odin com marketplace sincronizado, CHANGELOG e dependência da iris', () => {
   const plugin = JSON.parse(ler('.claude-plugin/plugin.json'));
-  assert.equal(plugin.version, '3.0.2');
+  const [maior, menor, correcao] = plugin.version.split('.').map(Number);
+  assert.ok(maior > 3 || (maior === 3 && (menor > 0 || correcao >= 2)), `odin ${plugin.version} abaixo do piso 3.0.2`);
   // O planner monta o brief do arquiteto com iris:delegar-agente sem condicional (docs-fluxo-14):
   // a iris é dependência declarada, resolvida neste marketplace.
   assert.deepEqual(plugin.dependencies, ['iris']);
   const mp = JSON.parse(readFileSync(resolve(RAIZ, '.claude-plugin', 'marketplace.json'), 'utf8'));
-  assert.equal(mp.plugins.find((p) => p.name === 'odin').version, '3.0.2');
+  assert.equal(mp.plugins.find((p) => p.name === 'odin').version, plugin.version);
   assert.ok(mp.plugins.some((p) => p.name === 'iris'), 'iris fora do marketplace: a dependência não resolve');
-  assert.match(ler('CHANGELOG.md'), /^## 3\.0\.2(\s|$)/m);
+  assert.match(ler('CHANGELOG.md'), new RegExp(`^## ${plugin.version.replaceAll('.', '\\.')}(\\s|$)`, 'm'));
 });
 
 // Iteração 2 (revisão adversarial): o portão antigo sobrevivia na entregar e no resumo canônico.
@@ -580,5 +586,106 @@ test('decisão 12: nenhuma doc condiciona a exceção ao perfil máximo fora do 
   ];
   for (const [rel, leitor] of docs) {
     assert.deepEqual(frasesAmbiguas(leitor(rel)), [], `${leitor === ler ? 'plugins' : 'codex/plugins'}/odin/${rel}`);
+  }
+});
+
+// ── odin 3.0.3: o que a sessão precisa saber das correções do harness (A27) ─────────────────────
+// Marcador de prosa, a camada fraca de propósito: a sessão só monta a invocação e conversa com o dono
+// pelo que a doc diz. Cada exigência é uma frase inteira, nas duas distribuições.
+const frasesDe = (texto) => texto.split(/(?<=[.!?])\s+|\n+/);
+test('A27: as docs do dev-loop nas duas distribuições dizem que o apoio é protegido por hash, que alvo do contrato ausente volta como correção e citam aliases e linhasRemovidasAcumuladas', () => {
+  const docs = [['dev-loop/SKILL.md', ler('skills/dev-loop/SKILL.md')], ['execucao.md', lerCodex('skills/dev-loop/references/execucao.md')]];
+  for (const [nome, texto] of docs) {
+    const frases = frasesDe(texto);
+    assert.ok(frases.some((f) => /apoio/i.test(f) && /hash/i.test(f) && /como os testes/i.test(f)), `${nome}: sem a frase de que o apoio do portão é protegido por hash como os testes`);
+    assert.ok(frases.some((f) => /alvo/i.test(f) && /contrato/i.test(f) && /ausente/i.test(f) && /volta como correção/i.test(f)), `${nome}: sem a frase de que alvo do contrato ausente volta como correção`);
+    assert.ok(frases.some((f) => f.includes('`aliases`') && /invent[aá]rio/i.test(f)), `${nome}: sem o campo \`aliases\` do inventário`);
+    assert.ok(frases.some((f) => f.includes('`linhasRemovidasAcumuladas`') && /auditoria/i.test(f)), `${nome}: sem o campo \`linhasRemovidasAcumuladas\` da auditoria`);
+  }
+});
+
+// ── odin 3.0.4: o que a sessão precisa saber da recoleta e da medição cedo (A26) ──────────────────
+// Mesma camada fraca da 3.0.3: marcador de prosa em frases inteiras, nas duas distribuições. O
+// comportamento está travado em `harness-dev-loop.test.mjs`; aqui só se cobra que a sessão saiba
+// ler o desfecho (campo, chamada, recoleta), os labels novos e o piso de agentes com as duas medições.
+test('304-A26: as docs do dev-loop nas duas distribuições dizem recoleta única por campo e quem recolhe, a segunda falha, as medições cedo, o bloqueio antes da implementação e o piso de agentes', () => {
+  const docs = [['dev-loop/SKILL.md', ler('skills/dev-loop/SKILL.md')], ['execucao.md', lerCodex('skills/dev-loop/references/execucao.md')]];
+  for (const [nome, texto] of docs) {
+    const frases = frasesDe(texto);
+    assert.ok(frases.some((f) => f.includes('`recoleta:`') && /campo/i.test(f) && /(uma vez|única|uma só)/i.test(f)), `${nome}: sem a frase de que a recoleta é única por campo, com o prefixo \`recoleta:\``);
+    assert.ok(frases.some((f) => f.includes('qualityReview') && /revisor/i.test(f) && /recole|recolh/i.test(f)), `${nome}: sem a frase de que o revisor recolhe qualityReview`);
+    assert.ok(frases.some((f) => /operário/i.test(f) && /recole|recolh/i.test(f) && ['qualityExecutions', 'qualityInventory', 'execucoes'].some((campo) => f.includes(campo))), `${nome}: sem a frase de que o operário recolhe os campos do mecânico`);
+    assert.ok(frases.some((f) => f.includes('`campo`') && f.includes('`chamada`') && f.includes('`recoleta`')), `${nome}: sem a frase da segunda falha com \`campo\`, \`chamada\` e \`recoleta\``);
+    for (const chamada of ['spec:inventario', 'tdd:inventario']) assert.ok(texto.includes(`\`${chamada}\``), `${nome}: sem a chamada \`${chamada}\``);
+    assert.ok(frases.some((f) => /filtro/i.test(f) && /flag/i.test(f) && /bloque/i.test(f)), `${nome}: sem a frase do bloqueio por filtro e flag antes da implementação`);
+    assert.ok(frases.some((f) => /decomposi/i.test(f) && f.includes('400') && /bloque/i.test(f)), `${nome}: sem a frase do bloqueio por decomposição acima de 400 linhas`);
+    assert.ok(frases.some((f) => /produção/i.test(f) && f.includes('400') && /correção/i.test(f)), `${nome}: sem a frase de que arquivo de produção acima de 400 linhas na validação volta como correção`);
+    assert.ok(texto.includes('`6 + iterações × (unidades + lentes + 2)`'), `${nome}: sem o piso de agentes com as duas medições`);
+    assert.ok(frases.some((f) => /\b5\b/.test(f) && /teste executável/i.test(f) && /sem|nenhum|não/i.test(f)), `${nome}: sem o piso de 5 agentes quando não há teste executável`);
+  }
+});
+
+test('304-F6: as docs não prometem bloqueio por smudge, dizem que a segunda falha de execucoes é o bloqueante de evidência e mantêm as regras de decomposição sob o título dela', () => {
+  const docs = [['dev-loop/SKILL.md', ler('skills/dev-loop/SKILL.md')], ['execucao.md', lerCodex('skills/dev-loop/references/execucao.md')], ['quality-contract.md', ler('skills/dev-loop/references/quality-contract.md')]];
+  for (const [nome, texto] of docs) {
+    assert.ok(!/smudge/.test(texto), `${nome}: promete bloqueio por smudge, que o script não mede`);
+    assert.ok(frasesDe(texto).some((f) => f.includes('execucoes') && /segunda falha/i.test(f) && f.includes('`evidencia`')), `${nome}: sem a frase de que a segunda falha de execucoes vira o bloqueante de evidência`);
+  }
+  for (const [nome, texto] of docs.slice(0, 2)) assert.ok(frasesDe(texto).some((f) => /filtro/i.test(f) && f.includes('`process`') && /LFS/.test(f)), `${nome}: sem a frase de que o driver process (como o do Git LFS) também bloqueia`);
+  const qc = ler('skills/dev-loop/references/quality-contract.md');
+  const decomposicao = recorte(qc, '## Decomposição antes e durante a implementação', '\n## ');
+  assert.ok(decomposicao.includes('Não dividir cegamente') && decomposicao.includes('Exemplo sintético: um módulo de 430 linhas'), 'as regras e o exemplo de decomposição ficam sob o título de decomposição');
+});
+
+// Muralha de verificação (odin 3.1.0). A9: critério escrito como exemplo Dado/Quando/Então. Marcador de
+// prosa nas docs que montam a SPEC; o aceite da SPEC antiga e da nova pelo `spec-ids.mjs` roda de verdade.
+const DADO_QUANDO_ENTAO = /Dado\s*\/\s*Quando\s*\/\s*Então/;
+const SPEC_IDS = resolve(ODIN, 'skills', 'dev-loop', 'scripts', 'spec-ids.mjs');
+const specComTabela = (linhas) => `# SPEC: x [x]\n\n## Critérios de aceite\n| # | Critério | Tipo | Teste que o cobre (path) | Verificação complementar |\n|---|---|---|---|---|\n${linhas.join('\n')}\n`;
+function idsDaSpec(texto) {
+  const dir = mkdtempSync(resolve(tmpdir(), 'odin-a9-'));
+  try {
+    const arquivo = resolve(dir, 'spec.md');
+    writeFileSync(arquivo, texto);
+    const p = spawnSync(process.execPath, [SPEC_IDS, arquivo], { encoding: 'utf8' });
+    return { status: p.status, saida: JSON.parse(p.stdout) };
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('A9: o template da SPEC pede cada critério como Dado/Quando/Então e o exemplo da tabela segue o formato', () => {
+  const t = ler('skills/dev-loop/references/spec-template.md');
+  assert.match(t, DADO_QUANDO_ENTAO, 'spec-template.md sem a instrução Dado/Quando/Então');
+  const linhas = t.split('\n').filter((l) => /^\|\s*A[12]\s*\|/.test(l));
+  assert.equal(linhas.length, 2, 'as duas linhas de exemplo A1 e A2 da tabela de critérios');
+  for (const l of linhas) assert.match(l, /Dado[\s\S]*quando[\s\S]*então/i, `linha de exemplo fora do formato: ${l}`);
+});
+
+test('A9: a skill entregar e o arquiteto pedem os critérios em Dado/Quando/Então quando o dono os descreve em prosa', () => {
+  for (const rel of ['skills/entregar/SKILL.md', 'agents/arquiteto.md']) {
+    const s = ler(rel);
+    assert.match(s, DADO_QUANDO_ENTAO, `${rel} sem a instrução Dado/Quando/Então`);
+    assert.match(s, /prosa/i, `${rel} não liga o formato à descrição em prosa do dono`);
+  }
+});
+
+test('A9-controle: SPEC antiga, sem Dado/Quando/Então, continua aceita pelo spec-ids; a nova também', () => {
+  const antiga = idsDaSpec(specComTabela(['| A1 | faz X quando Y | reprodução | `t.test.mjs` | |', '| A2 | continua igual | preservação | `t.test.mjs` | |']));
+  assert.equal(antiga.status, 0);
+  assert.deepEqual([antiga.saida.ok, antiga.saida.ids, antiga.saida.erros], [true, ['A1', 'A2'], []]);
+  const nova = idsDaSpec(specComTabela(['| A1 | **Dado** um pedido vazio, **quando** o total é calculado, **então** vale zero. | reprodução | `t.test.mjs` | |']));
+  assert.equal(nova.status, 0);
+  assert.deepEqual([nova.saida.ok, nova.saida.ids], [true, ['A1']]);
+});
+
+// A1/A8/A11 na documentação: a sessão que monta a invocação precisa saber que a fase existe, em que
+// perfis roda, o que o relatório traz e o que escala.
+test('A1/A8: as docs do dev-loop nas duas distribuições descrevem a fase Mutar, os perfis, o relatório e a escalada', () => {
+  const docs = [['dev-loop/SKILL.md', ler('skills/dev-loop/SKILL.md')], ['execucao.md', lerCodex('skills/dev-loop/references/execucao.md')]];
+  for (const [nome, texto] of docs) {
+    for (const termo of ['mutantes.mjs', 'mutar:medir', 'confirmar:mutante', 'reforcos', 'paraConferir', 'numeros', 'nao-medida']) assert.ok(texto.includes(termo), `${nome}: sem "${termo}"`);
+    const frases = frasesDe(texto);
+    assert.ok(frases.some((f) => /Mutar/.test(f) && /balanceado/i.test(f) && /m[aá]ximo/i.test(f) && /econ[oô]mico/i.test(f)), `${nome}: sem a frase dos perfis da fase Mutar`);
+    assert.ok(frases.some((f) => /sobrevivente/i.test(f) && /escalad/i.test(f)), `${nome}: sem a frase de que sobrevivente real persistente escala`);
+    assert.ok(frases.some((f) => /equivalente/i.test(f) && /n[aã]o bloque/i.test(f)), `${nome}: sem a frase de que equivalente não bloqueia`);
   }
 });

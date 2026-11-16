@@ -21,8 +21,8 @@
 ## Critérios de aceite (TODOS verificáveis, TODOS com teste)
 | # | Critério | Tipo | Teste que o cobre (path) | Verificação complementar |
 |---|---|---|---|---|
-| A1 | <comportamento observável que hoje falta ou está errado> | reprodução | `src/.../X.test.ts` (a escrever no portão TDD) | snapshot / curl / preview, se aplicável |
-| A2 | <comportamento correto hoje que a mudança não pode quebrar> | preservação | `src/.../X.test.ts` | |
+| A1 | **Dado** <contexto inicial>, **quando** <ação ou evento>, **então** <comportamento observável que hoje falta ou está errado> | reprodução | `src/.../X.test.ts` (a escrever no portão TDD) | snapshot / curl / preview, se aplicável |
+| A2 | **Dado** <contexto inicial>, **quando** <ação ou evento>, **então** <comportamento correto hoje que a mudança não pode quebrar> | preservação | `src/.../X.test.ts` | |
 
 ## Non-goals (o que esta entrega NÃO faz)
 <corta escopo explicitamente — é aqui que a regra ponytail P1 (não escreva o que não precisa existir) age>
@@ -93,6 +93,7 @@ validações verdes, evidência registrada, doc/instrução de uso quando aplic�
   área, convenções e decisões de decomposição são parte da aprovação, não checklist posterior.
   Nenhuma regra base omitida; dispensa só contextual e justificada; alvos relativos concretos.
 
+- **Critério é um exemplo Dado/Quando/Então** (A9): cada linha da tabela escreve o contexto (**Dado**), a ação ou evento (**quando**) e o resultado observável (**então**). Se o dono descreve o critério em prosa, reescreva neste formato e confirme com ele. É convenção de leitura: SPEC antiga em prosa continua aceita pelo `spec-ids.mjs` e pelo harness, que só leem o `#` e a coluna `Tipo`.
 - **Critério não-verificável não entra.** "Ficar bonito" vira "passa no review visual
   (preview/screenshot) sem finding bloqueante"; "ser rápido" vira número medível.
 - **Tipo do critério (coluna `Tipo`):** `reprodução` (default quando a coluna ou a célula

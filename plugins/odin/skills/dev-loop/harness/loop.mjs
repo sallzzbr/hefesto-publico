@@ -9,6 +9,7 @@ export const meta = {
     { title: 'Validar', detail: 'validações do projeto (lint/typecheck/test/build)' },
     { title: 'Auditar', detail: 'auditoria ponytail do diff: dependência nova sem justificativa é bloqueante automático' },
     { title: 'Revisar', detail: 'lentes adversariais sequenciais; findings bloqueantes confirmados antes de retrabalho' },
+    { title: 'Mutar', detail: 'mutação dirigida às linhas acrescentadas (perfis balanceado e máximo); sobrevivente real volta ao operário como reforço' },
   ],
 }
 
@@ -78,10 +79,11 @@ log('odin-dev-loop: revisão de contratos 2026-11-02-r8')
 //                     não serve.
 // }
 
+// `mutacao` (3.1.0): só balanceado e máximo rodam a fase Mutar; o econômico registra nao-medida.
 const PERFIS = {
-  economico:  { paralelo: false, lentes: ['corretude'] },
-  balanceado: { paralelo: true,  lentes: ['corretude', 'seguranca-bordas'] },
-  maximo:     { paralelo: true,  lentes: ['corretude', 'seguranca-bordas', 'ponytail-arquitetura'] },
+  economico:  { paralelo: false, lentes: ['corretude'], mutacao: false },
+  balanceado: { paralelo: true,  lentes: ['corretude', 'seguranca-bordas'], mutacao: true },
+  maximo:     { paralelo: true,  lentes: ['corretude', 'seguranca-bordas', 'ponytail-arquitetura'], mutacao: true },
 }
 
 const MAX_ITERACOES = 3
@@ -164,7 +166,8 @@ const TDD_SCHEMA = { type: 'object', additionalProperties: false, required: ['ve
   } },
   problemas: { type: 'array', items: { type: 'string' } },
   // Helpers e fixtures que o portão criou ou editou para os testes (2.6.0): não contam como
-  // implementação anterior e entram na cópia da base. Não são protegidos por hash.
+  // implementação anterior e entram na cópia da base. Desde a 3.0.3 são protegidos por hash como os
+  // testes (origem apoio-intacto), exceto na cópia da base, que não confere o hash do apoio.
   apoio: { type: 'array', items: { type: 'string' } },
 } }
 
@@ -184,6 +187,9 @@ const IMPL_SCHEMA = { type: 'object', additionalProperties: false, required: ['s
   // autodeclaração: a auditoria confronta o diff com a escada (`criacoesSemRelato`).
   semCriacao: { type: 'boolean' },
   arquivosTocados: { type: 'array', items: { type: 'string' } },
+  // 3.1.0: caso novo que mata um mutante sobrevivente, em arquivo de reforço (nunca teste da SPEC nem apoio).
+  // Só vale quando a fase Mutar seguinte mostra `mutante` morto rodando `comando`; ver `analisarReforco`.
+  reforcos: { type: 'array', items: { type: 'object', required: ['path', 'comando', 'mutante'], properties: { path: { type: 'string' }, comando: { type: 'string', minLength: 1 }, mutante: { type: 'string', minLength: 1 } } } },
   consulta: { type: 'object', properties: { contexto: { type: 'string' }, decisaoNecessaria: { type: 'string' }, opcoes: { type: 'array', items: { type: 'string' } } } },
   pendencias: { type: 'array', items: { type: 'string' } },
 } }
@@ -247,13 +253,29 @@ const VEREDITO_SCHEMA = { type: 'object', additionalProperties: false, required:
 // retrabalho: nas duas rodadas de 2026-10-03/04 os 27 sinais confirmados diziam "não
 // bloqueante" no `porque`. Finding de lente fica no schema acima — a severidade dele já foi
 // classificada pela lente, e o confirmador não ganha poder de rebaixá-la.
-const VEREDITO_AUDITORIA_SCHEMA = { type: 'object', additionalProperties: false, required: ['real', 'bloqueante'], properties: { real: { type: 'boolean' }, bloqueante: { type: 'boolean' }, porque: { type: 'string' } } }
+// 3.0.3: `porque` é required com tamanho mínimo 1 também aqui. A confirmação de sinal de quality já
+// terminava em `erro` sem ele, mas só depois da chamada; com o schema o agente devolve o porquê ou a
+// resposta é recusada na origem, e `bloqueante` sem justificativa deixa de tirar sinal do retrabalho.
+const VEREDITO_AUDITORIA_SCHEMA = { type: 'object', additionalProperties: false, required: ['real', 'bloqueante', 'porque'], properties: { real: { type: 'boolean' }, bloqueante: { type: 'boolean' }, porque: { type: 'string', minLength: 1 } } }
+
+// 3.1.0: veredito do revisor sobre um mutante sobrevivente. `porque` obrigatório: real=true cita o cenário em
+// que a saída muda, real=false cita por que a troca não muda comportamento (equivalente).
+const VEREDITO_MUTANTE_SCHEMA = { type: 'object', additionalProperties: false, required: ['real', 'porque'], properties: { real: { type: 'boolean' }, porque: { type: 'string', minLength: 1 } } }
+// 3.1.0: o JSON de `mutantes.mjs medir`, copiado pelo mecânico nos campos de topo. A forma é conferida por
+// `mutacaoValida`; este schema só descreve o transporte.
+const MUTACAO_SCHEMA = { type: 'object', required: ['base', 'candidatos', 'amostrados', 'linhasAcrescentadas', 'controle', 'mutantes', 'removida', 'worktreeIntacta', 'conferencia'], properties: {
+  base: { type: 'string' }, candidatos: { type: 'integer', minimum: 0 }, amostrados: { type: 'integer', minimum: 0 },
+  linhasAcrescentadas: { type: 'object', additionalProperties: { type: 'integer', minimum: 0 } },
+  controle: { type: 'object', required: ['ok', 'execucoes'], properties: { ok: { type: 'boolean' }, execucoes: { type: 'array', items: { type: 'object', required: ['comando', 'exitCode'], properties: { comando: { type: 'string' }, exitCode: { type: 'integer' } } } } } },
+  mutantes: { type: 'array', items: { type: 'object', required: ['id', 'path', 'linha', 'trecho', 'operador', 'de', 'para', 'resultado'], properties: { id: { type: 'string' }, path: { type: 'string' }, linha: { type: 'integer' }, trecho: { type: 'string' }, operador: { type: 'string' }, de: { type: 'string' }, para: { type: 'string' }, resultado: { enum: ['morto', 'sobrevivente'] }, mortoPor: { type: ['string', 'null'] } } } },
+  removida: { type: 'boolean' }, worktreeIntacta: { type: 'boolean' }, conferencia: { type: 'string' },
+} }
 
 // Auditoria ponytail: sinais MECÂNICOS no diff (não é julgamento de arquitetura — isso é a lente R3).
 // `onde`/`arquivo` são PEDIDOS no prompt mas NÃO required: um schema estrito aqui faz o retorno
 // inteiro ser rejeitado por um campo faltante, e retorno rejeitado = auditoria vazia = regra P10
 // desarmada em silêncio. Localização feia é melhor que portão desligado; o `!aud` é que é erro.
-const AUDITORIA_SCHEMA = { type: 'object', additionalProperties: false, required: ['dependenciasNovas', 'duplicacoes', 'abstracoesUsoUnico', 'forasDeEscopo', 'linhasAdicionadasAcumuladas'], properties: {
+const AUDITORIA_SCHEMA = { type: 'object', additionalProperties: false, required: ['dependenciasNovas', 'duplicacoes', 'abstracoesUsoUnico', 'forasDeEscopo', 'linhasAdicionadasAcumuladas', 'linhasRemovidasAcumuladas'], properties: {
   dependenciasNovas: { type: 'array', items: { type: 'object', required: ['nome', 'justificativaEncontrada'], properties: {
     nome: { type: 'string', minLength: 1 }, justificativaEncontrada: { type: 'boolean' }, onde: { type: 'string' },
   } } },
@@ -267,6 +289,9 @@ const AUDITORIA_SCHEMA = { type: 'object', additionalProperties: false, required
   criacoesSemRelato: { type: 'array', items: { type: 'object', required: ['oQue', 'arquivo'], properties: { oQue: { type: 'string' }, arquivo: { type: 'string' }, linha: { type: 'number' }, unidade: { type: 'string' } } } },
   // Acumulado contra a base (baseRef) ou, sem ela, contra HEAD; nunca recortado por iteração.
   linhasAdicionadasAcumuladas: { type: 'number' },
+  // 3.0.3: sem ele, entrega só de remoção (0 adicionadas) caía na guarda de auditoria cega. É required:
+  // opcional e omitido numa entrega assim reabriria o mesmo erro.
+  linhasRemovidasAcumuladas: { type: 'number' },
 } }
 
 // O Workflow não importa módulos: estes schemas descrevem transporte; parsing e medidas
@@ -283,6 +308,9 @@ const QUALITY_SCHEMA = { type: 'object', additionalProperties: false, required: 
 } }
 const QUALITY_EXECUTIONS_SCHEMA = { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'command', 'paths', 'exitCode', 'output'], properties: { id: qualityText, command: qualityText, paths: qualityPaths, exitCode: { type: 'integer' }, output: qualityText } } }
 const QUALITY_INVENTORY_SCHEMA = { type: 'object', additionalProperties: false, required: ['files', 'uninspected', 'errors'], properties: {
+  // 3.0.3: `inspecionar-git.mjs quality` só emite `aliases` quando trocou o pedido pelo nome do git
+  // (core.ignoreCase=true e pedido que difere só na caixa). O harness valida cada par antes de usá-lo.
+  aliases: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['requested', 'path'], properties: { requested: qualityText, path: qualityText } } },
   files: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['path', 'lines', 'bytes', 'status'], properties: { path: qualityText, lines: { type: 'integer', minimum: 0 }, bytes: { type: 'integer', minimum: 0 }, status: { enum: ['text', 'binary', 'deleted', 'symlink'] } } } },
   uninspected: { type: 'array', items: qualityText }, errors: { type: 'array', items: qualityText },
 } }
@@ -293,6 +321,9 @@ const QUALITY_REVIEW_SCHEMA = { type: 'array', items: { type: 'object', addition
 } } }
 AUDITORIA_SCHEMA.required.push('qualityReview')
 AUDITORIA_SCHEMA.properties.qualityReview = QUALITY_REVIEW_SCHEMA
+// 3.0.4: schema da recoleta e da medição cedo. Só o campo pedido, com o subschema que a resposta original já usa:
+// a recolhida é validada pelo mesmo contrato, e o agente não reabre o resto da resposta.
+const soCampo = (campo, schema) => ({ type: 'object', additionalProperties: false, required: [campo], properties: { [campo]: schema } })
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const OPERARIO = { agentType: 'odin:operario' }
@@ -396,6 +427,8 @@ async function chamarOperario(step, prompt, opts) {
 
 // Revisor é opus SEMPRE (MODELOS_STEP não permite outro modelo) — só o effort é configurável.
 const chamarRevisor = (step, prompt, extra) => { registrarExec(step, 'opus'); return tentar(prompt, { ...REVISOR, ...(TIERING[step].effort ? { effort: TIERING[step].effort } : {}), ...extra }) }
+// Agente das recoletas de campo do mecânico (3.0.4): o piso do papel, com o effort do step `validar`.
+const agenteDoValidar = () => ({ ...OPERARIO, ...(TIERING.validar.effort ? { effort: TIERING.validar.effort } : {}) })
 
 // ── Fase 0: args válidos (falha barata antes de gastar agente) ───────────────
 // A tool Workflow pode entregar args como string JSON — normalizar antes de validar.
@@ -563,12 +596,19 @@ const relatorioModelos = () => ({
 // Normaliza apenas identidades dentro da raiz conhecida. Não aceita sufixo arbitrário
 // (outro projeto/tests/a.js), valores não SHA-256 ou duas provas conflitantes.
 const pathCanonico = p => p.split('/').filter(parte => parte && parte !== '.').join('/');
-// Identidade de um path relatado por agente: tolera o prefixo da raiz e anotação de :linha.
+// Identidade de um path relatado por agente: tolera o prefixo da raiz e anotação de :linha[:coluna].
 // null = não dá pra afirmar que é arquivo deste workspace.
+// 3.0.3: no macOS /tmp e /var são links para /private/tmp e /private/var, e `workspaceRoot` é a raiz
+// física (pwd -P) enquanto o operário relata a lógica (ou o inverso). As duas grafias valem como a
+// mesma raiz; o prefixo é conferido com a barra, então /tmp/wsx não casa com /private/tmp/ws.
 function pathNoWorkspace(relatado) {
   const root = ARGS.workspaceRoot.replace(/\\/g, '/').replace(/\/$/, '');
-  let key = relatado.trim().replace(/:\d+(?:-\d+)?(?:\s+\([^\n]*\))?$/, '');
-  if (key.startsWith(root + '/')) key = key.slice(root.length + 1);
+  const raizes = [root];
+  if (/^\/private\/(?:tmp|var)\//.test(root)) raizes.push(root.slice('/private'.length));
+  else if (/^\/(?:tmp|var)\//.test(root)) raizes.push('/private' + root);
+  let key = relatado.trim().replace(/:\d+(?:-\d+)?(?::\d+)?(?:\s+\([^\n]*\))?$/, '');
+  const raiz = raizes.find(r => key.startsWith(r + '/'));
+  if (raiz !== undefined) key = key.slice(raiz.length + 1);
   else if (key.startsWith('/')) return null;
   if (/[:\\]/.test(key) || key.split('/').includes('..')) return null;
   return pathCanonico(key);
@@ -587,6 +627,9 @@ function crc32(texto) {
   }
   return ((c ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0');
 }
+// Valores especiais do script de hashes (3.0.3): caminho inexistente (ENOENT/ENOTDIR) ou que não é
+// arquivo regular. Chegam como texto puro, sem conferência de transporte, e nunca como hash.
+const SENTINELAS_DE_HASH = ['ausente', 'nao-regular'];
 // Cada valor chega como `<sha256>-<conferência>`, emitido pelo script de hashes. Quem transporta
 // é um modelo copiando 64 caracteres: em 2026-10-04 uma troca de dois deles ("c3d" por "d3c")
 // virou "teste alterado" num arquivo que nunca mudou. A conferência (CRC-32 de `path\nsha`) é
@@ -600,7 +643,8 @@ function normalizarHashes(mapa, paths) {
     if (key === null) throw new Error(`hash refere path fora da raiz ou inválido: ${chave}`);
     const original = esperado.get(key);
     if (!original) throw new Error(`hash refere arquivo fora da lista: ${chave}`);
-    const c = conferido(original, valor);
+    const textoDoValor = typeof valor === 'string' ? valor.trim().toLowerCase() : '';
+    const c = SENTINELAS_DE_HASH.includes(textoDoValor) ? textoDoValor : conferido(original, valor);
     if (c === undefined) throw new Error(`hash fora do formato <sha256>-<conferência>: ${chave}`);
     if (c === null) throw new Error(`hash não confere com a própria conferência (erro de transcrição): ${chave}`);
     if (out[original] && out[original] !== c) throw new Error(`hashes conflitantes: ${original}`);
@@ -622,6 +666,10 @@ const comandoHashes = paths => `cd ${shellQuote(ARGS.workspaceRoot)} && node ${s
 // rastreados (as pendências, `EXCLUIDOS_NAO_RASTREADOS`). O script as põe no hash, então só confere
 // quem recalcula com as mesmas listas.
 const comandoImpressao = () => `cd ${shellQuote(ARGS.workspaceRoot)} && node ${shellQuote(ARGS.scriptsDir + '/hashes-testes.mjs')} --impressao${EXCLUIDOS_IMPRESSAO.length || EXCLUIDOS_NAO_RASTREADOS.length ? ` ${shellQuote(JSON.stringify(EXCLUIDOS_IMPRESSAO))}` : ''}${EXCLUIDOS_NAO_RASTREADOS.length ? ` ${shellQuote(JSON.stringify(EXCLUIDOS_NAO_RASTREADOS))}` : ''}`;
+// Comando do inventário de qualidade, o mesmo na validação e nas medições cedo (3.0.4). `pendencias` só vai
+// na validação; sem baseRef nem pendências o comando não leva referência ao git. A aspa simples sai do JSON
+// como \u0027 (JSON.parse devolve o mesmo caminho): o argumento não precisa de escape de shell por dentro.
+const comandoInventario = (paths, pendencias = null) => `cd ${shellQuote(ARGS.workspaceRoot)} && node ${shellQuote(ARGS.scriptsDir + '/inspecionar-git.mjs')} quality ${shellQuote(JSON.stringify(paths).replace(/'/g, '\\u0027'))}${ARGS.baseRef || pendencias !== null ? ' ' + shellQuote(ARGS.baseRef || 'HEAD') : ''}${pendencias !== null ? ' ' + shellQuote(pendencias) : ''}`;
 // Impressão da worktree: mesmo formato e mesma conferência dos hashes (CRC-32 de `worktree\n<sha>`).
 // null = ausente ou transcrição errada: nunca autoriza reuso de validação.
 function impressaoConferida(valor) {
@@ -666,6 +714,30 @@ log('odin-dev-loop: contrato de qualidade v1')
 const qualityHistory = []
 const qualityReport = { contract: qualityContract, iterations: qualityHistory, limitations: ['Schemas e medidas provam completude; conclusões semânticas dependem da inspeção independente registrada.'] }
 const qualityPrompt = `Contrato de qualidade aprovado (todos os perfis de custo): ${JSON.stringify(qualityContract)}. Leia quality-contract.md e especialidades selecionadas; confronte convenções, perfis e decomposição com o conteúdo real. Não reabra decisões aprovadas por preferência pessoal.`
+// Regras de cobertura do qualityReview: valem para a auditoria e para a recoleta do campo (3.0.4).
+const REGRAS_DE_QUALITYREVIEW = `Preencha qualityReview exatamente uma vez por check: status satisfied/issue/not-applicable,
+    evidence não vazia vinculada a cada path aprovado do check, line textual válida e observation concreta.
+    evidence.path é o caminho relativo à raiz do workspace, escrito como no inventário.
+    Citação de outro arquivo inventariado não cobre o alvo. A SPEC citada precisa constar medida
+    como texto no inventário, com linha dentro do limite, inclusive para dispensa e nontext.
+    Dispensa só a aprovada no contrato; cite a SPEC como fonte. Para arquivo binary/deleted/symlink,
+    documente classificação, limitação e forma de inspeção na SPEC, sem inventar linha textual.
+    Para symlink, registre também destino literal observado (ou bytes escapados/hex identificados)
+    e resolução interna para arquivo regular; a evidência nontext cita essa linha real da SPEC.
+    Para texto intencionalmente vazio (text, lines=0 e bytes=0), cite a SPEC local medida com
+    observação explícita do vazio, justificativa e inspeção realizada; não invente linha no alvo
+    nem use essa alternativa para texto com conteúdo.
+    Issue exige finding.summary e finding.scenario; nos outros status finding é {}.`
+// Segunda falha de evidência (3.0.4): erro nomeado com o campo, a chamada de origem e a recoleta. Sempre
+// run novo: resumeFromRunId devolveria as mesmas respostas do cache. O chamador acrescenta o que sabe da fase.
+const erroDeEvidencia = ({ fase, campo, chamada, recoleta, detalhe }) => ({
+  quality: qualityReport, status: 'erro', fase, campo, chamada, recoleta, detalhe,
+  acao: `a evidência de ${campo} de ${chamada} não serviu na primeira resposta nem na recoleta ${recoleta}, e o que ela provaria não foi aceito: iniciar run novo (resumeFromRunId devolveria as mesmas respostas do cache)`,
+  fallbacks: fallbacksModelo, modelos: relatorioModelos(),
+})
+// Alvos required do contrato e a SPEC: o que as medições e a conferência da revisão tratam como alvo aprovado.
+const alvosDoContrato = new Set(qualityContract.checks.filter(c => c.applicability === 'required').flatMap(c => c.paths))
+const qualitySpecPath = pathNoWorkspace(ARGS.specPath)
 // Tipo de cada critério (2.6.0) vem da coluna Tipo da tabela original (spec-ids.mjs), um por ID,
 // aprovado pelo dono com a SPEC. O operário do TDD não o escolhe: rotular de "preservação" um teste
 // que nasce verde num critério de mudança abria o portão sem nada demonstrar a mudança.
@@ -743,6 +815,153 @@ const rotuloTipo = id => TIPOS[id] === 'preservacao' ? 'preservação' : 'reprod
 // Escopo que os args deste run declaram para exceção humana ou rebaseline. O que de fato fica
 // coberto é decidido depois da execução independente (`cobertos`), pelo que foi medido.
 const escopoDosArgs = [...new Set([...AUTORIZACOES.flatMap(a => a.criterios), ...(REBASELINE ? REBASELINE.criteriosAprovados : [])])]
+
+// Conferência de qualityExecutions (3.0.4), a mesma para a resposta original e para a recolhida: uma execução
+// completa de cada comando aprovado, com os mesmos command e paths do contrato, exitCode inteiro e output.
+function execucoesDeQualidadeValidas(valor, esperados) {
+  if (!Array.isArray(valor)) throw new Error('qualityExecutions: ausente ou não é lista')
+  const problemas = []
+  for (const c of esperados) {
+    const e = valor.find(x => x?.id === c.id)
+    if (!e) problemas.push(`${c.id}: sem execução`)
+    else if (e.command !== c.command) problemas.push(`${c.id}: command difere do contrato (esperado ${JSON.stringify(c.command)}, veio ${JSON.stringify(e.command)})`)
+    else if (JSON.stringify(e.paths) !== JSON.stringify(c.paths)) problemas.push(`${c.id}: paths diferem do contrato (esperado ${JSON.stringify(c.paths)}, vieram ${JSON.stringify(e.paths)})`)
+    else if (!Number.isInteger(e.exitCode) || !textoCheio(e.output)) problemas.push(`${c.id}: exige exitCode inteiro e output não vazio`)
+  }
+  const ids = valor.map(e => e?.id)
+  const repetidos = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))]
+  if (repetidos.length) problemas.push(`execução repetida: ${repetidos.map(String).join(', ')}`)
+  const fora = ids.filter(id => !esperados.some(c => c.id === id))
+  if (fora.length) problemas.push(`execução fora do contrato: ${fora.map(String).join(', ')}`)
+  if (problemas.length) throw new Error(`qualityExecutions: exige uma execução completa de cada comando aprovado, com mesmos paths e output do alvo. ${problemas.join('; ')}`)
+  return valor
+}
+// Conferência de qualityReview (3.0.4), a mesma para a resposta original e para a recolhida. Devolve a revisão
+// com a evidência em caminho absoluto sob a raiz já relativa, ou lança Error com os problemas por check.
+// Evidência fora do workspace continua nomeando o workspace, o ID e o caminho.
+function revisaoDeQualidadeValida(revisao, inv) {
+  if (!Array.isArray(revisao)) throw new Error('qualityReview: ausente ou não é lista')
+  const fora = []
+  const convertida = revisao.map(r => {
+    if (!objetoPlano(r) || !Array.isArray(r.evidence)) return r
+    return { ...r, evidence: r.evidence.map(e => {
+      if (!objetoPlano(e) || typeof e.path !== 'string') return e
+      const rel = pathNoWorkspace(e.path)
+      if (rel === null) { fora.push(`${r.id}: ${e.path}`); return e }
+      return { ...e, path: rel }
+    }) }
+  })
+  const checks = qualityContract.checks
+  const problemas = fora.length ? [`Evidência fora do workspace ${ARGS.workspaceRoot}: ${fora.join('; ')}`] : []
+  const ids = convertida.map(r => r?.id)
+  for (const id of new Set(ids.filter((x, i) => ids.indexOf(x) !== i))) problemas.push(`${id}: ID repetido em qualityReview`)
+  for (const id of new Set(ids.filter(x => !checks.some(c => c.id === x)))) problemas.push(`${String(id)}: ID fora do contrato`)
+  for (const c of checks) if (!ids.includes(c.id)) problemas.push(`${c.id}: sem entrada em qualityReview`)
+  const specPath = pathNoWorkspace(ARGS.specPath)
+  for (const r of convertida) {
+    const check = checks.find(c => c.id === r?.id)
+    if (!check) continue
+    const falhou = motivo => problemas.push(`${check.id}: ${motivo}`)
+    if (!['satisfied', 'issue', 'not-applicable'].includes(r.status)) { falhou(`status inválido (${JSON.stringify(r.status)})`); continue }
+    if (check.applicability === 'not-applicable' ? r.status !== 'not-applicable' : r.status === 'not-applicable') falhou(`status ${r.status} não vale para um check ${check.applicability}`)
+    if (!objetoPlano(r.finding) || (r.status === 'issue' ? !textoCheio(r.finding.summary) || !textoCheio(r.finding.scenario) : Object.keys(r.finding).length !== 0)) falhou('finding inválido (issue exige summary e scenario; os outros status levam {})')
+    if (!Array.isArray(r.evidence) || !r.evidence.length) { falhou('evidence vazia'); continue }
+    for (const e of r.evidence) {
+      if (!objetoPlano(e) || !textoCheio(e.observation) || !Number.isInteger(e.line) || e.line < 1) { falhou('evidência sem observation ou com line que não é inteiro a partir de 1'); continue }
+      const file = inv.files.find(f => f.path === e.path)
+      if (file?.status !== 'text') { falhou(`evidência em ${e.path}, que não consta como texto no inventário`); continue }
+      if (e.line > file.lines) { falhou(`linha ${e.line} além das ${file.lines} linhas de ${e.path}`); continue }
+      if (check.paths.includes(e.path)) continue
+      const specOnlyScope = check.paths.some(p => inv.files.some(f => f.path === p && (f.status !== 'text' || (f.lines === 0 && f.bytes === 0))))
+      if (!(e.path === specPath && (check.applicability === 'not-applicable' || specOnlyScope))) falhou(`evidência em ${e.path} fora dos alvos aprovados do check (${check.paths.join(', ')})`)
+    }
+    if (check.applicability === 'required') for (const path of check.paths) {
+      const target = inv.files.find(f => f.path === path)
+      const requiresSpecEvidence = target && (target.status !== 'text' || (target.lines === 0 && target.bytes === 0))
+      if (!target) falhou(`o alvo ${path} não consta no inventário`)
+      else if (!r.evidence.some(e => e?.path === (requiresSpecEvidence ? specPath : path))) falhou(`sem evidência ${requiresSpecEvidence ? `da SPEC (${specPath}) para o alvo ${path}, que não é texto` : `no alvo ${path}`}`)
+    }
+  }
+  if (problemas.length) throw new Error(`qualityReview: cobertura incompleta ou evidência inválida; confira IDs, dispensas, finding e linhas de arquivos efetivamente inspecionados. ${problemas.join(' | ')}`)
+  return convertida
+}
+// ── Medição cedo do inventário (3.0.4) ───────────────────────────────────────
+// Filtro e flag do git e arquivo acima de 400 linhas só apareciam na validação, depois do TDD e da
+// implementação. O mesmo comando da validação roda na fase Spec (alvos do contrato e SPEC) e logo depois
+// do portão (testes e apoio, cujos caminhos nascem em `tdd:portao`). Tudo o que bloqueia aqui manda run
+// novo: resumeFromRunId devolveria a mesma resposta do cache.
+const inventarioEmLista = inv => objetoPlano(inv) && Array.isArray(inv.files) && Array.isArray(inv.uninspected) && Array.isArray(inv.errors)
+const arquivoDeInventarioBemFormado = f => objetoPlano(f) && isQualityPath(f.path) && Number.isInteger(f.lines) && f.lines >= 0 && Number.isInteger(f.bytes) && f.bytes >= 0 && ['text', 'binary', 'deleted', 'symlink'].includes(f.status) && (f.status === 'text' || f.lines === 0) && (f.status !== 'deleted' || f.bytes === 0) && (f.status !== 'symlink' || f.bytes !== 0)
+const diagnosticoDoInventario = (inv, omitidos) => {
+  const doScript = objetoPlano(inv) && Array.isArray(inv.errors) ? inv.errors.map(String) : []
+  const naoInspecionados = objetoPlano(inv) && Array.isArray(inv.uninspected) ? inv.uninspected.map(String) : []
+  return `qualityInventory: inventário ausente, inválido, com omissões ou erros; reconcilie todos os arquivos relatados.${doScript.length ? ` Erros do script: ${doScript.join('; ')}.` : ''}${naoInspecionados.length ? ` Não inspecionados: ${naoInspecionados.join(', ')}.` : ''}${omitidos.length ? ` Pedidos e ausentes do inventário: ${omitidos.join(', ')}.` : ''}`
+}
+// Regra PURA de inventário utilizável: forma válida e todo caminho pedido em files, uninspected ou
+// aliases[].requested. Recusa global do script (files e uninspected vazios, errors preenchido) é a saída
+// literal dele, não falha de transporte: passa, e o chamador mostra o diagnóstico. Não toca o estado do run.
+function inventarioUtilizavel(inv, pedidos) {
+  if (!inventarioEmLista(inv) || (inv.aliases !== undefined && !Array.isArray(inv.aliases))) throw new Error(diagnosticoDoInventario(inv, pedidos))
+  // Erro por caminho pedido sempre vem com o caminho em uninspected (o script põe os dois): só erros nessa
+  // forma, sem o caminho, é transcrição incompleta, não recusa global, e cai na regra dos omitidos abaixo.
+  if (!inv.files.length && !inv.uninspected.length && inv.errors.length && !inv.errors.some(e => pedidos.some(p => String(e).startsWith(`${p}: `)))) return inv
+  const nomes = inv.files.map(f => objetoPlano(f) ? f.path : undefined)
+  const omitidos = pedidos.filter(p => !nomes.includes(p) && !inv.uninspected.includes(p) && !(inv.aliases || []).some(a => objetoPlano(a) && a.requested === p))
+  const defeituosos = inv.files.filter(f => !arquivoDeInventarioBemFormado(f)).map(f => objetoPlano(f) ? String(f.path) : String(f))
+  const repetidos = [...new Set(nomes.filter((n, i) => nomes.indexOf(n) !== i))]
+  if (defeituosos.length || repetidos.length || omitidos.length) throw new Error(`${diagnosticoDoInventario(inv, omitidos)}${defeituosos.length ? ` Itens de files mal formados: ${defeituosos.join(', ')}.` : ''}${repetidos.length ? ` Caminhos repetidos em files: ${repetidos.join(', ')}.` : ''}`)
+  return inv
+}
+const pedidoDeInventario = (paths, pendencias, falha = null) => `Execute somente este comando, sem editar nada, e cole em qualityInventory o JSON literal do stdout (inclusive quando sair 1: recusa e erro por caminho fazem parte do JSON). Só execute e copie, não edite nada: não reconcilie, não omita erro nem invente medida. Não execute filtros ou conversores Git.${falha ? `
+    A resposta anterior não serviu: ${falha}
+    Confira que todo caminho pedido aparece em files, em uninspected ou em aliases[].requested, e que cada item de files tem path, lines, bytes e status.` : ''}
+    \`\`\`bash
+    ${comandoInventario(paths, pendencias)}
+    \`\`\``
+const LIMITE_DE_LINHAS = 400
+const acimaDoLimite = files => files.filter(f => f.status === 'text' && f.lines > LIMITE_DE_LINHAS && !qualityContract.decomposition.some(d => d.path === f.path))
+const descreverGrandes = files => files.map(f => `${f.path} (${f.lines} linhas)`).join('; ')
+// Ação para a recusa do script, pelo que ele disse; sempre termina em run novo.
+// O script testa `clean` antes de `process` e para no primeiro; o LFS configura os dois, então a ação manda
+// desligar os dois, e o nome do filtro (que a mensagem não traz) sai do `git check-attr` do arquivo citado.
+// O caminho da flag é lido erro a erro, sem o sufixo do diagnóstico: caminho com `:` ou `;` fica inteiro.
+const SUFIXO_DA_FLAG = /: (?:entrada sem estágio zero|arquivo não regular|modo alterado|bytes alterados|ausência dentro das regras sparse|E[A-Z]+: .*)$/
+function acaoDaRecusa(erros) {
+  const texto = erros.join('; ')
+  const dicas = []
+  const filtrados = [...new Set(erros.map(e => /^filtro Git (?:clean|process) ativo em (.+): inspeção recusada sem executar conversores$/.exec(e)?.[1]).filter(Boolean))]
+  if (filtrados.length) dicas.push(`o harness não executa filtros do git: achar o nome do filtro com ${filtrados.map(p => `git check-attr filter -- ${shellQuote(p)}`).join(' e ')} e desligar no clone os dois drivers (git config --unset filter.<nome>.clean e git config --unset filter.<nome>.process; o Git LFS configura os dois), ou tirar a entrega do harness`)
+  const flags = [...new Set(erros.map(e => /^flag Git skip-worktree ou assume-unchanged no índice: (.+)$/.exec(e)?.[1].replace(SUFIXO_DA_FLAG, '')).filter(Boolean))]
+  if (flags.length) dicas.push(`retirar a flag do índice: ${flags.map(p => `git update-index --no-skip-worktree -- ${shellQuote(p)} ou git update-index --no-assume-unchanged -- ${shellQuote(p)}`).join('; ')}`)
+  if (/índice unmerged/.test(texto)) dicas.push('resolver o merge pendente no índice (git status)')
+  if (/arquivo ausente ou ignorado|arquivo não regular/.test(texto)) dicas.push('o arquivo citado precisa existir como arquivo regular e não estar ignorado pelo git')
+  if (!dicas.length) dicas.push('corrigir a causa que o script reportou')
+  return `${dicas.join('; ')}; depois iniciar run novo (resumeFromRunId devolveria a mesma resposta do cache)`
+}
+// Mede o inventário cedo, com recoleta única se a resposta não for utilizável. Devolve { inventario } ou
+// { erro } (agente sem retorno, ou segunda falha nomeada); decidir bloqueio é de quem chama.
+async function medirInventarioCedo(paths, chamada, escopo, fase) {
+  const m = await chamarOperario('validar', pedidoDeInventario(paths, null), { label: chamada, phase: fase, schema: soCampo('qualityInventory', QUALITY_INVENTORY_SCHEMA) })
+  if (!m) return { erro: { quality: qualityReport, status: 'erro', fase, detalhe: `${chamada} não retornou`, acao: 'sem o inventário não há como medir filtro, flag e tamanho antes do trabalho caro: iniciar run novo (resumeFromRunId devolveria o mesmo resultado)', fallbacks: fallbacksModelo, modelos: relatorioModelos() } }
+  const recoleta = `recoleta:quality-inventory:${escopo}`
+  try {
+    const inventario = await evidenciaComRecoleta({
+      campo: 'qualityInventory', valor: m.qualityInventory, valida: v => inventarioUtilizavel(v, paths), label: recoleta, fase, step: 'validar', agente: agenteDoValidar(),
+      pedir: falha => ({ prompt: pedidoDeInventario(paths, null, falha), schema: soCampo('qualityInventory', QUALITY_INVENTORY_SCHEMA), extrair: r => r.qualityInventory }),
+    })
+    return { inventario }
+  } catch (e) { return { erro: erroDeEvidencia({ fase, campo: 'qualityInventory', chamada, recoleta, detalhe: [e.message] }) } }
+}
+{
+  const m = await medirInventarioCedo([...new Set([...alvosDoContrato, ...(qualitySpecPath === null ? [] : [qualitySpecPath])])], 'spec:inventario', 'spec', 'Spec')
+  if (m.erro) return m.erro
+  // Alvo do contrato que ainda não existe é o estado normal antes da implementação (o operário o cria); a SPEC
+  // ausente ou ignorada não. Qualquer outro erro do script (filtro, flag, índice, caminho não regular) bloqueia.
+  const bloqueiam = m.inventario.errors.map(String).filter(e => { const x = /^([^:]+): arquivo ausente ou ignorado: (.+)$/.exec(e); return !(x && x[1] === x[2] && x[1] !== qualitySpecPath) })
+  if (bloqueiam.length) return { quality: qualityReport, status: 'bloqueado', fase: 'Spec', detalhe: `inventário de qualidade recusado pelo script na fase Spec: ${bloqueiam.join('; ')}`, acao: acaoDaRecusa(bloqueiam), fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+  const grandes = acimaDoLimite(m.inventario.files)
+  if (grandes.length) return { quality: qualityReport, status: 'bloqueado', fase: 'Spec', detalhe: `arquivo acima de ${LIMITE_DE_LINHAS} linhas sem entrada em decomposition: ${descreverGrandes(grandes)}`, acao: 'o dono decide a decomposição na SPEC: acrescentar a entrada em decomposition do contrato de qualidade (path, trigger, decision, verification) ou dividir o arquivo antes da entrega; depois iniciar run novo (resumeFromRunId devolveria a mesma resposta do cache)', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
+}
 
 // ── Fase 2: Portão TDD ───────────────────────────────────────────────────────
 phase('TDD')
@@ -835,13 +1054,21 @@ if (!tdd.vermelhoConfirmado && tdd.testes.length === 0) {
 // Todo bloqueio do portão leva o relato do operário quando ele não confirmou o vermelho: com o
 // veto deslocado para depois da medição, o bloqueio estrutural não pode apagar o que ele disse.
 const bloqueioTdd = campos => ({ quality: qualityReport, status: 'bloqueado', fase: 'TDD', ...campos, detalhe: `${campos.detalhe}${ressalvaDoOperario}`, fallbacks: fallbacksModelo, modelos: relatorioModelos() })
+// Path de teste com sufixo de execução (3.0.3): o prompt pede só o caminho, mas `tests/x.py::caso`
+// (pytest) e `tests/a.test.js:12:5` (linha e coluna) são a forma que o operário já tem na mão. O
+// sufixo sai aqui, uma vez, e o path limpo é o que vai para o comando de hashes e para `tdd.paths`;
+// o comando do teste segue como foi declarado. O que ainda tem dois-pontos depois da limpeza não é
+// arquivo: a referência é inválida, citada como foi relatada. Absoluto e `..` seguem recusados abaixo.
+const limparPathDeTeste = p => typeof p === 'string' ? p.trim().replace(/::.*$/, '').replace(/:\d+(?::\d+)?$/, '') : p
+const pathRelatadoDoTeste = new Map(tdd.testes.map(t => [t, t.path]))
+for (const t of tdd.testes) t.path = limparPathDeTeste(t.path)
 const testesDaSpec = [...new Set(tdd.testes.map(t => pathCanonico(t.path)))]
 const idsCriterios = new Set(spec.criterios.map(c => c.id))
 const refsInvalidas = tdd.testes.filter(t => {
   const p = t.path.trim()
-  return !p || p.includes('\\') || p.startsWith('/') || /^[A-Za-z]:/.test(p) || /^[A-Za-z][A-Za-z0-9+.-]*:/.test(p) || p.split('/').includes('..')
+  return !p || p.includes('\\') || p.startsWith('/') || p.includes(':') || p.split('/').includes('..')
 })
-if (refsInvalidas.length > 0) return bloqueioTdd({ detalhe: `referência de teste inválida: ${refsInvalidas.map(t => t.path || '(vazia)').join(', ')}`, acao: 'usar paths relativos, não vazios e contidos no projeto' })
+if (refsInvalidas.length > 0) return bloqueioTdd({ detalhe: `referência de teste inválida: ${refsInvalidas.map(t => pathRelatadoDoTeste.get(t) || '(vazia)').join(', ')}`, acao: 'usar paths relativos, não vazios e contidos no projeto, sem ":" além do sufixo ::caso ou :linha' })
 const testesMalformados = tdd.testes.filter(t => !['reproducao', 'preservacao'].includes(t.tipo) || !textoCheio(t.comando))
 if (testesMalformados.length > 0) return bloqueioTdd({ detalhe: `teste sem tipo (reproducao ou preservacao) ou sem comando próprio: ${testesMalformados.map(t => t.path).join(', ')}`, acao: 'cada teste declara se reproduz ou preserva e o comando que roda só ele; a execução independente roda um por vez' })
 // O comando vai para o prompt do mecânico: quebra de linha ou crase o tirariam do trecho de código
@@ -878,6 +1105,11 @@ if (semProva.length > 0) return bloqueioTdd({ detalhe: `critérios sem teste exe
 // bloqueia nomeando o caminho (3.0.2: antes saía da lista em silêncio e o helper não ia para a
 // cópia da base). Apoio declarado num arquivo de unidade é produção, não apoio:
 // sem esta checagem, declará-lo escondia código da detecção.
+// Apoio é arquivo (3.0.3): ele recebe hash, e o hash de uma pasta não existe. Barra final declara
+// pasta e bloqueia antes da execução independente; o mesmo vale, mais tarde, para o que o script de
+// hashes devolver como `nao-regular`. Os fixtures de uma pasta entram arquivo a arquivo.
+const apoioDeclaradoComoPasta = (Array.isArray(tdd.apoio) ? tdd.apoio : []).filter(p => typeof p === 'string' && p.trim().endsWith('/'))
+if (apoioDeclaradoComoPasta.length > 0) return bloqueioTdd({ detalhe: `apoio declarado como pasta: ${apoioDeclaradoComoPasta.join(', ')}`, acao: 'apoio[] leva arquivos, um por item, porque cada um é protegido por hash como os testes; listar os arquivos do helper ou da fixture em vez da pasta e repetir o portão em run novo' })
 const apoioForaDoWorkspace = (Array.isArray(tdd.apoio) ? tdd.apoio : []).filter(p => typeof p !== 'string' || (p.trim() && pathNoWorkspace(p) === null))
 if (apoioForaDoWorkspace.length > 0) return bloqueioTdd({ detalhe: `apoio fora do workspace ou inválido: ${apoioForaDoWorkspace.map(String).join(', ')}`, acao: `apoio[] leva caminhos relativos à raiz do workspace (${ARGS.workspaceRoot}), sem "..", ":" ou "\\". Se o helper foi criado fora da worktree, movê-lo para dentro; repetir o portão em run novo` })
 const apoioDoTdd = [...new Set((Array.isArray(tdd.apoio) ? tdd.apoio : []).map(p => pathNoWorkspace(p)).filter(p => p && !testesDaSpec.includes(p)))]
@@ -888,6 +1120,11 @@ if (apoioEmUnidade.length > 0) return bloqueioTdd({ detalhe: `apoio do portão d
 // independente, a validação de cada iteração e o relatório ao critério e ao tipo do teste.
 const testesNumerados = tdd.testes.map((t, i) => ({ id: `T${i + 1}`, criterio: t.criterio, path: pathCanonico(t.path), tipo: t.tipo, comando: t.comando.trim(), motivoFalha: t.motivoFalha }))
 const idsTestes = testesNumerados.map(t => t.id)
+// Arquivos protegidos por hash (3.0.3): os testes da SPEC e o apoio do portão. Só há base de hashes
+// quando há teste a medir; o apoio é a prova de que o helper dos testes não mudou entre o portão e
+// cada validação, como os testes.
+const apoioProtegido = testesNumerados.length > 0 ? apoioDoTdd : []
+const pathsComHash = [...testesDaSpec, ...apoioProtegido]
 const listaDeTestes = testesNumerados.map(t => `  - ${t.id} (critério ${t.criterio}, ${t.tipo}): \`${t.comando}\``).join('\n')
 // Natureza de uma falha de validação (2.6.0). Só pode PARAR o run (tudo ambiente) ou informar o
 // operário e o humano; nunca aprova nada.
@@ -955,32 +1192,46 @@ const relatorioTdd = () => ({
 // infraestrutura bloqueiam sem exceção possível. Os hashes que ele devolve são a baseline do
 // check de testes intactos, comparada em código a cada iteração (abaixo, na auditoria).
 
-// Evidência de hash que não confere NÃO vira "teste alterado": o que falhou foi o transporte,
-// não o arquivo. Recolhe UMA vez no piso do papel (operário/sonnet), em chamada própria e sem
-// mais nada no contexto do agente; se ainda assim não conferir, é erro de evidência. Vale para a
-// base do portão e para cada validação — transcrição errada na BASE fazia toda validação correta
-// divergir até o teto. A recoleta vai pro relatório em `fallbacks`, não acontece em silêncio.
-async function hashesConferidos(transportado, label, fase) {
-  try { return normalizarHashes(transportado, testesDaSpec) }
+// Recoleta única de evidência (3.0.4), o único mecanismo: o que o agente transporta (hashes, execuções,
+// inventário, revisão) com falha de FORMATO não mata o run. Pede-se o campo de novo uma vez, em chamada
+// própria e sem mais nada no contexto do agente, com o que falhou no prompt, e a recolhida passa pela MESMA
+// `valida` da original: recolher nunca dispensa a prova. Segunda falha (ou recoleta sem retorno) lança
+// "<primeira>; recoleta: <segunda>" ou "<primeira>; a recoleta não retornou", e o chamador decide o desfecho.
+// Quem recolhe: o piso do papel (operário/sonnet para campo do mecânico; revisor/opus para julgamento), nunca
+// o tier que errou. A recoleta vai para `fallbacks`, não acontece em silêncio.
+//   valida(valor): devolve o valor aceito ou lança Error com o que falhou.
+//   pedir(falha): devolve { prompt, schema, extrair } da recoleta.
+async function evidenciaComRecoleta({ campo, valor, valida, label, fase, step, agente, pedir }) {
+  try { return valida(valor) }
   catch (primeira) {
-    log(`Evidência de hashes não conferiu (${primeira.message}) — recoleta única em ${label}`)
-    fallbacksModelo.push({ step: 'validar', chamada: label, de: execucoesPorStep.validar, para: 'sonnet (operario)', causa: `evidência de hashes não conferiu: ${primeira.message}; recoleta única, sem relação com disponibilidade de modelo` })
-    registrarExec('validar', 'sonnet (recoleta de hashes)')
-    const r = await tentar(
-      `Execute somente este comando, sem editar nada:
-      \`\`\`bash
-      ${comandoHashes(testesDaSpec)}
-      \`\`\`
-      Copie o JSON do stdout em hashesDosTestes, caractere por caractere. Cada valor tem a forma
-      <sha256>-<conferência>: o controlador recalcula a conferência e recusa transcrição errada.
-      Se o comando falhar, não invente valores.`,
-      { ...OPERARIO, ...(TIERING.validar.effort ? { effort: TIERING.validar.effort } : {}), label, phase: fase, schema: HASHES_SCHEMA }
-    )
+    log(`Evidência de ${campo} não conferiu (${primeira.message}) — recoleta única em ${label}`)
+    const doRevisor = agente.agentType === REVISOR.agentType
+    // `de` é o tier da chamada que errou: a recoleta não passa por `registrarExec`, senão a segunda recoleta da
+    // mesma validação citaria a primeira. O modelo da recoleta fica no próprio registro (`para`).
+    fallbacksModelo.push({ step, chamada: label, de: execucoesPorStep[step], para: doRevisor ? 'opus (revisor)' : 'sonnet (operario)', causa: `evidência de ${campo} não conferiu: ${primeira.message}; recoleta única, sem relação com disponibilidade de modelo` })
+    const { prompt, schema, extrair } = pedir(primeira.message)
+    const r = await tentar(prompt, { ...agente, label, phase: fase, schema })
     if (!r) throw new Error(`${primeira.message}; a recoleta não retornou`)
-    try { return normalizarHashes(r.hashesDosTestes, testesDaSpec) }
+    try { return valida(extrair(r)) }
     catch (segunda) { throw new Error(`${primeira.message}; recoleta: ${segunda.message}`) }
   }
 }
+// Evidência de hash que não confere NÃO vira "teste alterado": o que falhou foi o transporte, não o
+// arquivo. Vale para a base do portão e para cada validação — transcrição errada na BASE fazia toda
+// validação correta divergir até o teto. Se a recoleta também não conferir, é erro de evidência.
+// `paths` (3.1.0): os reforços aceitos pedem o hash só dos seus arquivos, no momento da aceitação.
+const pedidoDeHashes = paths => `Execute somente este comando, sem editar nada:
+      \`\`\`bash
+      ${comandoHashes(paths)}
+      \`\`\`
+      Copie o JSON do stdout em hashesDosTestes, caractere por caractere. Cada valor tem a forma
+      <sha256>-<conferência>: o controlador recalcula a conferência e recusa transcrição errada.
+      Os valores "ausente" e "nao-regular" são válidos: copie-os como estão.
+      Se o comando falhar, não invente valores.`
+const hashesConferidos = (transportado, label, fase, paths = pathsComHash) => evidenciaComRecoleta({
+  campo: 'hashes', valor: transportado, valida: v => normalizarHashes(v, paths), label, fase, step: 'validar', agente: agenteDoValidar(),
+  pedir: () => ({ prompt: pedidoDeHashes(paths), schema: HASHES_SCHEMA, extrair: r => r.hashesDosTestes }),
+})
 
 let hashesBase = {}
 if (testesNumerados.length > 0) {
@@ -1002,11 +1253,12 @@ ${listaDeTestes}
     filtro não casou nenhum caso).
     Resuma a saída em resumo. Não corrija nada. Para os hashes, execute exatamente:
     \`\`\`bash
-    ${comandoHashes(testesDaSpec)}
+    ${comandoHashes(pathsComHash)}
     \`\`\`
     Copie o JSON do script em hashesDosTestes sem trocar chaves nem acrescentar :linha.
     Cada valor tem a forma <sha256>-<conferência>: copie o valor inteiro, caractere por
-    caractere — o controlador recalcula a conferência e recusa transcrição errada.
+    caractere — o controlador recalcula a conferência e recusa transcrição errada. Os valores
+    "ausente" e "nao-regular" (caminho inexistente ou que não é arquivo regular) são válidos: copie-os como estão.
     O SHA é calculado pelo Node. Se o comando falhar, não invente hashes.
     Para as alterações anteriores à implementação, execute exatamente, da raiz do workspace:
     \`\`\`bash
@@ -1073,7 +1325,12 @@ ${listaDeTestes}
   // antes deles (abaixo). Devolve o relatório de erro, ou null quando conferiu.
   const conferirHashesDoPortao = async () => {
     try { hashesBase = await hashesConferidos(vermelho.hashesDosTestes, 'tdd:hashes', 'TDD') }
-    catch (e) { return { quality: qualityReport, status: 'erro', fase: 'TDD', detalhe: e.message, acao: 'a base de hashes não conferiu nem na recoleta, e sem base verificada não há como provar testes intactos; nada foi implementado ainda: iniciar run novo (resumeFromRunId devolveria as mesmas respostas do cache)', tdd: relatorioTdd(), fallbacks: fallbacksModelo, modelos: relatorioModelos() } }
+    catch (e) { return { quality: qualityReport, status: 'erro', fase: 'TDD', detalhe: e.message, acao: 'a base de hashes não conferiu nem na recoleta, e sem base verificada não há como provar testes intactos (nem apoio intacto); nada foi implementado ainda: iniciar run novo (resumeFromRunId devolveria as mesmas respostas do cache)', tdd: relatorioTdd(), fallbacks: fallbacksModelo, modelos: relatorioModelos() } }
+    // Sentinela na BASE (3.0.3): teste ou apoio que o portão declarou e o script não achou, ou que não
+    // é arquivo regular, não tem hash para ficar congelado. É defeito da declaração do portão, medido
+    // antes de qualquer implementação, então bloqueia aqui, nomeando o caminho.
+    const semHashNaBase = pathsComHash.filter(p => SENTINELAS_DE_HASH.includes(hashesBase[p]))
+    if (semHashNaBase.length) return bloqueioTdd({ detalhe: `arquivo protegido por hash que o script não pôde medir no portão: ${semHashNaBase.map(p => `${p} (${hashesBase[p] === 'ausente' ? 'ausente' : 'não é arquivo regular'})`).join(', ')}`, acao: 'teste e apoio do portão são arquivos regulares que existem na worktree: criar o arquivo que falta ou tirar da lista o que não é arquivo (pasta, link para fora) e repetir o portão em run novo', tdd: relatorioTdd() })
     if (!naBase) return null
     // A cópia precisa ter executado os MESMOS bytes de teste que ficam congelados na worktree.
     let hashesDaCopia
@@ -1181,9 +1438,26 @@ ${listaDeTestes}
     if (erroDosHashes) return erroDosHashes
   } else if (!copiaDaBase || !copiaDaBase.removida) log('Cópia da base não foi removida pelo mecânico: ver tdd.copia no relatório')
   if (implementacaoPreexistente.detectada) log(`Portão TDD: ${implementacaoPreexistente.arquivos.length} arquivo(s) fora dos testes alterado(s) antes da implementação: ver tdd.implementacaoPreexistente`)
+
+  // Medição cedo dos testes e do apoio (3.0.4), com a base de hashes já conferida e antes de qualquer
+  // implementação: flag no índice, arquivo ignorado ou não regular e teste ou apoio acima de 400 linhas sem
+  // decisão em decomposition bloqueiam aqui, não depois do trabalho caro. Só os caminhos do portão contam
+  // para o limite: arquivo alterado alheio é da fase Spec e da validação.
+  const pedidosTdd = [...pathsComHash]
+  const mt = await medirInventarioCedo(pedidosTdd, 'tdd:inventario', 'tdd', 'TDD')
+  if (mt.erro) return { ...mt.erro, tdd: relatorioTdd() }
+  const errosDoScript = mt.inventario.errors.map(String)
+  if (errosDoScript.length) return bloqueioTdd({ detalhe: `inventário dos testes e do apoio recusado pelo script: ${errosDoScript.join('; ')}`, acao: `${acaoDaRecusa(errosDoScript)}. Nada foi implementado`, tdd: relatorioTdd() })
+  const grandesDoPortao = acimaDoLimite(mt.inventario.files.filter(f => pedidosTdd.includes(f.path)))
+  if (grandesDoPortao.length) return bloqueioTdd({ detalhe: `teste ou apoio acima de ${LIMITE_DE_LINHAS} linhas sem entrada em decomposition: ${descreverGrandes(grandesDoPortao)}`, acao: 'o teste e o apoio nascem no portão e não se editam depois: dividir o arquivo em arquivos menores por responsabilidade e repetir o portão, ou o dono registra a decisão em decomposition na SPEC; em qualquer caso, iniciar run novo (resumeFromRunId devolveria a mesma resposta do cache). Nada foi implementado', tdd: relatorioTdd() })
 }
 
 // ── Fases 3-5: loop implementar → validar → revisar ─────────────────────────
+// Forma da fonte de uma justificativa de dependência (P10): `arquivo:linha` ou URL com âncora, seguido
+// de contexto de 16 caracteres ou mais. 3.0.3: a linha pode ser intervalo (`:10-12`), vir entre
+// crases ou parênteses e ter vírgula, ponto e vírgula ou dois-pontos antes do contexto, porque é
+// assim que o auditor cita a fonte. Nome de manifesto, fonte sem contexto e contexto curto seguem barrados.
+const P10_ONDE = /(?:[^\s:]+:\d+(?:-\d+)?|https?:\/\/\S+#\S+)[`'")\]]*[,;:]?\s+\S[\s\S]{15,}/
 const consultasLog = []
 const arquivosParaRevisao = new Set(testesDaSpec)
 const relatadosPeloOperario = new Set()
@@ -1195,6 +1469,91 @@ const dependenciasDecididas = []
 const pendenciasForaDeEscopo = []
 const pendenciasEmTestesDaSpec = []
 const duplicacoesEAbstracoesJulgadas = []
+
+// ── Fase Mutar: estado e conferência (3.1.0) ─────────────────────────────────
+// Roda depois da Revisar e antes do verde, só nos perfis com `mutacao`. O script `mutantes.mjs medir` muda
+// operadores nas linhas acrescentadas, numa cópia descartável, e o mecânico só copia o JSON dele. Medida
+// extra: ambiente e evidência ruim viram `nao-medida` com a causa e o run segue o desfecho que teria sem a
+// fase; o que nunca acontece é falha de ambiente virar mutante morto ou zero candidato virar "100% morto".
+const reforcos = new Map()          // path -> { path, comando, mutante, aceito } declarados pelo operário
+// Sobrevivente real ainda sem prova de morte (decisão do dono, 2026-11-16): id atual -> { path, trecho, operador,
+// de, para, local, ids }. A identidade é a troca (path, trecho, operador, de, para), não o id, que é posicional
+// e muda quando o operário mexe acima da linha. Vai em --prioridade na medição seguinte; sumir dela não é prova.
+const pendentesDeMutacao = new Map()
+const mesmaTroca = (p, m) => m.path === p.path && m.trecho === p.trecho && m.operador === p.operador && m.de === p.de && m.para === p.para
+const refutadosPeloConfirmador = [] // findings bloqueantes que o confirmador refutou (real=false): vão ao paraConferir
+let linhasAcrescentadasMedidas = null
+let mutacao = { status: 'nao-medida', causa: perfil.mutacao ? 'nenhuma iteracao chegou a fase Mutar (validacao ou revisao ainda com bloqueante)' : 'perfil economico' }
+// Mesma serialização canônica e mesmo CRC-32 de `mutantes.mjs`: chaves em ordem alfabética, sem espaços.
+const ordenadoPorChave = v => Array.isArray(v) ? v.map(ordenadoPorChave) : objetoPlano(v) ? Object.fromEntries(Object.keys(v).sort().map(k => [k, ordenadoPorChave(v[k])])) : v
+// Lança com o que falhou; a forma e a conferência valem antes de qualquer efeito no estado do run.
+function mutacaoValida(ev, base, comandos) {
+  if (!objetoPlano(ev)) throw new Error('resposta ausente ou não é um objeto')
+  const { conferencia, ...resto } = ev
+  if (typeof conferencia !== 'string' || crc32(JSON.stringify(ordenadoPorChave(resto))) !== conferencia.trim().toLowerCase()) throw new Error('a conferência (CRC-32) não confere com o JSON copiado: transcrição errada')
+  const inteiro = v => Number.isInteger(v) && v >= 0
+  const c = ev.controle
+  const execs = objetoPlano(c) && Array.isArray(c.execucoes) ? c.execucoes : null
+  const ms = ev.mutantes
+  const problemas = []
+  if (ev.base !== base) problemas.push(`base ${JSON.stringify(ev.base)} difere da pedida ${base}`)
+  if (!inteiro(ev.candidatos) || !inteiro(ev.amostrados) || ev.amostrados > ev.candidatos) problemas.push('candidatos e amostrados devem ser inteiros com amostrados <= candidatos')
+  if (!objetoPlano(ev.linhasAcrescentadas) || Object.entries(ev.linhasAcrescentadas).some(([p, n]) => !textoCheio(p) || !inteiro(n))) problemas.push('linhasAcrescentadas deve mapear path para inteiro')
+  if (!execs || typeof c.ok !== 'boolean' || execs.some(e => !objetoPlano(e) || !textoCheio(e.comando) || !Number.isInteger(e.exitCode))) problemas.push('controle deve trazer ok e execucoes [{comando, exitCode}]')
+  else if (c.ok ? execs.some(e => e.exitCode !== 0) || comandos.some(x => !execs.some(e => e.comando === x)) : execs.length > 0 ? execs.every(e => e.exitCode === 0) : ev.candidatos !== 0) problemas.push('controle.ok não fecha com as execucoes e os comandos pedidos')
+  if (!Array.isArray(ms) || ms.some(m => !objetoPlano(m) || !textoCheio(m.id) || !textoCheio(m.path) || !Number.isInteger(m.linha) || m.linha < 1 || typeof m.trecho !== 'string' || !textoCheio(m.operador) || typeof m.de !== 'string' || typeof m.para !== 'string' || !['morto', 'sobrevivente'].includes(m.resultado))) problemas.push('mutantes deve trazer id, path, linha, trecho, operador, de, para e resultado morto ou sobrevivente')
+  else if (new Set(ms.map(m => m.id)).size !== ms.length || ms.length > ev.amostrados) problemas.push('mutantes com id repetido ou mais numerosos que amostrados')
+  // O reforço só vale se o comando DELE derrubou o mutante: morto exige mortoPor entre os comandos pedidos.
+  else if (ms.some(m => m.resultado === 'morto' ? !comandos.includes(m.mortoPor) : m.mortoPor !== null)) problemas.push('mortoPor deve ser um dos comandos pedidos no mutante morto e null no sobrevivente')
+  if (typeof ev.removida !== 'boolean' || typeof ev.worktreeIntacta !== 'boolean') problemas.push('removida e worktreeIntacta devem ser booleanos')
+  if (problemas.length) throw new Error(`forma do JSON da medição: ${problemas.join('; ')}`)
+  return ev
+}
+// Pedido da medição (e da recoleta). Um único comando do script; os comandos e os excluídos vão como JSON entre aspas.
+const pedidoDeMutacao = (n, base, excluidos, comandos, prioridade, falha = null) => `Medição de mutação da branch ${ARGS.branch} (iteração ${n}). Execute somente este comando, da raiz física do workspace, sem editar nem corrigir nada:
+    \`\`\`bash
+    cd ${shellQuote(ARGS.workspaceRoot)} && node ${shellQuote(ARGS.scriptsDir + '/mutantes.mjs')} medir ${shellQuote(base)} ${shellQuote(JSON.stringify(excluidos))} ${shellQuote(JSON.stringify(comandos))}${prioridade.length ? ` --prioridade ${shellQuote(JSON.stringify(prioridade))}` : ''}
+    \`\`\`
+    A medição roda o controle e até 20 mutantes, cada um com todos os comandos: leva minutos, e o timeout padrão do Bash (2 minutos) a interromperia. Rode o comando em segundo plano (run_in_background) e espere a notificação de término antes de ler a saída; não repita o comando enquanto ele roda.
+    Copie o JSON literal do stdout nos campos de topo da resposta (base, candidatos, amostrados, linhasAcrescentadas, controle, mutantes, removida, worktreeIntacta, conferencia), caractere por caractere, sem reordenar, resumir nem acrescentar campo: o controlador recalcula a conferência (CRC-32) e recusa transcrição errada. Se o comando sair diferente de 0 ou não imprimir JSON, não invente valores.
+    Se os comandos precisarem das dependências do projeto (node_modules, .venv), repita o comando acrescentando --vincular com a lista JSON desses diretórios entre aspas simples; diretório temporário sem escrita: acrescente --pai com um diretório gravável fora do workspace.${falha ? `
+    A resposta anterior não serviu: ${falha}` : ''}`
+// Mede uma vez, com recoleta única se o JSON não servir. { evidencia } ou { causa } (a causa vai ao relatório).
+async function medirMutacao(n, base, excluidos, comandos, prioridade) {
+  const m = await chamarOperario('validar', pedidoDeMutacao(n, base, excluidos, comandos, prioridade), { label: `mutar:medir:i${n}`, phase: 'Mutar', schema: MUTACAO_SCHEMA })
+  try {
+    return { evidencia: await evidenciaComRecoleta({
+      campo: 'mutacao', valor: m, valida: v => mutacaoValida(v, base, comandos), label: `recoleta:mutacao:i${n}`, fase: 'Mutar', step: 'validar', agente: agenteDoValidar(),
+      pedir: falha => ({ prompt: pedidoDeMutacao(n, base, excluidos, comandos, prioridade, falha), schema: MUTACAO_SCHEMA, extrair: r => r }),
+    }) }
+  } catch (e) { return { causa: `evidência da medição não serviu nem na recoleta: ${e.message}` } }
+}
+// Reforço declarado pelo operário: recusado (motivo) se fora do workspace, congelado, sem comando que cite o
+// próprio arquivo ou já aceito com outro conteúdo. A recusa volta como correção; nada vira comando antes disto.
+// 3.1.0: reforço declarado vira `excluidos` da próxima medição, então produção declarada como reforço some da
+// mutação e apaga o sobrevivente. Recusa arquivo de unidade citado por path, arquivo com linhas já medidas e o
+// arquivo do próprio mutante (o id é `path:linha:operador:n`).
+const arquivoDeProducao = (path, mutante) => arquivosDeUnidade.some(a => !a.endsWith('/') && pathCanonico(a) === path)
+  || Object.hasOwn(linhasAcrescentadasMedidas || {}, path) || String(mutante).trim().startsWith(path + ':')
+function analisarReforco(x) {
+  const path = objetoPlano(x) && typeof x.path === 'string' ? pathNoWorkspace(x.path.replace(/\\/g, '/')) : null
+  const anterior = path ? reforcos.get(path) : undefined
+  const motivo = !objetoPlano(x) ? 'a declaração não é um objeto { path, comando, mutante }'
+    : !path ? 'path vazio, fora do workspace ou inválido'
+    : [...testesDaSpec, ...apoioDoTdd, qualitySpecPath, PENDENCIAS].includes(path) ? 'é teste da SPEC, apoio do portão, SPEC ou arquivo de pendências, que ficam congelados'
+    : !textoCheio(x.comando) || /[\r\n`]/.test(x.comando) ? 'comando vazio, com quebra de linha ou crase'
+    : !x.comando.includes(path) ? 'o comando não cita o path do reforço (precisa rodar só esse arquivo)'
+    : !textoCheio(x.mutante) ? 'mutante (id do sobrevivente) ausente'
+    : !anterior && arquivoDeProducao(path, x.mutante) ? 'é arquivo de produção (arquivo de unidade, com linhas medidas ou onde o mutante sobreviveu): reforço é arquivo de teste novo, e declarar produção só o tiraria da mutação'
+    : anterior?.aceito && (anterior.comando !== x.comando.trim() || anterior.mutante !== x.mutante.trim()) ? 'reforço já aceito e protegido por hash: não se redeclara'
+    : null
+  return { path, motivo }
+}
+const bloqueanteDeReforco = (x, path, motivo) => ({
+  arquivo: path || String(objetoPlano(x) ? x.path : x), severidade: 'bloqueante', confianca: 'confirmado', origem: 'reforco-recusado', natureza: 'mutacao',
+  resumo: `Reforço recusado: ${path || String(objetoPlano(x) ? x.path : x)} — ${motivo}`,
+  cenario: 'Reforço é arquivo de teste NOVO e separado, com comando de uma linha que cita o próprio path e o id do mutante que ele deve matar. Teste da SPEC, apoio, SPEC e pendências nunca são reforço. Declare de novo em reforcos[] { path, comando, mutante } com um arquivo válido.',
+})
 
 // Usada nos QUATRO desfechos (escalada por unidade, erro de validação, escalada por teto, verde).
 // Numa escalada por dependência barrada, é este bloco que explica por que o loop não convergiu —
@@ -1290,7 +1649,7 @@ while (iteracao < MAX_ITERACOES && !verde) {
 
   const escaladas = resultados.filter(r => r.status === 'escalada' || r.status === 'erro')
   if (escaladas.length > 0) {
-    return { quality: qualityReport, status: 'escalado', fase: 'Implementar', iteracao, detalhe: escaladas, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), tdd: relatorioTdd(), acao: 'decisão humana necessária — o harness não improvisa' }
+    return { quality: qualityReport, status: 'escalado', fase: 'Implementar', iteracao, detalhe: escaladas, ...conferenciaRapida(), consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), tdd: relatorioTdd(), acao: 'decisão humana necessária — o harness não improvisa' }
   }
 
   // Caminhos relatados (3.0.2): arquivosTocados alimenta o inventário de qualidade e o diff dos
@@ -1301,7 +1660,9 @@ while (iteracao < MAX_ITERACOES && !verde) {
   for (const r of resultados) {
     if (!Array.isArray(r.arquivosTocados)) continue
     r.arquivosTocados = [...new Set(r.arquivosTocados.flatMap(p => {
-      const rel = typeof p === 'string' ? pathNoWorkspace(p) : null
+      // 3.0.3: a barra invertida como separador (relato escrito à moda do Windows) vira barra; o
+      // caminho citado no bloqueio continua o que o operário relatou.
+      const rel = typeof p === 'string' ? pathNoWorkspace(p.replace(/\\/g, '/')) : null
       if (rel === null) arquivosForaDoWorkspace.push({ unidade: r.unidade, path: String(p) })
       return rel ? [rel] : []
     }))]
@@ -1316,13 +1677,21 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // continua existindo. É o sinal que a guarda de auditoria cega (abaixo) cruza contra o 0 da auditoria.
   if (resultados.some(r => (r.arquivosTocados || []).length > 0)) houveTrabalhoNaBranch = true
 
+  // Reforços declarados nesta iteração (3.1.0): o válido entra no mapa e seu comando roda na próxima Mutar; o
+  // recusado volta ao operário como correção, junto dos demais bloqueantes automáticos.
+  const recusasDeReforco = []
+  for (const r of resultados) for (const x of (Array.isArray(r.reforcos) ? r.reforcos : [])) {
+    const { path, motivo } = analisarReforco(x)
+    if (motivo) recusasDeReforco.push(bloqueanteDeReforco(x, path, motivo))
+    else if (!reforcos.get(path)?.aceito) reforcos.set(path, { path, comando: x.comando.trim(), mutante: x.mutante.trim(), aceito: false })
+  }
+
   for (const r of resultados) for (const p of (r.arquivosTocados || [])) arquivosParaRevisao.add(p)
   // Só do relato: o que veio de arquivosTocados e não é teste, apoio, SPEC nem alvo aprovado do
   // contrato. É o que pode virar correção de relato no inventário (abaixo).
   const naoSaoDoRelato = new Set([...testesDaSpec, ...apoioDoTdd, pathNoWorkspace(ARGS.specPath), ...qualityContract.checks.filter(c => c.applicability === 'required').flatMap(c => c.paths)])
   for (const r of resultados) for (const p of (r.arquivosTocados || [])) if (!naoSaoDoRelato.has(p)) relatadosPeloOperario.add(p)
   const qualityTargets = [...new Set([...qualityContract.checks.filter(c => c.applicability === 'required').flatMap(c => c.paths), ...[...arquivosParaRevisao].filter(p => !testesDaSpec.includes(p))])]
-  const qualitySpecPath = pathNoWorkspace(ARGS.specPath)
   const qualityInventoryPaths = [...new Set([...qualityTargets, ...testesDaSpec, ...apoioDoTdd, ...(qualitySpecPath === null ? [] : [qualitySpecPath])])]
   const qualityPendingPath = PENDENCIAS !== null && !pendenciasNaAreaDeTrabalho && !qualityInventoryPaths.includes(PENDENCIAS) ? PENDENCIAS : null
 
@@ -1378,12 +1747,13 @@ ${listaDeTestes}
     Não reescreva comandos para contornar ambiente.
     Para os hashes execute exatamente:
     \`\`\`bash
-    ${comandoHashes(testesDaSpec)}
+    ${comandoHashes(pathsComHash)}
     \`\`\`
     Copie o JSON em hashesDosTestes sem reformatar chaves;
     não calcule hashes por conta própria nem acrescente anotações de linha.
     Cada valor tem a forma <sha256>-<conferência>: copie o valor inteiro, caractere por
-    caractere — o controlador recalcula a conferência e recusa transcrição errada.
+    caractere — o controlador recalcula a conferência e recusa transcrição errada. Os valores
+    "ausente" e "nao-regular" (caminho inexistente ou que não é arquivo regular) são válidos: copie-os como estão.
     Para registrar a árvore validada, execute também:
     \`\`\`bash
     ${comandoImpressao()}
@@ -1401,7 +1771,7 @@ ${listaDeTestes}
     extras exigem reconciliação explícita com o escopo. Nunca inclua notas privadas automaticamente.
     Não execute filtros ou conversores Git.
     \`\`\`bash
-    cd ${shellQuote(ARGS.workspaceRoot)} && node ${shellQuote(ARGS.scriptsDir + '/inspecionar-git.mjs')} quality ${shellQuote(JSON.stringify(qualityInventoryPaths))}${ARGS.baseRef || qualityPendingPath !== null ? ' ' + shellQuote(ARGS.baseRef || 'HEAD') : ''}${qualityPendingPath !== null ? ' ' + shellQuote(qualityPendingPath) : ''}
+    ${comandoInventario(qualityInventoryPaths, qualityPendingPath)}
     \`\`\``,
     { label: `validar:i${iteracao}`, phase: 'Validar', schema: { type: 'object', additionalProperties: false, required: [...(idsTestes.length ? ['verde', 'execucoes', 'hashesDosTestes'] : ['verde', 'hashesDosTestes']), 'qualityExecutions', 'qualityInventory'], properties: {
       qualityExecutions: QUALITY_EXECUTIONS_SCHEMA, qualityInventory: QUALITY_INVENTORY_SCHEMA,
@@ -1424,14 +1794,51 @@ ${listaDeTestes}
   try { hashesAgora = await hashesConferidos(val.hashesDosTestes, `hashes:i${iteracao}`, 'Validar') }
   catch (e) { return { quality: qualityReport, status: 'erro', fase: 'Validar', iteracao, tdd: relatorioTdd(), detalhe: e.message, acao: 'a evidência de hashes não conferiu nem na recoleta; isto não prova alteração do teste. resumeFromRunId devolveria as mesmas respostas do cache: conferir os testes da SPEC à mão (script de hashes contra o estado do portão) e decidir como seguir', consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora() } }
 
+  // execucoes incompletas (3.0.4): teste faltando, repetido ou desconhecido pede UMA recoleta no operário,
+  // por iteração. Persistindo, o desfecho é o de antes, bloqueante `portao-tdd` de natureza `evidencia`
+  // (abaixo, que cita a recoleta): a iteração seguinte pode recolher de novo. Só a completude é recolhida;
+  // execução incoerente ou sem caso segue bloqueante, sem recoleta.
+  const rotuloRecoletaExecucoes = `recoleta:execucoes:i${iteracao}`
+  let execucoesDaValidacao = val.execucoes
+  let recoletaDeExecucoesFalhou = null
+  try {
+    execucoesDaValidacao = await evidenciaComRecoleta({
+      campo: 'execucoes', valor: val.execucoes, label: rotuloRecoletaExecucoes, fase: 'Validar', step: 'validar', agente: agenteDoValidar(),
+      valida: v => { const { problemas } = lerExecucoes(v); if (problemas.length) throw new Error(problemas.join('; ')); return v },
+      pedir: falha => ({
+        prompt: `Execução INDEPENDENTE dos testes da SPEC na branch ${ARGS.branch}, só das execuções: a resposta anterior não serviu (${falha}).
+        Rode CADA teste separadamente, da raiz do workspace, com o comando indicado, e devolva em execucoes exatamente um item por teste:
+${listaDeTestes}
+        exitZero=true se o comando saiu 0; false se saiu diferente de 0. ${INSTRUCAO_TIPO_FALHA}
+        casos = quantos casos de teste o comando de fato executou, lido do resumo do runner (0 se o filtro não casou nenhum caso).
+        Resuma a saída em resumo. Só execute e copie, não edite nada.`,
+        schema: soCampo('execucoes', execucoesSchema(idsTestes)), extrair: r => r.execucoes,
+      }),
+    })
+  } catch (e) { recoletaDeExecucoesFalhou = e.message }
+  const execucoesLidas = lerExecucoes(execucoesDaValidacao)
+
+  // qualityExecutions (3.0.4): a recolhida passa pela mesma conferência da original; segunda falha é erro nomeado.
   const qualityErrors = qualityIteration.errors
   const expectedCommands = qualityContract.checks.filter(c => c.applicability === 'required' && c.verification === 'command')
-  const executedQuality = val.qualityExecutions
-  if (!Array.isArray(executedQuality) || executedQuality.length !== expectedCommands.length || new Set(executedQuality.map(e => e?.id)).size !== expectedCommands.length || expectedCommands.some(c => {
-    const e = executedQuality?.find(e => e?.id === c.id)
-    return !e || e.command !== c.command || JSON.stringify(e.paths) !== JSON.stringify(c.paths) || !Number.isInteger(e.exitCode) || !textoCheio(e.output)
-  })) qualityErrors.push('qualityExecutions: exige uma execução completa de cada comando aprovado, com mesmos paths e output do alvo.')
-  if (qualityErrors.length) return { status: 'erro', fase: 'Validar', iteracao, detalhe: qualityErrors, quality: qualityReport, tdd: relatorioTdd(), acao: 'Completar evidência de execução; resultado funcional não é evidência ausente.' }
+  const rotuloRecoletaQExec = `recoleta:quality-executions:i${iteracao}`
+  let executedQuality
+  try {
+    executedQuality = await evidenciaComRecoleta({
+      campo: 'qualityExecutions', valor: val.qualityExecutions, valida: v => execucoesDeQualidadeValidas(v, expectedCommands), label: rotuloRecoletaQExec, fase: 'Validar', step: 'validar', agente: agenteDoValidar(),
+      pedir: falha => ({
+        prompt: `Execute nesta iteração, SEM cache e sem editar nada, cada check required/command do contrato de qualidade aprovado, na branch ${ARGS.branch}. A resposta anterior não serviu: ${falha}
+        Checks a executar:
+${expectedCommands.map(c => `        - ${c.id}: comando \`${c.command}\` sobre ${JSON.stringify(c.paths)}`).join('\n')}
+        Devolva só qualityExecutions: id, command e paths copiados EXATAMENTE como acima (mesmo espaçamento, mesma ordem de paths), exitCode inteiro e output não vazio que identifique alvo e resultado. Exit 0 sem alvo/relatório não prova qualidade. Só execute e copie, não edite nada.`,
+        schema: soCampo('qualityExecutions', QUALITY_EXECUTIONS_SCHEMA), extrair: r => r.qualityExecutions,
+      }),
+    })
+  } catch (e) {
+    qualityErrors.push(e.message)
+    return { ...erroDeEvidencia({ fase: 'Validar', campo: 'qualityExecutions', chamada: `validar:i${iteracao}`, recoleta: rotuloRecoletaQExec, detalhe: qualityErrors }), iteracao, tdd: relatorioTdd(), consultas: consultasLog, ponytail: ponytailAteAgora() }
+  }
+  qualityIteration.executions = executedQuality
 
   // Natureza normalizada: fora do enum ou ausente vira indeterminada. É esta lista, não a crua,
   // que vai para o histórico, as CORREÇÕES do operário e o resumo da escalada.
@@ -1457,7 +1864,7 @@ ${listaDeTestes}
   // se esconde atrás de ambiente e segue para o bloqueante. A classificação só encerra o run, nunca
   // o fecha verde; qualquer dúvida segue o loop normal.
   {
-    const lidas = lerExecucoes(val.execucoes)
+    const lidas = execucoesLidas
     const ERRO_DO_SISTEMA = /EPERM|EACCES|EROFS|ENOSPC|PermissionError|permission denied|read-only file system|no space left|command not found|ENOTFOUND|ECONNREFUSED|ETIMEDOUT/i
     const espacos = c => String(c || '').trim().split(/\s+/).join(' ')
     const comandosDeAmbiente = new Set(falhasDaValidacao.filter(f => f.natureza === 'ambiente' && ERRO_DO_SISTEMA.test(`${f.resumo || ''} ${f.evidencia || ''}`)).map(f => espacos(f.comando)))
@@ -1467,8 +1874,8 @@ ${listaDeTestes}
       const razao = semValor(r)
       return r.exitZero === true ? razao === null : r.tipoFalha === 'infra' && razao === 'erro de import, sintaxe ou infraestrutura' && comandosDeAmbiente.has(espacos(t.comando))
     })
-    const testesAlterados = testesDaSpec.filter(p => hashesAgora[p] !== hashesBase[p])
-    if (!validacaoVerde && falhasDaValidacao.length > 0 && falhasDaValidacao.every(f => f.natureza === 'ambiente') && lidas.problemas.length === 0 && testesExplicados && testesAlterados.length === 0) {
+    const protegidosAlterados = pathsComHash.filter(p => hashesAgora[p] !== hashesBase[p])
+    if (!validacaoVerde && falhasDaValidacao.length > 0 && falhasDaValidacao.every(f => f.natureza === 'ambiente') && lidas.problemas.length === 0 && testesExplicados && protegidosAlterados.length === 0) {
       historicoFalhas.push({ iteracao, validacaoVerde, ...(verdeDeclaradoComFalhas ? { verdeDeclaradoComFalhas: true } : {}), validacoes: falhasDaValidacao, findings: [] })
       return { quality: qualityReport, status: 'erro', fase: 'Validar', motivo: 'ambiente', iteracao, detalhe: falhasDaValidacao, ...(verdeDeclaradoComFalhas ? { verdeDeclaradoComFalhas: true } : {}), historico: historicoFalhas, tdd: relatorioTdd(), validacoesReaproveitadas, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(),
         acao: 'corrigir o ambiente (cache, temporário ou estado graváveis, ferramenta ausente; ver evidencia de cada falha) e iniciar run novo: resumeFromRunId devolveria esta mesma validação do cache. A implementação já está na worktree: NÃO reverta nem faça stash. O run novo leva baseRef (SHA completo do merge-base com a branchBase) com vermelhoNaBase=true, ou rebaselineTdd com os critérios aprovados, cujos autorizadoPor e registradaEm vêm de quem aprovou de fato, nunca preenchidos pelo agente; sem validacaoAnterior, porque esta validação não fechou verde. Não é regressão demonstrada da entrega, e também não foi descartada: a validação não rodou até o fim.' }
@@ -1481,14 +1888,92 @@ ${listaDeTestes}
   // `erro` aqui, e retomar o run devolvia o mesmo relato do cache: erro terminal. Só converte
   // quando TODO problema do inventário se explica assim; qualquer outro erro do script (índice
   // unmerged, flag sparse, symlink) segue erro com o diagnóstico abaixo.
-  let inventory = val.qualityInventory
+  // 3.0.3: alvo `required` do contrato ausente ou ignorado também é correção, de natureza funcional:
+  // o contrato aprovado o exige, e `procedimento` ofereceria aceitar a entrega sem ele. Teste, apoio
+  // e SPEC ausentes seguem erro (a declaração aprovada ou o portão estão quebrados, não o relato).
+  // Inventário não utilizável (3.0.4): a decisão de recolher é pura e vem ANTES de qualquer efeito no estado do
+  // run (arquivosParaRevisao, relatadosPeloOperario, naoRelatadosJaCorrigidos, resultados); a reconciliação
+  // abaixo roda uma vez, sobre o inventário aceito. Recusa global do script não recolhe: é a saída literal dele.
+  const rotuloRecoletaInventario = `recoleta:quality-inventory:i${iteracao}`
+  let inventory
+  try {
+    inventory = await evidenciaComRecoleta({
+      campo: 'qualityInventory', valor: val.qualityInventory, valida: v => inventarioUtilizavel(v, qualityInventoryPaths), label: rotuloRecoletaInventario, fase: 'Validar', step: 'validar', agente: agenteDoValidar(),
+      pedir: falha => ({ prompt: pedidoDeInventario(qualityInventoryPaths, qualityPendingPath, falha), schema: soCampo('qualityInventory', QUALITY_INVENTORY_SCHEMA), extrair: r => r.qualityInventory }),
+    })
+  } catch (e) {
+    qualityErrors.push(e.message)
+    return { ...erroDeEvidencia({ fase: 'Validar', campo: 'qualityInventory', chamada: `validar:i${iteracao}`, recoleta: rotuloRecoletaInventario, detalhe: qualityErrors }), iteracao, tdd: relatorioTdd(), consultas: consultasLog, ponytail: ponytailAteAgora() }
+  }
+  qualityIteration.inventory = inventory
   const correcoesDeRelato = []
+  const protegidosDoPortao = new Set([...testesDaSpec, ...apoioDoTdd, qualitySpecPath].filter(Boolean))
+  // Inventário que lista o mesmo caminho em `files` e em `errors` é incoerente: continua erro nomeado,
+  // não vira correção ao operário por um alvo que o próprio script diz ter medido.
+  const ehAlvoAusente = p => p !== null && alvosDoContrato.has(p) && !protegidosDoPortao.has(p) && !(objetoPlano(inventory) && Array.isArray(inventory.files) && inventory.files.some(f => objetoPlano(f) && f.path === p))
+
+  // Nome canônico do git (3.0.3): `aliases` só existe quando o script trocou um pedido pelo nome que o
+  // git conhece (core.ignoreCase=true e pedido que difere só na caixa). Cada par é validado antes de
+  // valer: falha fechada, porque reescrever caminho com base num campo malformado esconderia defeito.
+  // Só caminho do relato é reescrito. Alvo do contrato não: a SPEC aprovada fica como está e o alvo
+  // volta como ausente, citando o nome do git. Teste, apoio e SPEC com alias são erro nomeado.
+  const nomesCanonicos = new Map()
+  const errosDeAlias = []
+  if (objetoPlano(inventory) && inventory.aliases !== undefined) {
+    const nomesDoInventario = new Set(Array.isArray(inventory.files) ? inventory.files.filter(objetoPlano).map(f => f.path) : [])
+    const dobraAscii = t => t.replace(/[A-Z]/g, c => c.toLowerCase())
+    if (!Array.isArray(inventory.aliases)) errosDeAlias.push('aliases deve ser lista de {requested, path}')
+    else for (const a of inventory.aliases) {
+      const nome = objetoPlano(a) ? `${a.requested} -> ${a.path}` : JSON.stringify(a)
+      const motivo = !objetoPlano(a) || !textoCheio(a.requested) || !textoCheio(a.path) ? 'par sem requested e path textuais'
+        : !qualityInventoryPaths.includes(a.requested) ? 'o harness não pediu esse caminho ao inventário'
+        : nomesCanonicos.has(a.requested) || correcoesDeRelato.some(c => c.path === a.requested) ? 'pedido repetido em aliases'
+        : !nomesDoInventario.has(a.path) ? 'o nome canônico não consta em files'
+        : a.requested === a.path || dobraAscii(a.requested) !== dobraAscii(a.path) ? 'os nomes diferem além da caixa ASCII'
+        : protegidosDoPortao.has(a.requested) ? 'o pedido é teste, apoio ou SPEC: declaração aprovada não é reescrita'
+        : null
+      if (motivo) { errosDeAlias.push(`${nome} (${motivo})`); continue }
+      if (alvosDoContrato.has(a.requested)) correcoesDeRelato.push({ path: a.requested, tipo: 'alvo-ausente', nomeDoGit: a.path })
+      else nomesCanonicos.set(a.requested, a.path)
+    }
+  }
+  if (errosDeAlias.length) return { status: 'erro', fase: 'Validar', iteracao, detalhe: [`qualityInventory.aliases: ${errosDeAlias.join('; ')}`], quality: qualityReport, tdd: relatorioTdd(), acao: 'o inventário devolveu aliases que o harness não aceita (pedido que ele não fez, nome canônico fora de files, nomes que diferem além da caixa ou alias de teste, apoio ou SPEC); conferir a saída literal de inspecionar-git.mjs quality e iniciar run novo (resumeFromRunId devolveria o mesmo inventário do cache)' }
+  const nomeDoGit = p => nomesCanonicos.get(p) ?? p
+  for (const [pedido, canonico] of nomesCanonicos) {
+    arquivosParaRevisao.delete(pedido); arquivosParaRevisao.add(canonico)
+    relatadosPeloOperario.delete(pedido)
+    if (!naoSaoDoRelato.has(canonico)) relatadosPeloOperario.add(canonico)
+  }
+  if (nomesCanonicos.size) for (const r of resultados) if (Array.isArray(r.arquivosTocados)) r.arquivosTocados = [...new Set(r.arquivosTocados.map(nomeDoGit))]
+  const pedidosCanonicos = [...new Set(qualityInventoryPaths.map(nomeDoGit))]
+
+  // Teste ou apoio protegido que sumiu ou virou pasta depois do portão (3.0.3): o script de hashes já
+  // mediu a sentinela e o inventário reclama do mesmo arquivo. Só o erro que casa com a sentinela
+  // medida sai do inventário (erro e `uninspected`, onde o script também o põe): o desfecho é o
+  // bloqueante `testes-intactos` ou `apoio-intacto` mais abaixo, não `erro`. Pasta não rastreada sai
+  // do script como "ausente ou ignorado", então esse tipo casa com as duas sentinelas; "não regular"
+  // só com `nao-regular`. Sem sentinela correspondente, ou com outro erro, o diagnóstico do script
+  // segue valendo (teste ausente sem medida continua erro).
+  const sentinelasConfirmadas = new Set()
+  if (objetoPlano(inventory) && Array.isArray(inventory.errors)) {
+    const restantes = inventory.errors.filter(e => {
+      const m = /^([^:]+): (arquivo ausente ou ignorado|arquivo não regular): (.+)$/.exec(String(e))
+      const medida = m && hashesAgora[m[1]]
+      if (!m || m[1] !== m[3] || !pathsComHash.includes(m[1]) || !(medida === 'nao-regular' || (medida === 'ausente' && m[2] !== 'arquivo não regular'))) return true
+      sentinelasConfirmadas.add(m[1])
+      return false
+    })
+    if (sentinelasConfirmadas.size) inventory = { ...inventory, errors: restantes, ...(Array.isArray(inventory.uninspected) ? { uninspected: inventory.uninspected.filter(p => !sentinelasConfirmadas.has(p)) } : {}) }
+  }
   if (objetoPlano(inventory) && Array.isArray(inventory.files) && Array.isArray(inventory.uninspected) && Array.isArray(inventory.errors)) {
     const ausentes = inventory.errors.map(e => { const m = /^([^:]+): arquivo ausente ou ignorado: (.+)$/.exec(String(e)); return m && m[1] === m[2] ? m[1] : null })
-    const naoRelatados = inventory.uninspected.filter(p => typeof p === 'string' && !ausentes.includes(p) && !qualityInventoryPaths.includes(p) && pathNoWorkspace(p) === p)
+    const naoRelatados = inventory.uninspected.filter(p => typeof p === 'string' && !ausentes.includes(p) && !pedidosCanonicos.includes(p) && pathNoWorkspace(p) === p)
     const restante = inventory.uninspected.filter(p => !ausentes.includes(p) && !naoRelatados.includes(p))
-    if (ausentes.every(p => p !== null && relatadosPeloOperario.has(p)) && restante.length === 0 && ausentes.length + naoRelatados.length > 0) {
-      for (const p of ausentes) { correcoesDeRelato.push({ path: p, tipo: 'ausente' }); arquivosParaRevisao.delete(p); relatadosPeloOperario.delete(p) }
+    if (ausentes.every(p => p !== null && (relatadosPeloOperario.has(p) || ehAlvoAusente(p))) && restante.length === 0 && ausentes.length + naoRelatados.length > 0) {
+      for (const p of ausentes) {
+        if (ehAlvoAusente(p)) { correcoesDeRelato.push({ path: p, tipo: 'alvo-ausente' }); continue }
+        correcoesDeRelato.push({ path: p, tipo: 'ausente' }); arquivosParaRevisao.delete(p); relatadosPeloOperario.delete(p)
+      }
       // Não relatado que já voltou como correção e reaparece não é relato: é artefato que a
       // validação recria (cache, saída de teste). Repetir a correção só gastaria o teto.
       const reincidentes = naoRelatados.filter(p => naoRelatadosJaCorrigidos.has(p))
@@ -1501,19 +1986,92 @@ ${listaDeTestes}
       log(`Relato de arquivos da iteração ${iteracao} não fecha com a worktree: ${correcoesDeRelato.map(c => `${c.path} (${c.tipo})`).join(', ')}; volta como correção`)
     }
   }
-  const pedidosAoInventario = qualityInventoryPaths.filter(p => !correcoesDeRelato.some(c => c.tipo === 'ausente' && c.path === p))
-  if (!objetoPlano(inventory) || !Array.isArray(inventory.files) || !Array.isArray(inventory.uninspected) || inventory.uninspected.length || !Array.isArray(inventory.errors) || inventory.errors.length || inventory.files.some(f => !objetoPlano(f) || !isQualityPath(f.path) || !Number.isInteger(f.lines) || f.lines < 0 || !Number.isInteger(f.bytes) || f.bytes < 0 || !['text', 'binary', 'deleted', 'symlink'].includes(f.status) || (f.status !== 'text' && f.lines !== 0) || (f.status === 'deleted' && f.bytes !== 0) || (f.status === 'symlink' && f.bytes === 0)) || new Set(inventory.files.map(f => f.path)).size !== inventory.files.length || pedidosAoInventario.some(p => !inventory.files.some(f => f.path === p))) {
-    // Diagnóstico com o que o script disse e o que faltou (3.0.2): a frase genérica sozinha não
-    // separava relato inválido de arquivo ausente nem de transcrição incompleta.
-    const doScript = objetoPlano(inventory) && Array.isArray(inventory.errors) ? inventory.errors.map(String) : []
-    const naoInspecionados = objetoPlano(inventory) && Array.isArray(inventory.uninspected) ? inventory.uninspected.map(String) : []
-    const omitidos = objetoPlano(inventory) && Array.isArray(inventory.files) ? pedidosAoInventario.filter(p => !inventory.files.some(f => objetoPlano(f) && f.path === p)) : qualityInventoryPaths
-    qualityErrors.push(`qualityInventory: inventário ausente, inválido, com omissões ou erros; reconcilie todos os arquivos relatados.${doScript.length ? ` Erros do script: ${doScript.join('; ')}.` : ''}${naoInspecionados.length ? ` Não inspecionados: ${naoInspecionados.join(', ')}.` : ''}${omitidos.length ? ` Pedidos e ausentes do inventário: ${omitidos.join(', ')}.` : ''}`)
+  const bloqueanteDeRelato = c => c.tipo === 'alvo-ausente' ? {
+    arquivo: c.path,
+    resumo: `Alvo do contrato de qualidade ausente: ${c.path} é exigido (required) pelo contrato aprovado e não existe na worktree ou é ignorado pelo git${c.nomeDoGit ? `; o git conhece o arquivo como ${c.nomeDoGit}, com outra caixa` : ''}`,
+    cenario: `O contrato de qualidade aprovado exige ${c.path} e o harness não reescreve a declaração aprovada. Crie ${c.path} com exatamente essa grafia (maiúsculas e minúsculas)${c.nomeDoGit ? `, renomeando ${c.nomeDoGit} se for o mesmo arquivo,` : ''} ou, se o contrato está errado, consulte o arquiteto em vez de contorná-lo. Auditoria e lentes só rodam com o alvo presente.`,
+    severidade: 'bloqueante', confianca: 'confirmado', origem: 'inventario-quality', natureza: 'funcional',
+  } : {
+    arquivo: c.path,
+    resumo: c.tipo === 'ausente' ? `Relato de arquivo inexistente: ${c.path} está em arquivosTocados, mas não existe na worktree ou é ignorado pelo git` : `Arquivo novo não relatado: ${c.path} apareceu na worktree e não está em arquivosTocados`,
+    cenario: c.tipo === 'ausente' ? `Corrija o relato: liste em arquivosTocados só arquivos que existem, com o caminho relativo à raiz do workspace. Se ${c.path} devia existir, crie-o; se foi apagado de propósito e era rastreado, ele aparece como removido.` : `Se você criou ${c.path}, inclua-o em arquivosTocados. Se não foi você (artefato de teste, cache, arquivo do dono), não apague: reporte como pendência, sem relatá-lo.`,
+    severidade: 'bloqueante', confianca: 'confirmado', origem: 'inventario-quality', natureza: 'procedimento',
   }
-  if (!qualityErrors.length) for (const file of inventory.files) {
-    if (file.status === 'text' && file.lines > 400 && !qualityContract.decomposition.some(d => d.path === file.path)) qualityErrors.push(`quality decomposition: ${file.path} tem ${file.lines} linhas; falta decisão explícita e verificável de coesão/decomposição.`)
+  const pedidosAoInventario = pedidosCanonicos.filter(p => !sentinelasConfirmadas.has(p) && !correcoesDeRelato.some(c => (c.tipo === 'ausente' || c.tipo === 'alvo-ausente') && c.path === p))
+  if (!inventarioEmLista(inventory) || inventory.uninspected.length || inventory.errors.length || inventory.files.some(f => !arquivoDeInventarioBemFormado(f)) || new Set(inventory.files.map(f => f.path)).size !== inventory.files.length || pedidosAoInventario.some(p => !inventory.files.some(f => f.path === p))) {
+    // Diagnóstico com o que o script disse e o que faltou (3.0.2): a frase genérica sozinha não
+    // separava relato inválido de arquivo ausente nem de transcrição incompleta. Aqui o inventário já é
+    // utilizável (3.0.4): sobra o diagnóstico do próprio script (recusa global, erro de caminho alheio).
+    const omitidos = objetoPlano(inventory) && Array.isArray(inventory.files) ? pedidosAoInventario.filter(p => !inventory.files.some(f => objetoPlano(f) && f.path === p)) : qualityInventoryPaths
+    qualityErrors.push(diagnosticoDoInventario(inventory, omitidos))
   }
   if (qualityErrors.length) return { status: 'erro', fase: 'Validar', iteracao, detalhe: qualityErrors, quality: qualityReport, tdd: relatorioTdd(), acao: 'Completar evidência de qualidade; não converter omissão em sucesso.' }
+
+  // Arquivo de texto acima de 400 linhas sem decisão em decomposition (3.0.4). Antes era `erro` aqui, depois do
+  // trabalho caro. SPEC, teste e apoio com o hash do portão não se editam no loop: a decisão é do dono e o
+  // desfecho é `bloqueado`. Teste ou apoio alterado segue só como bloqueante de arquivo intacto. Arquivo de
+  // produção volta ao operário como correção de natureza `qualidade`, dentro do teto.
+  const grandesNaValidacao = acimaDoLimite(inventory.files)
+  const grandesProtegidos = grandesNaValidacao.filter(f => f.path === qualitySpecPath || (pathsComHash.includes(f.path) && hashesAgora[f.path] === hashesBase[f.path]))
+  if (grandesProtegidos.length) return { quality: qualityReport, status: 'bloqueado', fase: 'Validar', iteracao, detalhe: `arquivo protegido acima de ${LIMITE_DE_LINHAS} linhas sem entrada em decomposition: ${descreverGrandes(grandesProtegidos)}`, acao: 'a SPEC, o teste e o apoio do portão não se editam no loop: decisão do dono sobre a decomposição (entrada em decomposition na SPEC ou divisão do arquivo) e run novo (resumeFromRunId devolveria o mesmo inventário do cache)', historico: historicoFalhas, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), tdd: relatorioTdd() }
+  const bloqueantesDeTamanho = grandesNaValidacao.filter(f => !grandesProtegidos.includes(f) && !pathsComHash.includes(f.path)).map(f => ({
+    arquivo: f.path,
+    resumo: `Arquivo acima de ${LIMITE_DE_LINHAS} linhas sem decisão de decomposição: ${f.path} tem ${f.lines} linhas`,
+    cenario: `O contrato de qualidade não tem entrada em decomposition para ${f.path}, que tem ${f.lines} linhas (limite ${LIMITE_DE_LINHAS}). Reduza o arquivo ao limite dividindo por responsabilidade; se a coesão justifica mantê-lo inteiro, consulte o arquiteto: a decisão de decomposição é do dono e entra na SPEC, o operário não a contorna.`,
+    severidade: 'bloqueante', confianca: 'confirmado', origem: 'inventario-quality', natureza: 'qualidade',
+  }))
+
+  // Alvo do contrato ausente (3.0.3): o contrato exige evidência com linha no alvo, e sem ele a
+  // auditoria só falharia por formato. A iteração pula auditoria, lentes e confirmador e volta direto
+  // ao operário; a regra P10 e os testes intactos ficam para a iteração seguinte, com o alvo presente.
+  // O desfecho no teto continua escalado: a natureza é funcional, nunca só de procedimento.
+  // 3.0.4: o bloqueante de tamanho medido nesta validação vai junto, como no bloco da sentinela abaixo.
+  if (correcoesDeRelato.some(c => c.tipo === 'alvo-ausente')) {
+    historicoFalhas.push({ iteracao, validacaoVerde, ...(verdeDeclaradoComFalhas ? { verdeDeclaradoComFalhas: true } : {}), validacoes: falhasDaValidacao, findings: [...correcoesDeRelato.map(bloqueanteDeRelato), ...bloqueantesDeTamanho, ...recusasDeReforco] })
+    log(`Iteração ${iteracao} não fechou: alvo do contrato ausente (${correcoesDeRelato.filter(c => c.tipo === 'alvo-ausente').map(c => c.path).join(', ')}); auditoria e lentes só rodam com o alvo presente`)
+    continue
+  }
+
+  // ── REGRA DURA: TESTES DA SPEC INTACTOS — decidida em código ─────────────────
+  // Hash de cada teste após a implementação comparado à baseline do `tdd:vermelho`. Diferente
+  // ou ausente = bloqueante automático, sem confirmação: o operário que edita o teste pra passar
+  // não tem apelação, e "sem hash" é fail-closed (não há como provar que ficou intacto).
+  // Os dois lados chegam aqui com a conferência de transporte recalculada (`hashesConferidos`):
+  // divergência entre duas coletas conferidas é mudança de conteúdo, não erro de cópia.
+  // 3.0.3: o apoio do portão (helper, fixture) entra na mesma regra, com origem e natureza próprias:
+  // helper editado para fazer o teste passar tira o valor do vermelho tanto quanto editar o teste.
+  // `ausente` e `nao-regular` são sentinelas do script de hashes, não hash: o arquivo sumiu ou virou
+  // pasta depois do portão, e isso é bloqueante nomeado, não erro de transcrição nem de evidência.
+  // 3.0.4: calculada ANTES da auditoria. Com a sentinela medida o arquivo some do inventário, e um check do
+  // contrato que o cita (teste novo, não rastreado) deixa a revisão sem alvo: nenhuma revisão seria válida e o
+  // run morria em `erro`. A iteração volta ao operário, sem auditoria, lentes nem confirmador, como no alvo ausente.
+  const bloqueantesAutomaticos = [...correcoesDeRelato.map(bloqueanteDeRelato), ...bloqueantesDeTamanho, ...recusasDeReforco]
+  const protegidos = [
+    ...testesDaSpec.map(p => ({ p, rotulo: 'Teste da SPEC', origem: 'testes-intactos', natureza: 'integridade-dos-testes', restaure: 'Reverta o teste ao estado do TDD.', quem: 'O implementador não edita os testes que precisa fazer passar: se o teste parece errado, isso é consulta de arquitetura, não correção.' })),
+    ...apoioProtegido.map(p => ({ p, rotulo: 'Apoio do portão TDD', origem: 'apoio-intacto', natureza: 'integridade-do-apoio', restaure: 'Reverta o apoio ao estado do TDD.', quem: 'O implementador não edita helper nem fixture dos testes para fazê-los passar: se o apoio parece errado, isso é consulta de arquitetura, não correção.' })),
+    // 3.1.0: reforço aceito (matou o mutante na Mutar) é congelado como os testes da SPEC, com hash da medição.
+    ...[...reforcos.values()].filter(x => x.aceito).map(x => ({ p: x.path, rotulo: 'Reforço de mutação', origem: 'reforco-intacto', natureza: 'integridade-dos-testes', restaure: 'Reverta o reforço ao estado em que matou o mutante.', quem: 'O reforço aceito não se edita: ele prova que o mutante morre. Se parece errado, isso é consulta de arquitetura, não correção.' })),
+  ]
+  for (const { p, rotulo, origem, natureza, restaure, quem } of protegidos) {
+    const agora = hashesAgora[p]
+    if (agora && agora === hashesBase[p]) continue
+    const sentinela = SENTINELAS_DE_HASH.includes(agora)
+    bloqueantesAutomaticos.push({
+      arquivo: p,
+      resumo: sentinela ? `${rotulo} ${agora === 'ausente' ? 'ausente' : 'deixou de ser arquivo regular'} na validação: ${p}` : agora ? `${rotulo} alterado durante a implementação: ${p}` : `${rotulo} sem hash na validação: ${p} — não há como provar que ficou intacto`,
+      cenario: sentinela
+        ? `O script de hashes devolveu "${agora}" para ${p}, que tinha hash no portão TDD (${hashesBase[p]}): o arquivo ${agora === 'ausente' ? 'foi removido ou renomeado' : 'virou pasta ou outro tipo que não é arquivo regular'}. ${quem} Restaure o arquivo ao estado do TDD.`
+        : agora
+          ? `O hash de ${p} mudou entre o portão TDD (${hashesBase[p]}) e a validação (${agora}); as duas coletas conferiram, então não é erro de transcrição. ${quem} ${restaure}`
+          : `A validação não devolveu hash para ${p}. Sem ele a prova de que o arquivo ficou intacto não existe. Reporte o SHA-256 de todos os arquivos pedidos no comando de hashes.`,
+      severidade: 'bloqueante', confianca: 'confirmado', origem, natureza,
+    })
+  }
+  if (protegidos.some(({ p }) => SENTINELAS_DE_HASH.includes(hashesAgora[p]))) {
+    historicoFalhas.push({ iteracao, validacaoVerde, ...(verdeDeclaradoComFalhas ? { verdeDeclaradoComFalhas: true } : {}), validacoes: falhasDaValidacao, findings: bloqueantesAutomaticos })
+    log(`Iteração ${iteracao} não fechou: arquivo protegido pelo portão ausente ou não regular (${protegidos.filter(({ p }) => SENTINELAS_DE_HASH.includes(hashesAgora[p])).map(({ p }) => p).join(', ')}); auditoria e lentes só rodam com o arquivo restaurado`)
+    continue
+  }
 
   // ── Auditoria ponytail (todos os perfis, 1 agente) ───────────────────────────
   // Checagem MECÂNICA de sinais no diff — barata, roda sempre. Não confundir com a lente R3
@@ -1538,19 +2096,7 @@ ${listaDeTestes}
     Confronte execuções e saída com cada alvo aprovado e seu relatório/resultado concreto;
     exit 0 com zero testes ou sem efeito verificável não comprova o check. Reporte issue com
     cenário quando a saída revelar ausência de verificação, sem preencher satisfied por protocolo.
-    Preencha qualityReview exatamente uma vez por check: status satisfied/issue/not-applicable,
-    evidence não vazia vinculada a cada path aprovado do check, line textual válida e observation concreta.
-    evidence.path é o caminho relativo à raiz do workspace, escrito como no inventário.
-    Citação de outro arquivo inventariado não cobre o alvo. A SPEC citada precisa constar medida
-    como texto no inventário, com linha dentro do limite, inclusive para dispensa e nontext.
-    Dispensa só a aprovada no contrato; cite a SPEC como fonte. Para arquivo binary/deleted/symlink,
-    documente classificação, limitação e forma de inspeção na SPEC, sem inventar linha textual.
-    Para symlink, registre também destino literal observado (ou bytes escapados/hex identificados)
-    e resolução interna para arquivo regular; a evidência nontext cita essa linha real da SPEC.
-    Para texto intencionalmente vazio (text, lines=0 e bytes=0), cite a SPEC local medida com
-    observação explícita do vazio, justificativa e inspeção realizada; não invente linha no alvo
-    nem use essa alternativa para texto com conteúdo.
-    Issue exige finding.summary e finding.scenario; nos outros status finding é {}.
+    ${REGRAS_DE_QUALITYREVIEW}
     Confronte perfis selecionados e cada decisão de decomposition com o conteúdo e a testabilidade.
     Você audita o diff ACUMULADO (${ARGS.baseRef ? `toda a entrega desde a base ${ARGS.baseRef}, inclusive commits` : 'tudo o que não está no HEAD; sem baseRef, trabalho já commitado na branch não aparece'}; não só a última iteração), contra as regras P1-P18
     (skills/dev-loop/references/escada-ponytail.md). Reporte SINAIS, não opiniões:
@@ -1572,6 +2118,9 @@ ${listaDeTestes}
       declarou semCriacao. Cite oQue, arquivo, linha e unidade. Testes da SPEC e apoio do portão
       TDD nascem no portão, não numa unidade, e ficam fora deste confronto: ${JSON.stringify(nascidosNoPortao)}.
     - linhasAdicionadasAcumuladas: total de linhas adicionadas no diff da branch.
+    - linhasRemovidasAcumuladas: total de linhas removidas no mesmo diff acumulado (0 quando nada foi
+      removido). Entrega só de remoção tem 0 adicionadas e removidas maiores que 0: é o que separa
+      essa entrega de uma auditoria que não enxergou o diff.
     O que os operários declararam ter criado nesta iteração: ${JSON.stringify(escadaDaIteracao)}.
     Unidades que declararam nesta iteração só modificar o existente (semCriacao): ${JSON.stringify(semCriacaoDaIteracao)}.
     Escada declarada em TODAS as iterações (base do confronto de criacoesSemRelato): ${JSON.stringify(escadaReportada)}.
@@ -1583,81 +2132,48 @@ ${listaDeTestes}
   // null aborta o run; este também. Portão que falha aberto não é portão.
   if (!aud) return { quality: qualityReport, status: 'erro', fase: 'Auditar', iteracao, tdd: relatorioTdd(), consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), acao: 'a auditoria ponytail não retornou — sem ela não há como afirmar que P10 foi respeitado; reinvocar com resumeFromRunId' }
   const auditoria = aud
-  // Evidência com caminho absoluto sob a raiz vira relativa antes do confronto com o inventário
-  // (3.0.2); fora do workspace fica crua, reprova abaixo e é nomeada no diagnóstico.
-  const evidenciaForaDoWorkspace = []
-  if (Array.isArray(auditoria.qualityReview)) for (const r of auditoria.qualityReview) {
-    if (!objetoPlano(r) || !Array.isArray(r.evidence)) continue
-    r.evidence = r.evidence.map(e => {
-      if (!objetoPlano(e) || typeof e.path !== 'string') return e
-      const rel = pathNoWorkspace(e.path)
-      if (rel === null) { evidenciaForaDoWorkspace.push(`${r.id}: ${e.path}`); return e }
-      return { ...e, path: rel }
-    })
-  }
+  // qualityReview (3.0.4): revisão inválida pede UMA recoleta no revisor (a linha lida no arquivo é evidência
+  // de julgamento e o step só admite opus), com a revisão original e os problemas por check. A recolhida passa
+  // pela mesma conferência, inclusive a conversão de caminho absoluto sob a raiz em relativo (3.0.2); os sinais
+  // de P10, duplicação, abstração e escada seguem os da primeira resposta. Segunda falha é `erro` nomeado.
+  const rotuloRecoletaRevisao = `recoleta:quality-review:i${iteracao}`
   qualityIteration.review = auditoria.qualityReview
-  const qualityReview = auditoria.qualityReview
-  if (!Array.isArray(qualityReview) || qualityReview.length !== qualityContract.checks.length || new Set(qualityReview.map(r => r?.id)).size !== qualityContract.checks.length || qualityReview.some(r => {
-    const check = qualityContract.checks.find(c => c.id === r?.id)
-    if (!check || !['satisfied', 'issue', 'not-applicable'].includes(r.status) || (check.applicability === 'not-applicable' ? r.status !== 'not-applicable' : r.status === 'not-applicable') || !objetoPlano(r.finding) || (r.status === 'issue' ? !textoCheio(r.finding.summary) || !textoCheio(r.finding.scenario) : Object.keys(r.finding).length !== 0) || !Array.isArray(r.evidence) || !r.evidence.length) return true
-    return r.evidence.some(e => {
-      if (!objetoPlano(e) || !textoCheio(e.observation) || !Number.isInteger(e.line) || e.line < 1) return true
-      const file = inventory.files.find(f => f.path === e.path)
-      if (file?.status !== 'text' || e.line > file.lines) return true
-      if (check.paths.includes(e.path)) return false
-      const specEvidence = e.path === pathNoWorkspace(ARGS.specPath)
-      const specOnlyScope = check.paths.some(p => inventory.files.some(f => f.path === p && (f.status !== 'text' || (f.lines === 0 && f.bytes === 0))))
-      return !(specEvidence && (check.applicability === 'not-applicable' || specOnlyScope))
-    }) || (check.applicability === 'required' && check.paths.some(path => {
-      const target = inventory.files.find(file => file.path === path)
-      const requiresSpecEvidence = target && (target.status !== 'text' || (target.lines === 0 && target.bytes === 0))
-      return !target || !r.evidence.some(e => e.path === (requiresSpecEvidence ? pathNoWorkspace(ARGS.specPath) : path))
-    }))
-  })) return { status: 'erro', fase: 'Auditar', iteracao, detalhe: `qualityReview: cobertura incompleta ou evidência inválida; confira IDs, dispensas, finding e linhas de arquivos efetivamente inspecionados.${evidenciaForaDoWorkspace.length ? ` Evidência fora do workspace ${ARGS.workspaceRoot}: ${evidenciaForaDoWorkspace.join('; ')}.` : ''}`, quality: qualityReport, tdd: relatorioTdd() }
-  auditoriasLog.push({ iteracao, linhasAdicionadasAcumuladas: auditoria.linhasAdicionadasAcumuladas, deps: auditoria.dependenciasNovas.length, dup: auditoria.duplicacoes.length, abs: auditoria.abstracoesUsoUnico.length })
+  let qualityReview
+  try {
+    qualityReview = await evidenciaComRecoleta({
+      campo: 'qualityReview', valor: auditoria.qualityReview, valida: v => revisaoDeQualidadeValida(v, inventory), label: rotuloRecoletaRevisao, fase: 'Auditar', step: 'auditoria',
+      agente: { ...REVISOR, ...(TIERING.auditoria.effort ? { effort: TIERING.auditoria.effort } : {}) },
+      pedir: falha => ({
+        prompt: `Recoleta de qualityReview da auditoria ponytail da branch ${ARGS.branch} (iteração ${iteracao}): o controlador recusou a revisão que você devolveu. Devolva SÓ qualityReview, a lista inteira (uma entrada por check do contrato), corrigindo o que falhou e mantendo o que serviu.
+        Problemas por check: ${falha}
+        Revisão que você devolveu: ${JSON.stringify(auditoria.qualityReview)}.
+        Inventário efetivamente inspecionado: ${JSON.stringify(inventory)}.
+        ${qualityPrompt}
+        ${REGRAS_DE_QUALITYREVIEW}
+        Leia de novo os arquivos citados quando a linha ou a observação precisar ser refeita. ${COMO_VER_O_DIFF([...arquivosParaRevisao])}`,
+        schema: soCampo('qualityReview', QUALITY_REVIEW_SCHEMA), extrair: r => r.qualityReview,
+      }),
+    })
+  } catch (e) {
+    return { ...erroDeEvidencia({ fase: 'Auditar', campo: 'qualityReview', chamada: `ponytail:i${iteracao}`, recoleta: rotuloRecoletaRevisao, detalhe: e.message }), iteracao, tdd: relatorioTdd(), consultas: consultasLog, ponytail: ponytailAteAgora() }
+  }
+  qualityIteration.review = qualityReview
+  auditoriasLog.push({ iteracao, linhasAdicionadasAcumuladas: auditoria.linhasAdicionadasAcumuladas, linhasRemovidasAcumuladas: auditoria.linhasRemovidasAcumuladas, deps: auditoria.dependenciasNovas.length, dup: auditoria.duplicacoes.length, abs: auditoria.abstracoesUsoUnico.length })
 
   // GUARDA DE AUDITORIA CEGA. Se a branch tem trabalho (arquivos tocados) mas a auditoria reporta 0
   // linhas acumuladas, ela não enxergou a working tree — típico de um `git diff <base>..HEAD` vazio
   // (o harness nunca commita). Objeto válido cheio de zeros NÃO é "nada encontrado": é o portão P10
   // falhando aberto, que o `!aud` não pega. Aborta como erro reinvocável, igual à auditoria que não
   // retorna — senão bastaria a auditoria ler o diff errado pra dependência injustificada passar.
-  if (houveTrabalhoNaBranch && auditoria.linhasAdicionadasAcumuladas === 0) {
-    return { quality: qualityReport, status: 'erro', fase: 'Auditar', iteracao, tdd: relatorioTdd(), consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), acao: 'auditoria ponytail voltou cega: 0 linhas acumuladas com trabalho presente na branch — não enxergou a working tree não-commitada (provável `git diff <base>..HEAD` vazio). Reinvocar com resumeFromRunId; execute a inspeção somente leitura do prompt e confira os novos não incluídos.' }
+  // 3.0.3: entrega só de remoção também tem 0 linhas adicionadas. Só vale como "não é cega" a remoção
+  // numérica e positiva reportada; 0, ausente ou não numérico continua cego (falha fechada).
+  const houveRemocao = Number.isFinite(auditoria.linhasRemovidasAcumuladas) && auditoria.linhasRemovidasAcumuladas > 0
+  if (houveTrabalhoNaBranch && auditoria.linhasAdicionadasAcumuladas === 0 && !houveRemocao) {
+    return { quality: qualityReport, status: 'erro', fase: 'Auditar', iteracao, tdd: relatorioTdd(), consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), acao: 'auditoria ponytail voltou cega: 0 linhas adicionadas e 0 removidas acumuladas (ou removidas ausente ou não numérico) com trabalho presente na branch — não enxergou a working tree não-commitada (provável `git diff <base>..HEAD` vazio). Reinvocar com resumeFromRunId; execute a inspeção somente leitura do prompt e confira os novos não incluídos.' }
   }
   // Auditoria vê a branch toda: o mesmo achado fora de escopo reaparece a cada iteração.
   for (const f of auditoria.forasDeEscopo) {
     if (!pendenciasForaDeEscopo.some(p => p.arquivo === f.arquivo && p.oQue === f.oQue)) pendenciasForaDeEscopo.push({ iteracao, ...f })
-  }
-
-  // ── REGRA DURA P10 — decidida em código, ponto ───────────────────────────────
-  // Dependência nova sem justificativa ESCRITA NO DIFF não passa. Sem exceção, sem rota de
-  // modelo, sem casar nome de pacote com texto livre da escada. Quem quer a dependência escreve
-  // o porquê no código — que é onde a justificativa serve pra quem vier depois, não num campo
-  // que morre com o run. Bloqueante automático: não passa pela confirmação.
-  const bloqueantesAutomaticos = correcoesDeRelato.map(c => ({
-    arquivo: c.path,
-    resumo: c.tipo === 'ausente' ? `Relato de arquivo inexistente: ${c.path} está em arquivosTocados, mas não existe na worktree ou é ignorado pelo git` : `Arquivo novo não relatado: ${c.path} apareceu na worktree e não está em arquivosTocados`,
-    cenario: c.tipo === 'ausente' ? `Corrija o relato: liste em arquivosTocados só arquivos que existem, com o caminho relativo à raiz do workspace. Se ${c.path} devia existir, crie-o; se foi apagado de propósito e era rastreado, ele aparece como removido.` : `Se você criou ${c.path}, inclua-o em arquivosTocados. Se não foi você (artefato de teste, cache, arquivo do dono), não apague: reporte como pendência, sem relatá-lo.`,
-    severidade: 'bloqueante', confianca: 'confirmado', origem: 'inventario-quality', natureza: 'procedimento',
-  }))
-
-  // ── REGRA DURA: TESTES DA SPEC INTACTOS — decidida em código ─────────────────
-  // Hash de cada teste após a implementação comparado à baseline do `tdd:vermelho`. Diferente
-  // ou ausente = bloqueante automático, sem confirmação: o operário que edita o teste pra passar
-  // não tem apelação, e "sem hash" é fail-closed (não há como provar que ficou intacto).
-  // Os dois lados chegam aqui com a conferência de transporte recalculada (`hashesConferidos`):
-  // divergência entre duas coletas conferidas é mudança de conteúdo, não erro de cópia.
-  for (const p of testesDaSpec) {
-    const agora = hashesAgora[p]
-    if (agora && agora === hashesBase[p]) continue
-    bloqueantesAutomaticos.push({
-      arquivo: p,
-      resumo: agora ? `Teste da SPEC alterado durante a implementação: ${p}` : `Teste da SPEC sem hash na validação: ${p} — não há como provar que ficou intacto`,
-      cenario: agora
-        ? `O hash de ${p} mudou entre o portão TDD (${hashesBase[p]}) e a validação (${agora}); as duas coletas conferiram, então não é erro de transcrição. O implementador não edita os testes que precisa fazer passar: se o teste parece errado, isso é consulta de arquitetura, não correção. Reverta o teste ao estado do TDD.`
-        : `A validação não devolveu hash para ${p}. Sem ele a regra "implementador não edita teste" fica sem prova. Reporte o SHA-256 de todos os testes da SPEC.`,
-      severidade: 'bloqueante', confianca: 'confirmado', origem: 'testes-intactos', natureza: 'integridade-dos-testes',
-    })
   }
 
   // ── REGRA DURA: RESULTADO POR TESTE DEPOIS DA IMPLEMENTAÇÃO — decidida em código ─────────
@@ -1670,14 +2186,14 @@ ${listaDeTestes}
   // evidência. Em infra o cenário separa os dois casos: import ou sintaxe se corrige no código, sem
   // editar o teste; ambiente não se contorna mudando código nem teste.
   {
-    const lidas = lerExecucoes(val.execucoes)
+    const lidas = execucoesLidas
     const SE_INFRA = ' Se a causa é import ou sintaxe do código, corrija o código sem editar o teste. Se a causa é ambiente (cache, temporário, permissão, ferramenta ausente, rede), não altere código nem teste para contorná-la: reporte como pendência.'
     for (const t of testesNumerados) {
       const r = lidas.mapa.get(t.id)
       const comum = { arquivo: t.path, severidade: 'bloqueante', confianca: 'confirmado', origem: 'portao-tdd' }
       const razao = r ? semValor(r) : null
       if (!r) {
-        bloqueantesAutomaticos.push({ ...comum, natureza: 'evidencia', resumo: `Teste da SPEC sem execução por teste na validação: ${t.id} (critério ${t.criterio}) — não há como provar que passa`, cenario: 'A validação precisa reportar exatamente uma execução por teste da SPEC em execucoes (faltando ou repetida não vale).' })
+        bloqueantesAutomaticos.push({ ...comum, natureza: 'evidencia', resumo: `Teste da SPEC sem execução por teste na validação: ${t.id} (critério ${t.criterio}) — não há como provar que passa`, cenario: `A validação precisa reportar exatamente uma execução por teste da SPEC em execucoes (faltando ou repetida não vale).${recoletaDeExecucoesFalhou === null ? '' : ` A recoleta ${rotuloRecoletaExecucoes} também não trouxe execução válida: ${recoletaDeExecucoesFalhou}.`}` })
       } else if (razao === 'saiu 0 sem executar nenhum caso') {
         bloqueantesAutomaticos.push({ ...comum, natureza: 'evidencia', resumo: `Teste da SPEC saiu 0 sem executar nenhum caso: ${t.id} (critério ${t.criterio})`, cenario: `\`${t.comando}\` não executou caso nenhum (filtro que não casa?). Sem caso executado não há verde.` })
       } else if (razao === 'resultado incoerente') {
@@ -1692,8 +2208,13 @@ ${listaDeTestes}
     }
   }
 
+  // ── REGRA DURA P10 — decidida em código, ponto ───────────────────────────────
+  // Dependência nova sem justificativa ESCRITA NO DIFF não passa. Sem exceção, sem rota de
+  // modelo, sem casar nome de pacote com texto livre da escada. Quem quer a dependência escreve
+  // o porquê no código — que é onde a justificativa serve pra quem vier depois, não num campo
+  // que morre com o run. Bloqueante automático: não passa pela confirmação.
   for (const d of auditoria.dependenciasNovas) {
-    const barrada = d.justificativaEncontrada !== true || !textoCheio(d.onde) || !/(?:[^\s:]+:\d+|https?:\/\/\S+#[^\s]+)\s+\S[\s\S]{15,}/.test(d.onde)
+    const barrada = d.justificativaEncontrada !== true || !textoCheio(d.onde) || !P10_ONDE.test(d.onde)
     if (barrada) {
       bloqueantesAutomaticos.push({
         arquivo: d.onde || 'manifesto de dependências', resumo: `P10: dependência nova "${d.nome}" sem justificativa escrita de por que P1-P5 falharam`,
@@ -1827,11 +2348,105 @@ ${listaDeTestes}
       qualityIteration.confirmations.push({ finding: f, ...v })
     }
     const naoBloqueia = daAuditoria && v.bloqueante === false
+    if (v.real === false) refutadosPeloConfirmador.push({ iteracao, arquivo: f.arquivo, linha: f.linha, resumo: f.resumo, porque: v.porque || 'sem justificativa' })
     if (v.real && !naoBloqueia) bloqueantes.push(f)
     // Findings da auditoria são julgados como qualquer outro; o relatório guarda o VEREDITO,
     // não a alegação — senão a seção ponytail lista como violação o que foi refutado, ou como
     // bloqueante o que o confirmador julgou pendência.
     if (f.origem === 'auditoria-ponytail') duplicacoesEAbstracoesJulgadas.push({ iteracao, ...f, severidade: v.real && naoBloqueia ? 'nao-bloqueante' : f.severidade, confirmado: !!v.real, porqueVeredito: v.porque })
+  }
+
+  // ── Fase Mutar (3.1.0) ─────────────────────────────────────────────────────
+  // Só chega aqui a iteração que fecharia verde (validação verde, nenhum bloqueante confirmado) e só nos perfis
+  // com `mutacao`. Sobrevivente real confirmado entra em `bloqueantes` com natureza `mutacao` e a iteração segue
+  // o caminho de sempre (historicoFalhas, correção ao operário); cada iteração que chega verde mede de novo.
+  if (validacaoVerde && bloqueantes.length === 0 && perfil.mutacao) {
+    phase('Mutar')
+    const comandosDaSpec = [...new Set(testesNumerados.map(t => t.comando))]
+    const comandos = [...new Set([...comandosDaSpec, ...[...reforcos.values()].map(x => x.comando)])]
+    const base = ARGS.baseRef || 'HEAD'
+    const excluidos = [...new Set([...testesDaSpec, ...apoioDoTdd, ...reforcos.keys(), qualitySpecPath, PENDENCIAS].filter(Boolean))]
+    const prioridade = [...pendentesDeMutacao.values()].map(({ path, trecho, operador, de, para }) => ({ path, trecho, operador, de, para }))
+    const medida = comandosDaSpec.length ? await medirMutacao(iteracao, base, excluidos, comandos, prioridade) : { causa: 'nenhum teste da SPEC para rodar contra os mutantes' }
+    const ev = medida.evidencia
+    if (ev) linhasAcrescentadasMedidas = ev.linhasAcrescentadas
+    const causaDaNaoMedicao = !ev ? medida.causa
+      : ev.candidatos === 0 ? 'nenhum candidato a mutante nas linhas acrescentadas'
+      : !ev.controle.ok ? `o controle sem mutante falhou (${ev.controle.execucoes.filter(e => e.exitCode !== 0).map(e => `${e.comando} saiu ${e.exitCode}`).join('; ')}): ambiente ou teste quebrado, nenhum mutante rodou`
+      : !ev.removida ? 'a cópia descartável não foi removida pelo script: remover à mão'
+      : !ev.worktreeIntacta ? 'a worktree não ficou intacta depois da medição: o resultado não vale'
+      : ev.mutantes.length === 0 ? 'nenhum mutante amostrado'
+      : null
+    if (causaDaNaoMedicao) {
+      mutacao = { status: 'nao-medida', iteracao, causa: causaDaNaoMedicao }
+      // Sem medição não há prova de que o sobrevivente real pendente morreu: segue bloqueando (escala no teto).
+      for (const p of pendentesDeMutacao.values()) bloqueantes.push({ arquivo: p.path, severidade: 'bloqueante', confianca: 'confirmado', origem: 'mutacao-pendente', natureza: 'mutacao',
+        resumo: `Mutante real pendente em ${p.local} (\`${p.trecho}\`: \`${p.de}\` → \`${p.para}\`) ficou sem medição nesta iteração`,
+        cenario: `A medição não valeu (${causaDaNaoMedicao}), então nada prova que um teste derruba essa troca. Ela continua pendente: resolva a causa da não medição; o run não fecha verde sem a prova.` })
+      // Exceção: reforço declarado cujo comando falha no controle volta ao operário como correção, em vez de nao-medida.
+      if (ev && !ev.controle.ok) for (const x of reforcos.values()) {
+        const e = ev.controle.execucoes.find(y => y.comando === x.comando && y.exitCode !== 0)
+        if (e) bloqueantes.push({ arquivo: x.path, severidade: 'bloqueante', confianca: 'confirmado', origem: 'mutacao-controle', natureza: 'mutacao',
+          resumo: `Reforço ${x.path} falhou no controle: o comando saiu ${e.exitCode} na cópia sem mutante`,
+          cenario: `\`${x.comando}\` não passa nem com o código real. O reforço nasce verde e só falha com o mutante ${x.mutante}: corrija o arquivo (sem editar teste da SPEC nem apoio) e declare-o de novo em reforcos[].` })
+      }
+    } else {
+      const mortos = ev.mutantes.filter(m => m.resultado === 'morto')
+      // Reforço aceito = o mutante citado apareceu morto com o comando dele; a partir daqui o arquivo é congelado por hash.
+      const alvoDoReforco = x => {
+        const p = [...pendentesDeMutacao.values()].find(e => e.ids.has(x.mutante))
+        return p ? ev.mutantes.find(m => mesmaTroca(p, m)) : ev.mutantes.find(m => m.id === x.mutante)
+      }
+      const aceitaveis = [...reforcos.values()].filter(x => { const alvo = alvoDoReforco(x); return !x.aceito && alvo?.resultado === 'morto' && alvo.mortoPor === x.comando })
+      if (aceitaveis.length) {
+        const caminhos = aceitaveis.map(x => x.path)
+        const h = await chamarOperario('validar', pedidoDeHashes(caminhos), { label: `hashes:reforco:i${iteracao}`, phase: 'Mutar', schema: HASHES_SCHEMA })
+        let hashes
+        try { hashes = await hashesConferidos(h?.hashesDosTestes, `recoleta:hashes-reforco:i${iteracao}`, 'Mutar', caminhos) }
+        catch (e) { return { ...erroDeEvidencia({ fase: 'Mutar', campo: 'hashes do reforço', chamada: `hashes:reforco:i${iteracao}`, recoleta: `recoleta:hashes-reforco:i${iteracao}`, detalhe: [e.message] }), iteracao, tdd: relatorioTdd(), consultas: consultasLog, ponytail: ponytailAteAgora() } }
+        for (const x of aceitaveis) {
+          if (SENTINELAS_DE_HASH.includes(hashes[x.path])) {
+            bloqueantes.push({ arquivo: x.path, severidade: 'bloqueante', confianca: 'confirmado', origem: 'reforco-recusado', natureza: 'mutacao', resumo: `Reforço ${x.path} não é arquivo regular na worktree (${hashes[x.path]})`, cenario: 'O reforço mata o mutante com o comando dele, mas o arquivo não existe ou não é arquivo regular, então não há como congelá-lo por hash. Crie o arquivo de teste e declare-o de novo em reforcos[].' })
+            continue
+          }
+          x.aceito = true; pathsComHash.push(x.path); hashesBase[x.path] = hashes[x.path]
+        }
+      }
+      // Pendente morto sai; pendente que não reapareceu continua bloqueando; o que sobreviveu passa de novo
+      // pelo confirmador logo abaixo.
+      const naoReencontrados = []
+      for (const [id, p] of [...pendentesDeMutacao]) {
+        const atual = ev.mutantes.find(m => mesmaTroca(p, m))
+        if (atual?.resultado === 'morto') { pendentesDeMutacao.delete(id); continue }
+        if (atual) continue
+        naoReencontrados.push(p.local)
+        bloqueantes.push({ arquivo: p.path, severidade: 'bloqueante', confianca: 'confirmado', origem: 'mutacao-pendente', natureza: 'mutacao',
+          resumo: `Mutante real pendente em ${p.local} (\`${p.trecho}\`: \`${p.de}\` → \`${p.para}\`) não reapareceu na medição`,
+          cenario: `A medição recebeu essa troca em --prioridade e não a encontrou: a linha \`${p.trecho}\` mudou ou saiu de ${p.path}. Sem a medição dela não há prova de que um teste a derruba. Se a linha mudou só para escapar da medição, restaure-a e derrube a troca com o reforço; se o código mudou de propósito, isso é decisão do dono e o run escala no teto.` })
+      }
+      const sobreviventes = []
+      const equivalentes = []
+      for (const m of ev.mutantes.filter(x => x.resultado === 'sobrevivente')) {
+        const v = await chamarRevisor('confirmacao',
+          `Confirme ou refute este mutante que sobreviveu à fase Mutar antes de virar retrabalho.
+          Mutante ${m.id}: ${m.path}:${m.linha} (operador ${m.operador}); a troca foi de \`${m.de}\` para \`${m.para}\`, numa cópia descartável, e os testes que rodaram continuaram passando: ${JSON.stringify(comandos)}.
+          Leia o código em ${m.path}:${m.linha}. real=true SOMENTE com um cenário concreto (entrada e saída esperada) em que a troca muda o comportamento observável; real=false quando a troca não muda comportamento (equivalente: só log ou mensagem, código morto, comparação com o mesmo resultado em todo o domínio, e semelhantes). porque é obrigatório: cite o cenário, ou a razão da equivalência.`,
+          { label: `confirmar:mutante:i${iteracao}`, phase: 'Mutar', schema: VEREDITO_MUTANTE_SCHEMA })
+        if (!v || typeof v.real !== 'boolean' || !textoCheio(v.porque)) return { quality: qualityReport, status: 'erro', fase: 'Mutar', iteracao, tdd: relatorioTdd(), consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), acao: `o confirmador do mutante ${m.id} (${m.path}:${m.linha}) não devolveu veredito com real e porque — sem ele não há como separar sobrevivente real de equivalente; reinvocar com resumeFromRunId` }
+        const registro = { id: m.id, local: `${m.path}:${m.linha}`, path: m.path, linha: m.linha, operador: m.operador, de: m.de, para: m.para, porque: v.porque, testes: comandos }
+        const anterior = [...pendentesDeMutacao].find(([, p]) => mesmaTroca(p, m))
+        if (anterior) pendentesDeMutacao.delete(anterior[0])
+        if (!v.real) { equivalentes.push(registro); continue }
+        sobreviventes.push(registro)
+        const ids = new Set([...(anterior ? anterior[1].ids : []), m.id])
+        pendentesDeMutacao.set(m.id, { path: m.path, trecho: m.trecho, operador: m.operador, de: m.de, para: m.para, local: `${m.path}:${m.linha}`, ids })
+        const pendente = [...reforcos.values()].find(x => !x.aceito && ids.has(x.mutante))
+        bloqueantes.push({ arquivo: m.path, linha: m.linha, severidade: 'bloqueante', confianca: 'confirmado', origem: 'mutacao', natureza: 'mutacao', mutante: m.id,
+          resumo: `Mutante sobrevivente real em ${m.path}:${m.linha} (${m.operador}): trocar \`${m.de}\` por \`${m.para}\` não derruba nenhum teste`,
+          cenario: `O revisor confirmou que a troca muda o comportamento: ${v.porque}. Os testes que rodaram (${comandos.join(' | ')}) seguem passando com ela, então nada protege essa linha. Escreva um caso novo em ARQUIVO DE REFORÇO (arquivo de teste novo; nunca o teste da SPEC nem o apoio do portão, que estão congelados) que passe com o código atual e falhe com a troca, e declare em reforcos[] { path, comando (de uma linha, roda só esse arquivo e cita o path), mutante: "${m.id}" }. O reforço só vale quando a próxima medição mostra esse mutante morto com o comando dele.${pendente ? ` O reforço ${pendente.path}, declarado para este mutante, não o derrubou.` : ''}` })
+      }
+      mutacao = { status: 'medida', iteracao, base, candidatos: ev.candidatos, amostrados: ev.amostrados, mortos: mortos.length, sobreviventes, equivalentes, naoReencontrados }
+    }
   }
 
   if (validacaoVerde && bloqueantes.length === 0) { verde = true; break }
@@ -1854,15 +2469,37 @@ const resumoDaEscalada = (() => {
   const somenteProcedimento = ultima.validacaoVerde === true && ultima.validacoes.length === 0 && ultima.findings.length > 0 && Object.keys(bloqueantesPorNatureza).every(k => k === 'procedimento')
   return { iteracao: ultima.iteracao, validacaoVerde: ultima.validacaoVerde, falhasDeValidacaoPorNatureza: contar(ultima.validacoes, f => f.natureza), bloqueantesPorNatureza, somenteProcedimento }
 })()
+// Conferência rápida (3.1.0), nos desfechos verde e escalado: até três linhas para o dono olhar primeiro, na
+// prioridade da SPEC (mutação não medida ou com equivalentes; finding bloqueante refutado; arquivo de produção
+// com mais linhas acrescentadas e o comando do diff dele), e os números do run. As linhas saem de dados que o
+// run já mediu; sem medição de mutação, a linha de arquivo não aparece.
+function conferenciaRapida() {
+  const linhas = []
+  if (mutacao.status === 'nao-medida') linhas.push(`Mutação não medida (${mutacao.causa}): nenhum teste foi provado contra mutantes; confira à mão se os testes novos protegem o código novo.`)
+  else if (mutacao.equivalentes.length) linhas.push(`Mutação: ${mutacao.equivalentes.length} sobrevivente(s) julgado(s) equivalente(s) pelo revisor, sem teste que os derrube; confira o porquê: ${mutacao.equivalentes.map(e => `${e.local} (${e.porque})`).join('; ')}`)
+  if (refutadosPeloConfirmador.length) {
+    const f = refutadosPeloConfirmador[0]
+    linhas.push(`${refutadosPeloConfirmador.length} finding(s) bloqueante(s) refutado(s) pelo confirmador; confira o primeiro: ${f.arquivo}:${f.linha || '?'} ${f.resumo} (refutado porque: ${f.porque})`)
+  }
+  const [maior] = Object.entries(linhasAcrescentadasMedidas || {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (maior) linhas.push(`Arquivo de produção com mais linhas acrescentadas: ${maior[0]} (${maior[1]}); leia o diff com: node ${shellQuote(ARGS.scriptsDir + '/inspecionar-git.mjs')} diff ${shellQuote(JSON.stringify([maior[0]]))}${ARGS.baseRef ? ` ${shellQuote(ARGS.baseRef)}` : ''}`)
+  return {
+    mutacao: { ...mutacao, reforcos: [...reforcos.values()].map(({ path, comando, mutante, aceito }) => ({ path, comando, mutante, aceito })) },
+    paraConferir: linhas,
+    numeros: { testes: testesNumerados.length, iteracoes: iteracao, mutantes: mutacao.status === 'medida' ? { mortos: mutacao.mortos, amostrados: mutacao.amostrados, candidatos: mutacao.candidatos } : null },
+  }
+}
+// Sobrevivente real ainda vivo na última medição, feita na última iteração: é o que a ação do escalado manda reforçar.
+const sobreviventesAbertos = mutacao.status === 'medida' && mutacao.iteracao === iteracao ? mutacao.sobreviventes : []
 if (!verde) {
   return {
     status: 'escalado', fase: 'Loop', quality: qualityReport, detalhe: `${MAX_ITERACOES} iterações sem fechar`,
-    resumoDaEscalada,
+    resumoDaEscalada, ...conferenciaRapida(),
     historico: historicoFalhas, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(),
     ponytail: ponytailAteAgora(), tdd: relatorioTdd(), validacoesReaproveitadas,
-    acao: resumoDaEscalada && resumoDaEscalada.somenteProcedimento
+    acao: `${sobreviventesAbertos.length ? `${sobreviventesAbertos.length} mutante(s) real(is) continuam vivos (${sobreviventesAbertos.map(x => x.local).join(', ')}): reforçar os testes com caso novo em arquivo de reforço (reforcos[]) que derrube cada um; o harness não converte isto em verde. ` : ''}${mutacao.status === 'medida' && mutacao.iteracao === iteracao && mutacao.naoReencontrados?.length ? `${mutacao.naoReencontrados.length} mutante(s) real(is) pendente(s) não reapareceram na medição (${mutacao.naoReencontrados.join(', ')}): a linha mudou ou saiu, então não há prova de que morreram; decida se a mudança foi intencional. ` : ''}${resumoDaEscalada && resumoDaEscalada.somenteProcedimento
       ? 'a última validação fechou verde, sem falha listada, e os bloqueantes restantes são só de procedimento (ex.: relato de escada): nenhuma falha funcional aberta foi registrada nesta iteração. Decisão do dono: aceitar com verificação independente registrada, completar o relato e reinvocar, ou investigar. O harness não converte isto em verde.'
-      : 'diagnóstico pro humano: o loop não insiste além do teto',
+      : 'diagnóstico pro humano: o loop não insiste além do teto'}`,
   }
 }
 
@@ -1882,6 +2519,7 @@ return {
   data: ARGS.hoje,
   iteracoes: iteracao,
   tdd: relatorioTdd(),
+  ...conferenciaRapida(),
   // Validação reutilizável por uma retomada futura (rebaselineTdd.validacaoAnterior). Sem
   // impressão conferida, `impressao` é null e nenhuma retomada consegue reaproveitá-la.
   // `excluidos` (a SPEC, fora do diff) e `excluidosNaoRastreados` (as pendências, fora só dos não

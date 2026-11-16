@@ -22,6 +22,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { completarHashesDeApoio, hashDeApoio, pathsDoComandoDeHashes } from './support/quality-fixtures.mjs';
 
 const HARNESS = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'skills', 'dev-loop', 'harness', 'loop.mjs');
 const FONTE = readFileSync(HARNESS, 'utf8');
@@ -65,6 +66,24 @@ const LEGACY_QUALITY = {
 };
 const LEGACY_INVENTORY = { files: ['src/a.js', TESTE, 'docs/plans/spec.md'].map(path => ({ path, lines: 12, bytes: 240, status: 'text' })), uninspected: [], errors: [] };
 const LEGACY_REVIEW = LEGACY_QUALITY.checks.map(c => ({ id: c.id, status: 'satisfied', evidence: [{ path: 'src/a.js', line: 1, observation: 'Inspected the unit and its input validation against the project conventions.' }], finding: {} }));
+// 3.0.4: as medições cedo (`spec:inventario` e `tdd:inventario`) devolvem o inventário dos caminhos
+// que o comando do pedido leva, 12 linhas cada e sem erros. O prompt chega como terceiro parâmetro
+// (agente falso do Claude) ou em `pedido.prompt` (replays do Codex). Fica neste bloco, sem import,
+// porque `codex/tests` e `support/quality-fixtures.mjs` avaliam só o trecho entre `TESTE` e `responder`.
+const inventarioDoPedido = prompt => {
+  const achado = /inspecionar-git\.mjs' quality '(\[[^'\n]*\])'/.exec(String(prompt ?? ''));
+  const paths = achado ? JSON.parse(achado[1]) : [];
+  return { files: paths.map(path => ({ path, lines: 12, bytes: 240, status: 'text' })), uninspected: [], errors: [] };
+};
+// 3.1.0: a fase Mutar (balanceado e máximo) pede `mutar:medir`. O default devolve a medição sem candidato
+// (nao-medida, o run segue o desfecho que teria sem a fase), no formato do script e com a conferência
+// CRC-32 da serialização canônica calculada aqui, sem import, pelo mesmo motivo do bloco acima.
+const crc32Local = (texto) => { let c = 0xFFFFFFFF; for (let i = 0; i < texto.length; i++) { const u = texto.charCodeAt(i); for (const b of u < 256 ? [u] : [u & 0xFF, u >>> 8]) { c ^= b; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1)); } } return ((c ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0'); };
+const medicaoSemCandidato = (prompt) => {
+  const achado = /mutantes\.mjs'? medir '?([0-9a-fA-F]{40,64}|HEAD)'?/.exec(String(prompt ?? ''));
+  const e = { amostrados: 0, base: achado ? achado[1] : 'HEAD', candidatos: 0, controle: { execucoes: [], ok: false }, linhasAcrescentadas: {}, mutantes: [], removida: true, worktreeIntacta: true };
+  return { ...e, conferencia: crc32Local(JSON.stringify(e)) };
+};
 const DEFAULTS = {
   'spec:ids': () => ({quality:structuredClone(LEGACY_QUALITY),ok:true,ids:['C1'],erros:[],verificacoesComplementares:{},tipos:{C1:'reproducao'}}),
   'spec:validar': () => ({
@@ -72,15 +91,20 @@ const DEFAULTS = {
     criterios: [{ id: 'C1', texto: 'faz X' }],
     unidades: [{ id: 'U1', titulo: 'unidade 1', arquivos: 'src/a.js', criterios: ['C1'] }],
   }),
+  'spec:inventario': (o, _c, prompt) => ({ qualityInventory: inventarioDoPedido(prompt ?? o?.prompt) }),
   'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [repro('C1')] }),
   'tdd:vermelho': (o) => ({ execucoes: idsDoSchema(o).map((t) => execucao(t, false)), hashesDosTestes: { [TESTE]: HASH_A }, alteracoes: ALTERACOES }),
+  'tdd:inventario': (o, _c, prompt) => ({ qualityInventory: inventarioDoPedido(prompt ?? o?.prompt) }),
   'impl:': () => ({ status: 'concluida', resumo: 'ok', escada: [{ item: 'fn', degrau: 7, porque: 'nada reusável' }], arquivosTocados: ['src/a.js'] }),
   'consulta:': () => ({ decisao: 'use A', porque: 'mais simples' }),
   'impressao:': () => ({ impressao: IMP_C }),
   'validar:': (o) => ({ qualityExecutions: [], qualityInventory: structuredClone(LEGACY_INVENTORY), verde: true, falhas: [], execucoes: idsDoSchema(o).map((t) => execucao(t, true)), hashesDosTestes: { [TESTE]: HASH_A } }),
-  'ponytail:': () => ({ qualityReview: structuredClone(LEGACY_REVIEW), dependenciasNovas: [], duplicacoes: [], abstracoesUsoUnico: [], forasDeEscopo: [], linhasAdicionadasAcumuladas: 12 }),
+  // `linhasRemovidasAcumuladas` (3.0.3, required no schema da auditoria) só vai quando o schema do pedido o declara:
+  // o bridge Codex recusa campo extra, então a fixture acompanha o schema em vez de adivinhá-lo.
+  'ponytail:': (o) => ({ qualityReview: structuredClone(LEGACY_REVIEW), dependenciasNovas: [], duplicacoes: [], abstracoesUsoUnico: [], forasDeEscopo: [], linhasAdicionadasAcumuladas: 12, ...(o?.schema?.properties?.linhasRemovidasAcumuladas ? { linhasRemovidasAcumuladas: 0 } : {}) }),
   'rev:': () => ({ findings: [] }),
   'confirmar:': () => ({ real: false, porque: 'não reproduz' }),
+  'mutar:medir:': (o, _c, prompt) => medicaoSemCandidato(prompt ?? o?.prompt),
 };
 
 function responder(label, overrides) {
@@ -101,6 +125,10 @@ function responder(label, overrides) {
 // Inventário que o teste entrega como o script real o devolveria: o agente falso não o reescreve.
 const INVENTARIO_LITERAL = new WeakSet();
 const inventarioLiteral = inv => { INVENTARIO_LITERAL.add(inv); return inv; };
+// Mapa de hashes que o teste entrega como está (3.0.3): o agente falso não lhe acrescenta o hash do
+// apoio. Sem a marca, o mapa recebe o apoio que o comando pediu (ver `completarHashesDeApoio`).
+const HASHES_LITERAIS = new WeakSet();
+const hashesLiterais = mapa => { HASHES_LITERAIS.add(mapa); return mapa; };
 
 async function rodar({ args, overrides = {}, atraso = 0 }) {
   const chamadas = [];
@@ -108,13 +136,17 @@ async function rodar({ args, overrides = {}, atraso = 0 }) {
   let ativos = 0;
   let maxAtivos = 0;
   const qualityPaths = new Set(['src/a.js']);
+  const apoioDoRun = new Set();
   const addQualityPath = path => {
-    if (typeof path !== 'string') return;
+    if (typeof path !== 'string') return null;
     const rootPrefix = `${args?.workspaceRoot || ''}/`;
     const relativePath = (path.startsWith(rootPrefix) ? path.slice(rootPrefix.length) : path).replace(/^\.\//, '');
     if (relativePath && !relativePath.startsWith('/') && !relativePath.split('/').includes('..')) {
-      qualityPaths.add(relativePath.split('/').filter(part => part && part !== '.').join('/'));
+      const canonico = relativePath.split('/').filter(part => part && part !== '.').join('/');
+      qualityPaths.add(canonico);
+      return canonico;
     }
+    return null;
   };
   addQualityPath(args?.specPath);
   const agent = async (prompt, opts) => {
@@ -127,8 +159,9 @@ async function rodar({ args, overrides = {}, atraso = 0 }) {
     const response = fn(opts, chamadas, prompt);
     if (opts.label === 'tdd:portao') {
       for (const item of response?.testes || []) addQualityPath(item.path);
-      for (const path of response?.apoio || []) addQualityPath(path);
+      for (const path of response?.apoio || []) { const canonico = addQualityPath(path); if (canonico) apoioDoRun.add(canonico); }
     }
+    if (response && !HASHES_LITERAIS.has(response.hashesDosTestes)) completarHashesDeApoio(prompt, response, apoioDoRun);
     if (opts.label.startsWith('impl:') && response?.arquivosTocados) {
       for (const path of response.arquivosTocados) addQualityPath(path);
     }
@@ -605,7 +638,7 @@ test('sinal da auditoria confirmado como real e não bloqueante não vira retrab
   assert.equal(resultado.iteracoes, 1);
   const confirmadores = chamadas.filter((c) => c.label.startsWith('confirmar:'));
   assert.equal(confirmadores.length, 1);
-  assert.deepEqual(confirmadores[0].opts.schema.required, ['real', 'bloqueante'], 'fato e severidade são campos separados e obrigatórios');
+  assert.deepEqual(confirmadores[0].opts.schema.required, ['real', 'bloqueante', 'porque'], 'fato, severidade e motivo são campos separados e obrigatórios (3.0.3)');
   assert.equal(resultado.ponytail.duplicacoesEAbstracoes.length, 1);
   const [julgado] = resultado.ponytail.duplicacoesEAbstracoes;
   assert.equal(julgado.confirmado, true, 'o fato continua registrado como real');
@@ -878,6 +911,7 @@ test('C1e: controle de preservação que fica vermelho após a implementação b
   assert.ok(findings.some((f) => f.origem === 'portao-tdd' && /controle de preservação ficou vermelho/i.test(f.resumo) && /C2/.test(f.resumo)), JSON.stringify(findings));
 });
 
+// 3.0.4: execução faltando passa antes por uma recoleta por iteração (sem resposta no agente falso) e continua `escalado` no teto.
 test('C1e: validação que declara verde sem execução por teste não fecha', async () => {
   const { resultado } = await rodar({ args: ARGS, overrides: { 'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: { [TESTE]: HASH_A } }) } });
   assert.equal(resultado.status, 'escalado');
@@ -1206,6 +1240,7 @@ test('R5: execução incoerente na validação (exit 0 com falha de asserção) 
   assert.ok(findings.some((f) => f.origem === 'portao-tdd' && /incoerente/i.test(f.resumo)), JSON.stringify(findings));
 });
 
+// 3.0.4: execução repetida passa antes por uma recoleta por iteração (sem resposta no agente falso) e continua `escalado` no teto.
 test('R6: execução repetida do mesmo teste na validação não fecha verde', async () => {
   const { resultado } = await rodar({ args: ARGS, overrides: { 'validar:': (o) => ({ ...DEFAULTS['validar:'](o), execucoes: [execucao('T1', true), execucao('T1', false)] }) } });
   assert.equal(resultado.status, 'escalado');
@@ -2693,7 +2728,7 @@ test('d13: controle: na mesma iteração o sinal plausível da auditoria ganha a
   assert.equal(daLente.length, 3);
   assert.match(daAuditoria[0].prompt, /sinal MECÂNICO da auditoria ponytail/);
   assert.match(daAuditoria[0].prompt, /Uso único é afirmação sobre CHAMADORES/);
-  assert.deepEqual(daAuditoria[0].opts.schema.required, ['real', 'bloqueante']);
+  assert.deepEqual(daAuditoria[0].opts.schema.required, ['real', 'bloqueante', 'porque']);
   assert.ok(daLente.every((c) => !c.prompt.includes('sinal MECÂNICO') && !Object.hasOwn(c.opts.schema.properties, 'bloqueante')));
   assert.equal(resultado.ponytail.duplicacoesEAbstracoes.length, 1);
   assert.equal(resultado.ponytail.duplicacoesEAbstracoes[0].severidade, 'nao-bloqueante');
@@ -2892,6 +2927,7 @@ test('evidência de qualityReview com caminho absoluto dentro do workspace conta
   assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe));
 });
 
+// 3.0.4: o caminho fora do workspace passa pela recoleta (sem resposta no agente falso) e segue `erro` na fase Auditar, com o caminho nomeado.
 test('evidência de qualityReview fora do workspace é recusada nomeando o caminho', async () => {
   const { resultado } = await rodar({ args: ARGS, overrides: {
     'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), qualityReview: LEGACY_REVIEW.map(r => ({ ...r, evidence: r.evidence.map(e => ({ ...e, path: '/outro/src/a.js' })) })) }),
@@ -2987,4 +3023,1053 @@ test('a correção de arquivo não relatado nunca manda apagar arquivo que o ope
   const correcao = chamadas.find(c => c.label === 'impl:U1' && c.prompt.includes('CORREÇÕES')).prompt;
   assert.match(correcao, /não apague/i);
   assert.doesNotMatch(correcao, /apague-o/);
+});
+
+// ── odin 3.0.3: correções baratas do harness (A1 a A24; A25 a A28 ficam nos arquivos de cada área) ──
+// Oito riscos da mesma família do defeito da 3.0.2: evidência de agente com deslize de formato ou de
+// declaração que terminava em `erro` terminal (retomar devolve o mesmo cache) ou deixava uma prova
+// sem cobertura. Cada caso leva o ID do critério no nome (`--test-name-pattern='^A1:'`), e o
+// critério de reprodução só tem casos que falham antes da correção. Conferências de hash do apoio
+// vêm do zlib do Node (`hashDeApoio`), fora do harness, como os vetores das constantes HASH_*.
+const APOIO = 'tests/helpers/f.js';
+const comApoio = { 'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [repro('C1')], apoio: [APOIO] }) };
+const vermelhoComHashes = mapa => o => ({ ...DEFAULTS['tdd:vermelho'](o), hashesDosTestes: hashesLiterais(mapa) });
+const validarComHashes = qualMapa => { let vez = 0; return o => ({ ...DEFAULTS['validar:'](o), hashesDosTestes: hashesLiterais(qualMapa(vez++)) }); };
+// Responde exatamente os paths do comando de hashes do pedido: o mesmo caso vale antes e depois de o
+// harness passar a pedir o apoio.
+const hashesPedidos = (prompt, trocas = {}) => {
+  const paths = pathsDoComandoDeHashes(prompt) ?? [TESTE];
+  return hashesLiterais(Object.fromEntries(paths.map(p => [p, trocas[p] ?? (p === TESTE ? HASH_A : hashDeApoio(p, '1'))])));
+};
+const caminhosDoComando = prompt => [...(pathsDoComandoDeHashes(prompt) ?? [])].sort();
+const correcoesDoPrompt = prompt => JSON.parse(/CORREÇÕES DESTA ITERAÇÃO \(obrigatórias\): (.*)$/m.exec(prompt)[1]);
+const INVENTARIO_COM = (...paths) => ({ files: paths.map(linhaInventario), uninspected: [], errors: [] });
+const sinaisDaAuditoria = extra => ({ 'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), ...extra }) });
+
+test('A1: apoio alterado depois do portão é bloqueante apoio-intacto, sem confirmador; com o hash de volta o run fecha verde', async () => {
+  const base = { [TESTE]: HASH_A, [APOIO]: hashDeApoio(APOIO, '1') };
+  const alterado = { [TESTE]: HASH_A, [APOIO]: hashDeApoio(APOIO, '2') };
+  const persistente = await rodar({ args: ARGS, overrides: { ...comApoio, 'tdd:vermelho': vermelhoComHashes(base), 'validar:': validarComHashes(() => alterado) } });
+  assert.equal(persistente.resultado.status, 'escalado', JSON.stringify(persistente.resultado.detalhe));
+  assert.equal(persistente.resultado.historico.length, 3);
+  for (const h of persistente.resultado.historico) {
+    const f = h.findings.find(x => x.origem === 'apoio-intacto');
+    assert.ok(f, `iteração ${h.iteracao} sem o bloqueante do apoio: ${JSON.stringify(h.findings)}`);
+    assert.equal(f.natureza, 'integridade-do-apoio');
+    assert.equal(f.arquivo, APOIO);
+    assert.equal(f.severidade, 'bloqueante');
+  }
+  assert.deepEqual(persistente.resultado.resumoDaEscalada.bloqueantesPorNatureza, { 'integridade-do-apoio': 1 });
+  assert.ok(!persistente.chamadas.some(c => c.label.startsWith('confirmar:') || c.label.startsWith('hashes:')), 'divergência entre duas coletas conferidas não passa por confirmador nem recoleta');
+  const volta = await rodar({ args: ARGS, overrides: { ...comApoio, 'tdd:vermelho': vermelhoComHashes(base), 'validar:': validarComHashes(vez => vez === 0 ? alterado : base) } });
+  assert.equal(volta.resultado.status, 'verde', JSON.stringify(volta.resultado.detalhe));
+  assert.equal(volta.resultado.iteracoes, 2);
+  const correcoes = correcoesDoPrompt(promptDe(volta.chamadas, 'impl:U1', 1));
+  assert.ok(correcoes.findings.some(f => f.origem === 'apoio-intacto' && f.natureza === 'integridade-do-apoio' && f.arquivo === APOIO), JSON.stringify(correcoes));
+  assert.ok(!volta.chamadas.some(c => c.label.startsWith('confirmar:')));
+});
+
+test('A2: o comando de hashes do TDD, da validação e da recoleta leva testes e apoio; mapa sem o apoio termina em erro de evidência', async () => {
+  const esperado = [APOIO, TESTE].sort();
+  const soTeste = () => hashesLiterais({ [TESTE]: HASH_A });
+  const completo = { [TESTE]: HASH_A, [APOIO]: hashDeApoio(APOIO, '1') };
+  const noTdd = {};
+  const tdd = await rodar({ args: ARGS, overrides: { ...comApoio,
+    'tdd:vermelho': (o, _c, p) => { noTdd.vermelho = p; return { ...DEFAULTS['tdd:vermelho'](o), hashesDosTestes: soTeste() }; },
+    'tdd:hashes': (_o, _c, p) => { noTdd.recoleta = p; return { hashesDosTestes: soTeste() }; },
+  } });
+  assert.deepEqual(caminhosDoComando(noTdd.vermelho), esperado, 'tdd:vermelho pede o hash do apoio');
+  assert.deepEqual(caminhosDoComando(noTdd.recoleta), esperado, 'a recoleta do TDD pede o hash do apoio');
+  assert.equal(tdd.resultado.status, 'erro', JSON.stringify(tdd.resultado));
+  assert.equal(tdd.resultado.fase, 'TDD');
+  assert.match(tdd.resultado.detalhe, /tests\/helpers\/f\.js/);
+  assert.equal(tdd.chamadas.filter(c => c.label === 'tdd:hashes').length, 1, 'a recoleta é uma só');
+  assert.ok(!tdd.chamadas.some(c => c.label.startsWith('impl:')));
+  const naValidacao = {};
+  const val = await rodar({ args: ARGS, overrides: { ...comApoio,
+    'tdd:vermelho': vermelhoComHashes(completo),
+    'validar:': (o, _c, p) => { naValidacao.validar = p; return { ...DEFAULTS['validar:'](o), hashesDosTestes: soTeste() }; },
+    'hashes:': (_o, _c, p) => { naValidacao.recoleta = p; return { hashesDosTestes: soTeste() }; },
+  } });
+  assert.deepEqual(caminhosDoComando(naValidacao.validar), esperado, 'validar:i1 pede o hash do apoio');
+  assert.deepEqual(caminhosDoComando(naValidacao.recoleta), esperado, 'hashes:i1 pede o hash do apoio');
+  assert.equal(val.resultado.status, 'erro', 'mapa sem o apoio nunca vira bloqueante de apoio alterado');
+  assert.equal(val.resultado.fase, 'Validar');
+  assert.match(val.resultado.detalhe, /tests\/helpers\/f\.js/);
+  assert.equal(val.chamadas.filter(c => c.label.startsWith('hashes:')).length, 1);
+  assert.ok(!val.chamadas.some(c => c.label.startsWith('confirmar:')));
+});
+
+test('A3: apoio com o hash intacto fecha verde na primeira iteração; teste da SPEC alterado segue bloqueando como testes-intactos', async () => {
+  const intacto = await rodar({ args: ARGS, overrides: { ...comApoio,
+    'tdd:vermelho': (o, _c, p) => ({ ...DEFAULTS['tdd:vermelho'](o), hashesDosTestes: hashesPedidos(p) }),
+    'validar:': (o, _c, p) => ({ ...DEFAULTS['validar:'](o), hashesDosTestes: hashesPedidos(p) }),
+  } });
+  assert.equal(intacto.resultado.status, 'verde', JSON.stringify(intacto.resultado.detalhe));
+  assert.equal(intacto.resultado.iteracoes, 1);
+  assert.deepEqual(intacto.resultado.tdd.apoio, [APOIO]);
+  const alterado = await rodar({ args: ARGS, overrides: { ...comApoio,
+    'tdd:vermelho': (o, _c, p) => ({ ...DEFAULTS['tdd:vermelho'](o), hashesDosTestes: hashesPedidos(p) }),
+    'validar:': (o, _c, p) => ({ ...DEFAULTS['validar:'](o), hashesDosTestes: hashesPedidos(p, { [TESTE]: HASH_B }) }),
+  } });
+  assert.equal(alterado.resultado.status, 'escalado');
+  for (const h of alterado.resultado.historico) {
+    assert.ok(h.findings.some(f => f.origem === 'testes-intactos' && f.arquivo === TESTE), JSON.stringify(h.findings));
+    assert.ok(!h.findings.some(f => f.origem === 'apoio-intacto'));
+  }
+  assert.ok(!alterado.chamadas.some(c => c.label.startsWith('confirmar:')));
+});
+
+test('A6: sentinela nao-regular ou ausente no portão bloqueia o TDD nomeando o caminho; na validação vira bloqueante automático', async () => {
+  const base = { [TESTE]: HASH_A, [APOIO]: hashDeApoio(APOIO, '1') };
+  const sentinelas = [[APOIO, 'nao-regular', 'apoio-intacto'], [APOIO, 'ausente', 'apoio-intacto'], [TESTE, 'ausente', 'testes-intactos'], [TESTE, 'nao-regular', 'testes-intactos']];
+  for (const [chave, sentinela] of sentinelas) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { ...comApoio, 'tdd:vermelho': vermelhoComHashes({ ...base, [chave]: sentinela }) } });
+    assert.equal(resultado.status, 'bloqueado', `${chave} ${sentinela} no portão: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.fase, 'TDD');
+    assert.ok(String(resultado.detalhe).includes(chave), `o detalhe nomeia ${chave}: ${resultado.detalhe}`);
+    assert.ok(!chamadas.some(c => c.label.startsWith('impl:')), 'bloqueia antes de qualquer implementação');
+  }
+  for (const [chave, sentinela, origem] of sentinelas) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { ...comApoio, 'tdd:vermelho': vermelhoComHashes(base),
+      'validar:': validarComHashes(vez => vez === 0 ? { ...base, [chave]: sentinela } : base) } });
+    assert.equal(resultado.status, 'verde', `${chave} ${sentinela} na validação: ${JSON.stringify(resultado.detalhe)}`);
+    assert.equal(resultado.iteracoes, 2);
+    const correcoes = correcoesDoPrompt(promptDe(chamadas, 'impl:U1', 1));
+    assert.ok(correcoes.findings.some(f => f.origem === origem && f.arquivo === chave), JSON.stringify(correcoes.findings));
+    assert.ok(!chamadas.some(c => c.label.startsWith('hashes:') || c.label.startsWith('confirmar:')), 'sentinela não é erro de transcrição nem pede confirmação');
+  }
+});
+
+test('A7: apoio declarado como pasta (barra final) bloqueia o TDD nomeando o caminho, sem chamar tdd:vermelho', async () => {
+  for (const apoio of ['tests/helpers/', '/workspace/tests/helpers/', './tests/helpers/']) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [repro('C1')], apoio: [apoio] }) } });
+    assert.equal(resultado.status, 'bloqueado', `${apoio}: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.fase, 'TDD');
+    assert.ok(String(resultado.detalhe).includes('tests/helpers/'), `o detalhe nomeia a pasta: ${resultado.detalhe}`);
+    assert.ok(!chamadas.some(c => c.label === 'tdd:vermelho'), 'bloqueia antes da execução independente');
+  }
+});
+
+test('A8: P10 aceita a justificativa com intervalo de linhas, crases, parênteses, vírgula ou dois-pontos depois da linha', async () => {
+  const contexto = 'usa left-pad porque nenhum utilitário nativo cobre o caso';
+  for (const onde of [`src/a.js:10-12 ${contexto}`, `\`src/a.js:10\` ${contexto}`, `(src/a.js:10) ${contexto}`, `src/a.js:10, ${contexto}`, `src/a.js:10: ${contexto}`]) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: sinaisDaAuditoria({ dependenciasNovas: [{ nome: 'left-pad', justificativaEncontrada: true, onde }] }) });
+    assert.equal(resultado.status, 'verde', `${onde}: ${JSON.stringify(resultado.historico?.at(-1)?.findings)}`);
+    assert.equal(resultado.ponytail.dependencias[0].decisao, 'justificada', onde);
+    assert.ok(!chamadas.some(c => c.label.startsWith('confirmar:')));
+  }
+});
+
+test('A10: path do portão com sufixo ::caso ou :linha:coluna segue até a medição, com o path limpo no comando de hashes e em tdd.paths', async () => {
+  const casos = [
+    { path: 'tests/x.py::caso', limpo: 'tests/x.py', comando: 'pytest tests/x.py::caso' },
+    { path: 'tests/a.test.js:12:5', limpo: 'tests/a.test.js', comando: 'node --test --test-name-pattern=C1 tests/a.test.js' },
+  ];
+  for (const { path, limpo, comando } of casos) {
+    const prompts = {};
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [{ criterio: 'C1', path, tipo: 'reproducao', comando, motivoFalha: 'falta implementação' }] }),
+      'tdd:vermelho': (o, _c, p) => { prompts.vermelho = p; return { ...DEFAULTS['tdd:vermelho'](o), hashesDosTestes: hashesPedidos(p) }; },
+      'validar:': (o, _c, p) => { prompts.validar = p; return { ...DEFAULTS['validar:'](o), hashesDosTestes: hashesPedidos(p), qualityInventory: inventarioLiteral(INVENTARIO_COM('src/a.js', limpo, 'docs/plans/spec.md')) }; },
+    } });
+    assert.equal(resultado.status, 'verde', `${path}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+    assert.deepEqual(resultado.tdd.paths, [limpo], 'tdd.paths leva o path sem o sufixo');
+    assert.deepEqual(caminhosDoComando(prompts.vermelho), [limpo], 'o comando de hashes do TDD leva o path sem o sufixo');
+    assert.deepEqual(caminhosDoComando(prompts.validar), [limpo], 'o comando de hashes da validação leva o path sem o sufixo');
+    assert.ok(chamadas.some(c => c.label === 'tdd:vermelho'), 'chega à medição');
+    assert.ok(promptDe(chamadas, 'tdd:vermelho').includes(comando), 'o comando declarado vai como está para a execução independente');
+  }
+});
+
+test('A11: path do portão que ainda tem dois-pontos depois da limpeza bloqueia o TDD citando o caminho como foi relatado', async () => {
+  for (const path of ['tests/a:b.py', 'tests/a:b.py::caso']) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [repro('C1', path)] }) } });
+    assert.equal(resultado.status, 'bloqueado', `${path}: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.fase, 'TDD');
+    assert.match(resultado.detalhe, /referência de teste inválida/);
+    assert.ok(resultado.detalhe.includes(path), `cita o caminho como foi relatado: ${resultado.detalhe}`);
+    assert.ok(!chamadas.some(c => c.label === 'tdd:vermelho'));
+  }
+});
+
+test('A12: path de teste absoluto (sob a raiz, com ::caso), com .. ou com barra invertida continua bloqueado como referência inválida', async () => {
+  for (const path of ['/workspace/tests/a.test.js', '/workspace/tests/a.test.js::caso', '/outro/tests/a.test.js', '../tests/a.test.js', 'tests/../a.test.js', 'tests\\a.test.js']) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [repro('C1', path)] }) } });
+    assert.equal(resultado.status, 'bloqueado', `${path}: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.fase, 'TDD');
+    assert.match(resultado.detalhe, /referência de teste inválida/, path);
+    assert.ok(!chamadas.some(c => c.label === 'tdd:vermelho'), path);
+  }
+});
+
+test('A9: P10 continua barrando nome de manifesto, arquivo:linha sem contexto, contexto curto e justificativa não encontrada; arquivo-linha-contexto e URL com âncora seguem justificados', async () => {
+  const bom = 'nenhum utilitário nativo cobre o caso';
+  const barradas = [
+    ['package.json', true], ['src/a.js:10', true], ['src/a.js:10 curto demais', true],
+    [`src/a.js:10 ${'x'.repeat(15)}`, true], [`src/a.js:10 ${bom}`, false],
+  ];
+  for (const [onde, justificativaEncontrada] of barradas) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: sinaisDaAuditoria({ dependenciasNovas: [{ nome: 'left-pad', justificativaEncontrada, onde }] }) });
+    assert.equal(resultado.status, 'escalado', `${onde} (justificativaEncontrada=${justificativaEncontrada})`);
+    assert.equal(resultado.ponytail.dependencias[0].decisao, 'barrada', onde);
+    assert.ok(resultado.historico.every(h => h.findings.some(f => f.natureza === 'dependencia')), onde);
+    assert.ok(!chamadas.some(c => c.label.startsWith('confirmar:')), 'P10 é decidida em código');
+  }
+  for (const onde of [`src/a.js:10 ${'x'.repeat(16)}`, `src/a.js:10 ${bom}`, `https://exemplo.dev/doc#secao porque a plataforma não oferece o recurso`]) {
+    const { resultado } = await rodar({ args: ARGS, overrides: sinaisDaAuditoria({ dependenciasNovas: [{ nome: 'left-pad', justificativaEncontrada: true, onde }] }) });
+    assert.equal(resultado.status, 'verde', onde);
+    assert.equal(resultado.ponytail.dependencias[0].decisao, 'justificada', onde);
+  }
+});
+
+// A13/A14/A21/A22: alvo `required` do contrato e nomes canônicos no inventário de qualidade.
+const SEM_O_ALVO = () => inventarioLiteral({ files: ['docs/plans/spec.md', TESTE].map(linhaInventario), uninspected: ['src/a.js'], errors: ['src/a.js: arquivo ausente ou ignorado: src/a.js'] });
+
+test('A13: alvo required do contrato ausente no inventário vira correção funcional, sem auditoria nem lentes, e fecha verde com o alvo presente', async () => {
+  let vez = 0;
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o), ...(vez++ === 0 ? { qualityInventory: SEM_O_ALVO() } : {}) }) } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  assert.equal(resultado.iteracoes, 2);
+  assert.ok(!chamadas.some(c => c.label === 'ponytail:i1' || c.label === 'rev:corretude:i1'), 'auditoria e lentes não rodam na iteração do alvo ausente');
+  assert.ok(chamadas.some(c => c.label === 'ponytail:i2'));
+  const correcoes = correcoesDoPrompt(promptDe(chamadas, 'impl:U1', 1));
+  const f = correcoes.findings.find(x => x.origem === 'inventario-quality');
+  assert.ok(f, JSON.stringify(correcoes.findings));
+  assert.equal(f.natureza, 'funcional');
+  assert.equal(f.severidade, 'bloqueante');
+  assert.ok(JSON.stringify(f).includes('src/a.js'), 'nomeia o alvo');
+  assert.match(`${f.resumo} ${f.cenario}`, /contrato/i, 'diz que o contrato exige o alvo');
+  const persistente = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: SEM_O_ALVO() }) } });
+  assert.equal(persistente.resultado.status, 'escalado', JSON.stringify(persistente.resultado.detalhe ?? persistente.resultado));
+  assert.equal(persistente.resultado.fase, 'Loop');
+  assert.equal(persistente.resultado.resumoDaEscalada.somenteProcedimento, false);
+  assert.deepEqual(persistente.resultado.resumoDaEscalada.bloqueantesPorNatureza, { funcional: 1 });
+  assert.equal(persistente.chamadas.filter(c => c.label.startsWith('impl:')).length, 3);
+  assert.ok(!persistente.chamadas.some(c => c.label.startsWith('ponytail:') || c.label.startsWith('rev:')));
+});
+
+test('A14: erro alheio ao relato e ao contrato segue erro na fase Validar; arquivo relatado inexistente segue correção de natureza procedimento', async () => {
+  const erros = [
+    ['índice unmerged: src/a.js', { files: ['src/a.js', TESTE, 'docs/plans/spec.md'], uninspected: [], errors: ['índice unmerged: src/a.js'] }, {}],
+    ['teste ausente', { files: ['src/a.js', 'docs/plans/spec.md'], uninspected: [TESTE], errors: [`${TESTE}: arquivo ausente ou ignorado: ${TESTE}`] }, {}],
+    ['apoio ausente', { files: ['src/a.js', TESTE, 'docs/plans/spec.md'], uninspected: [APOIO], errors: [`${APOIO}: arquivo ausente ou ignorado: ${APOIO}`] }, comApoio],
+    ['SPEC ausente', { files: ['src/a.js', TESTE], uninspected: ['docs/plans/spec.md'], errors: ['docs/plans/spec.md: arquivo ausente ou ignorado: docs/plans/spec.md'] }, {}],
+  ];
+  for (const [nome, inv, extra] of erros) {
+    const { resultado } = await rodar({ args: ARGS, overrides: { ...extra, 'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ ...inv, files: inv.files.map(linhaInventario) }) }) } });
+    assert.equal(resultado.status, 'erro', nome);
+    assert.equal(resultado.fase, 'Validar', nome);
+    assert.ok(resultado.detalhe.join(' ').includes(inv.errors[0]), `${nome}: o diagnóstico do script segue no detalhe: ${resultado.detalhe.join(' ')}`);
+  }
+  let vezImpl = 0, vezVal = 0;
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: vezImpl++ === 0 ? ['src/a.js', 'src/fantasma.js'] : ['src/a.js'] }),
+    'validar:': o => vezVal++ === 0
+      ? { ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: ['src/fantasma.js'], errors: ['src/fantasma.js: arquivo ausente ou ignorado: src/fantasma.js'] }) }
+      : DEFAULTS['validar:'](o),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe));
+  assert.equal(resultado.iteracoes, 2);
+  const f = correcoesDoPrompt(promptDe(chamadas, 'impl:U1', 1)).findings.find(x => x.arquivo === 'src/fantasma.js');
+  assert.ok(f, 'o arquivo relatado e inexistente volta como correção');
+  assert.equal(f.natureza, 'procedimento');
+  assert.equal(f.origem, 'inventario-quality');
+});
+
+// A15/A16: caminho relatado pelo operário (arquivosTocados). O alias `/private` do macOS só aparece aqui.
+const INVENTARIO_COM_LIB = () => inventarioLiteral(INVENTARIO_COM('src/a.js', 'src/lib.js', TESTE, 'docs/plans/spec.md'));
+const comRelato = (relatado, workspaceRoot = ARGS.workspaceRoot) => rodar({ args: { ...ARGS, workspaceRoot }, overrides: {
+  'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: [relatado] }),
+  'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: INVENTARIO_COM_LIB() }),
+} });
+
+test('A15: arquivosTocados com barra invertida, sufixo de linha e coluna ou raiz pelo alias do macOS vira o relativo à raiz e o run segue', async () => {
+  const casos = [
+    ['src\\lib.js', undefined], ['src/lib.js:10:5', undefined], ['/workspace/src\\lib.js:7:2', undefined],
+    ['/tmp/ws/src/lib.js', '/private/tmp/ws'], ['/private/tmp/ws/src/lib.js', '/tmp/ws'],
+    ['/var/ws/src/lib.js', '/private/var/ws'], ['/private/var/ws/src/lib.js', '/var/ws'],
+  ];
+  for (const [relatado, raiz] of casos) {
+    const { resultado, chamadas } = await comRelato(relatado, raiz);
+    assert.equal(resultado.status, 'verde', `${relatado} com a raiz ${raiz ?? ARGS.workspaceRoot}: ${JSON.stringify(resultado.detalhe ?? resultado.motivo ?? resultado)}`);
+    const comando = comandoQuality(promptDe(chamadas, 'validar:i1'));
+    assert.ok(comando.includes(JSON.stringify(['src/a.js', 'src/lib.js', TESTE, 'docs/plans/spec.md'])), `${relatado}: ${comando}`);
+    const diff = comandoDiff(promptDe(chamadas, 'ponytail:i1'));
+    assert.ok(diff.includes('src/lib.js') && !diff.includes('private') && !diff.includes('\\'), `o diff dos revisores só recebe o relativo: ${diff}`);
+  }
+});
+
+test('A16: raiz de prefixo parecido, fora da raiz ou com .. bloqueia como arquivos-fora-do-workspace; alvo do contrato com barra invertida segue inválido no preflight', async () => {
+  const casos = [
+    ['/tmp/wsx/src/a.js', '/private/tmp/ws'], ['/private/tmp/wsx/src/a.js', '/private/tmp/ws'], ['/private/tmp/wsx/src/a.js', '/tmp/ws'],
+    ['/workspacex/src/a.js', undefined], ['/outro/src/a.js', undefined], ['../vizinho/a.js', undefined], ['src/../../a.js', undefined],
+  ];
+  for (const [relatado, raiz] of casos) {
+    const { resultado, chamadas } = await comRelato(relatado, raiz);
+    assert.equal(resultado.status, 'bloqueado', `${relatado} com a raiz ${raiz ?? ARGS.workspaceRoot}: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.motivo, 'arquivos-fora-do-workspace');
+    assert.deepEqual(resultado.arquivosForaDoWorkspace, [{ unidade: 'U1', path: relatado }]);
+    assert.ok(!chamadas.some(c => c.label.startsWith('validar:')), 'não gasta validação com relato inválido');
+  }
+  const quality = structuredClone(LEGACY_QUALITY);
+  quality.checks[0].paths = ['src\\a.js'];
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'spec:ids': () => ({ ...DEFAULTS['spec:ids'](), quality }) } });
+  assert.equal(resultado.status, 'bloqueado');
+  assert.equal(resultado.fase, 'Spec');
+  assert.match(resultado.detalhe, /Contrato de qualidade ausente ou inválido/);
+  assert.ok(!chamadas.some(c => c.label === 'tdd:portao'));
+});
+
+// A17/A18: veredito do confirmador.
+const COM_SINAL_DE_AUDITORIA = {
+  duplicacao: sinaisDaAuditoria({ duplicacoes: [{ oQue: 'normalizar', ondeJaExiste: 'src/b.js', arquivo: 'src/a.js', linha: 3 }] }),
+  qualidade: { 'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), qualityReview: LEGACY_REVIEW.map((r, i) => i === 0 ? { ...r, status: 'issue', finding: { summary: 'entrada sem validação', scenario: 'cadeia vazia entra' } } : r) }) },
+};
+
+test('A17: o confirmador de sinal da auditoria exige real, bloqueante e porque, com porque de tamanho mínimo 1', async () => {
+  for (const [nome, sinal] of Object.entries(COM_SINAL_DE_AUDITORIA)) {
+    const { chamadas } = await rodar({ args: ARGS, overrides: { ...sinal, 'confirmar:': () => ({ real: false, bloqueante: false, porque: 'refutado pela busca' }) } });
+    const confirmacao = chamadas.find(c => c.label === 'confirmar:i1');
+    assert.ok(confirmacao, `${nome}: o sinal vai ao confirmador`);
+    assert.deepEqual([...confirmacao.opts.schema.required].sort(), ['bloqueante', 'porque', 'real'], nome);
+    assert.equal(confirmacao.opts.schema.properties.porque.minLength, 1, nome);
+  }
+});
+
+test('A18: o confirmador de finding de lente segue exigindo só real, e confirmação de sinal de quality sem porque segue terminando em erro na fase Revisar', async () => {
+  const lente = { 'rev:': () => ({ findings: [{ arquivo: 'src/a.js', linha: 1, resumo: 'entrada hostil', cenario: 'string vazia passa', severidade: 'bloqueante', confianca: 'plausivel' }] }) };
+  const { chamadas } = await rodar({ args: ARGS, overrides: { ...lente, 'confirmar:': () => ({ real: false, porque: 'não reproduz' }) } });
+  const confirmacao = chamadas.find(c => c.label === 'confirmar:i1');
+  assert.ok(confirmacao, 'o finding plausível da lente vai ao confirmador');
+  assert.deepEqual(confirmacao.opts.schema.required, ['real']);
+  assert.ok(!Object.hasOwn(confirmacao.opts.schema.properties, 'bloqueante'));
+  const semPorque = await rodar({ args: ARGS, overrides: { ...COM_SINAL_DE_AUDITORIA.qualidade, 'confirmar:': () => ({ real: true, bloqueante: true }) } });
+  assert.equal(semPorque.resultado.status, 'erro');
+  assert.equal(semPorque.resultado.fase, 'Revisar');
+  assert.match(semPorque.resultado.detalhe, /porque/);
+});
+
+// A21/A22: aliases do inventário (nome canônico do git quando o pedido difere só na caixa).
+const ALIAS_NOVO = { requested: 'src/Novo.js', path: 'src/novo.js' };
+const comAliases = (paths, aliases) => inventarioLiteral({ ...INVENTARIO_COM(...paths), aliases });
+const implRelata = (...arquivosTocados) => () => ({ status: 'concluida', resumo: 'ok', escada: [], semCriacao: true, arquivosTocados });
+const INVENTARIO_DO_ALIAS = () => comAliases(['src/a.js', 'src/novo.js', TESTE, 'docs/plans/spec.md'], [ALIAS_NOVO]);
+
+test('A21: alias válido de caminho do relato troca para o nome canônico no relato, no diff da auditoria e no inventário pedido, sem correção ao operário', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'impl:': implRelata('src/a.js', 'src/Novo.js'),
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: INVENTARIO_DO_ALIAS() }) } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  assert.equal(resultado.iteracoes, 1, 'sem correção ao operário');
+  const relato = resultado.ponytail.escada.find(e => e.semCriacao);
+  assert.deepEqual(relato.arquivos, ['src/a.js', 'src/novo.js'], 'o relato leva o nome do git');
+  const diff = comandoDiff(promptDe(chamadas, 'ponytail:i1'));
+  assert.ok(diff.includes('src/novo.js') && !diff.includes('src/Novo.js'), diff);
+  // Inventário pedido na iteração seguinte: o nome canônico, nunca o da caixa errada.
+  let vezImpl = 0, vezVal = 0;
+  const duas = await rodar({ args: ARGS, overrides: {
+    'impl:': () => implRelata('src/a.js', vezImpl++ === 0 ? 'src/Novo.js' : 'src/novo.js')(),
+    'validar:': o => vezVal++ === 0
+      ? { ...DEFAULTS['validar:'](o), verde: false, falhas: [FALHA_FUNCIONAL], qualityInventory: INVENTARIO_DO_ALIAS() }
+      : { ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral(INVENTARIO_COM('src/a.js', 'src/novo.js', TESTE, 'docs/plans/spec.md')) },
+  } });
+  assert.equal(duas.resultado.status, 'verde', JSON.stringify(duas.resultado.detalhe ?? duas.resultado));
+  assert.equal(duas.resultado.iteracoes, 2);
+  const comando = comandoQuality(promptDe(duas.chamadas, 'validar:i2'));
+  assert.ok(comando.includes('src/novo.js') && !comando.includes('src/Novo.js'), comando);
+});
+
+test('A21: alias cujo pedido é alvo do contrato não é reescrito e volta como correção de alvo ausente citando o nome do git', async () => {
+  const quality = structuredClone(LEGACY_QUALITY);
+  for (const check of quality.checks) check.paths = ['src/A.js'];
+  const inventario = () => comAliases(['src/a.js', 'src/lib.js', TESTE, 'docs/plans/spec.md'], [{ requested: 'src/A.js', path: 'src/a.js' }]);
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'spec:ids': () => ({ ...DEFAULTS['spec:ids'](), quality }), 'impl:': implRelata('src/lib.js'),
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventario() }) } });
+  assert.equal(resultado.status, 'escalado', JSON.stringify(resultado.detalhe ?? resultado));
+  assert.equal(resultado.fase, 'Loop');
+  assert.equal(resultado.historico.length, 3);
+  for (const h of resultado.historico) {
+    const f = h.findings.find(x => x.origem === 'inventario-quality');
+    assert.ok(f, JSON.stringify(h.findings));
+    assert.equal(f.natureza, 'funcional');
+    assert.ok(JSON.stringify(f).includes('src/A.js') && JSON.stringify(f).includes('src/a.js'), `cita o alvo do contrato e o nome do git: ${JSON.stringify(f)}`);
+  }
+  assert.ok(!chamadas.some(c => c.label.startsWith('ponytail:')), 'sem auditoria enquanto o alvo do contrato falta');
+});
+
+test('A21: alias de um pedido que o harness não fez é erro na fase Validar nomeando o alias (malformado, ver A22)', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o),
+    qualityInventory: comAliases(['src/a.js', 'src/nunca.js', TESTE, 'docs/plans/spec.md'], [{ requested: 'src/Nunca.js', path: 'src/nunca.js' }]) }) } });
+  assert.equal(resultado.status, 'erro', JSON.stringify(resultado));
+  assert.equal(resultado.fase, 'Validar');
+  assert.ok(JSON.stringify(resultado.detalhe).includes('src/Nunca.js'), JSON.stringify(resultado.detalhe));
+});
+
+test('A22: aliases malformado (canônico fora de files, nomes que diferem além da caixa) é erro na fase Validar nomeando o alias; inventário sem aliases segue como antes', async () => {
+  const malformados = [
+    ['canônico fora de files', comAliases(['src/a.js', TESTE, 'docs/plans/spec.md'], [ALIAS_NOVO])],
+    ['nomes que diferem além da caixa', comAliases(['src/a.js', 'src/outro.js', TESTE, 'docs/plans/spec.md'], [{ requested: 'src/Novo.js', path: 'src/outro.js' }])],
+  ];
+  for (const [nome, inventario] of malformados) {
+    const { resultado } = await rodar({ args: ARGS, overrides: { 'impl:': implRelata('src/a.js', 'src/Novo.js'), 'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventario }) } });
+    assert.equal(resultado.status, 'erro', `${nome}: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.fase, 'Validar', nome);
+    assert.ok(JSON.stringify(resultado.detalhe).includes('src/Novo.js'), `${nome}: ${JSON.stringify(resultado.detalhe)}`);
+  }
+  const semAliases = await rodar({ args: ARGS });
+  assert.equal(semAliases.resultado.status, 'verde');
+  assert.equal(semAliases.resultado.iteracoes, 1);
+});
+
+// A23/A24: guarda de auditoria cega.
+test('A23: entrega só de remoção (0 linhas adicionadas, remoções > 0) não cai na guarda de auditoria cega e o relatório registra as linhas removidas', async () => {
+  const { resultado } = await rodar({ args: ARGS, overrides: sinaisDaAuditoria({ linhasAdicionadasAcumuladas: 0, linhasRemovidasAcumuladas: 7 }) });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.acao ?? resultado));
+  assert.equal(resultado.ponytail.auditorias[0].linhasAdicionadasAcumuladas, 0);
+  assert.equal(resultado.ponytail.auditorias[0].linhasRemovidasAcumuladas, 7);
+});
+
+test('A24: 0 adicionadas e 0 removidas, ou removidas ausente ou não numérico, continua erro na fase Auditar', async () => {
+  for (const removidas of [0, undefined, 'sete', null, Number.NaN]) {
+    const { resultado } = await rodar({ args: ARGS, overrides: sinaisDaAuditoria({ linhasAdicionadasAcumuladas: 0, linhasRemovidasAcumuladas: removidas }) });
+    assert.equal(resultado.status, 'erro', `removidas=${String(removidas)}: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.fase, 'Auditar');
+    assert.match(resultado.acao, /voltou cega/);
+  }
+});
+
+// Revisão pós-escalada da 3.0.3 (F1): o script real põe o caminho com erro também em `uninspected`,
+// e uma pasta não rastreada sai como "arquivo ausente ou ignorado", não como "arquivo não regular".
+// Com o inventário nesse formato a sentinela tem de virar bloqueante, não `erro` terminal.
+test('A6: sentinela na validação com o inventário no formato real (uninspected + errors) vira bloqueante, não erro', async () => {
+  const base = { [TESTE]: HASH_A };
+  for (const sentinela of ['ausente', 'nao-regular']) {
+    let vez = 0;
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'tdd:vermelho': vermelhoComHashes(base),
+      'validar:': o => vez++ === 0
+        ? { ...DEFAULTS['validar:'](o), hashesDosTestes: hashesLiterais({ [TESTE]: sentinela }),
+            qualityInventory: inventarioLiteral({ files: ['src/a.js', 'docs/plans/spec.md'].map(path => ({ path, lines: 12, bytes: 240, status: 'text' })), uninspected: [TESTE], errors: [`${TESTE}: arquivo ausente ou ignorado: ${TESTE}`] }) }
+        : { ...DEFAULTS['validar:'](o), hashesDosTestes: hashesLiterais(base) },
+    } });
+    assert.equal(resultado.status, 'verde', `${sentinela}: ${JSON.stringify(resultado.detalhe)}`);
+    assert.equal(resultado.iteracoes, 2);
+    const correcoes = correcoesDoPrompt(promptDe(chamadas, 'impl:U1', 1));
+    assert.ok(correcoes.findings.some(f => f.origem === 'testes-intactos' && f.arquivo === TESTE), JSON.stringify(correcoes.findings));
+  }
+});
+
+// ── odin 3.0.4: pedir de novo uma vez e medir cedo (A1 a A23 aqui; A24 e A25 em quality-regressions, A26 em
+// portao-tdd-docs, A27 em consistencia-args-docs e A28 no replay Codex) ─────────────────────────────────────
+// Evidência de agente com falha de formato deixava o run em `erro` terminal (retomar devolve o mesmo cache), e o
+// que só aparecia na validação (filtro ou flag do git, arquivo acima de 400 linhas) era descoberto depois do
+// trabalho caro. Cada caso leva o ID do critério no nome (`--test-name-pattern=304-A1:`); o prefixo `304-`
+// separa estes dos casos A1 a A28 da 3.0.3, que usam o mesmo arquivo. O agente falso NÃO tem resposta para
+// `recoleta:` em `DEFAULTS`: sem override a recoleta não retorna, e é assim que a segunda falha é exercitada.
+const rotulosDe = chamadas => chamadas.map(label);
+const recoletasDe = chamadas => chamadas.filter(c => c.label.startsWith('recoleta:'));
+const chamadaUnica = (chamadas, rotulo) => {
+  const achadas = chamadas.filter(c => c.label === rotulo);
+  assert.equal(achadas.length, 1, `esperava uma chamada ${rotulo}; houve: ${rotulosDe(chamadas).join(', ')}`);
+  return achadas[0];
+};
+const SPEC_PATH = 'docs/plans/spec.md';
+const comandoDeInventario = prompt => (comandoQuality(prompt) ?? '').trim();
+const pathsDoPedidoDeInventario = prompt => {
+  const achado = /inspecionar-git\.mjs' quality '(\[[^'\n]*\])'/.exec(prompt);
+  return achado ? JSON.parse(achado[1]) : null;
+};
+const semOComando = prompt => prompt.split('\n').filter(l => !l.includes('inspecionar-git.mjs')).join('\n');
+// Inventário dos caminhos do pedido com linhas à escolha (12 por padrão) e arquivos extras (alterados contra a base).
+const inventarioComLinhas = (prompt, linhas = {}, extras = []) => {
+  const base = inventarioDoPedido(prompt);
+  return { ...base, files: [...base.files, ...extras.map(path => linhaInventario(path))].map(f => ({ ...f, lines: linhas[f.path] ?? f.lines })) };
+};
+const refusaGlobal = mensagem => ({ qualityInventory: { files: [], uninspected: [], errors: [mensagem] } });
+const MSG_FILTRO = 'filtro Git clean ativo em src/a.js: inspeção recusada sem executar conversores';
+const MSG_FLAG = 'flag Git skip-worktree ou assume-unchanged no índice: src/a.js';
+const COMANDO_Q = 'node --test tests/a.test.js';
+const contratoComComando = (paths = ['src/a.js']) => {
+  const q = structuredClone(LEGACY_QUALITY);
+  Object.assign(q.checks.find(c => c.id === 'Q-TESTABILITY'), { verification: 'command', command: COMANDO_Q, paths });
+  return q;
+};
+const contratoCitando = (...paths) => {
+  const q = structuredClone(LEGACY_QUALITY);
+  q.checks.find(c => c.id === 'Q-TESTABILITY').paths = ['src/a.js', ...paths];
+  return q;
+};
+const revisaoCobrindo = q => q.checks.map(c => ({ id: c.id, status: 'satisfied', evidence: c.paths.map(path => ({ path, line: 1, observation: 'Inspected the target and its boundary handling against the project conventions.' })), finding: {} }));
+const execucoesDoContrato = (q, output = 'tests/a.test.js: 3 cases passed against the approved targets.') => q.checks.filter(c => c.applicability === 'required' && c.verification === 'command').map(c => ({ id: c.id, command: c.command, paths: [...c.paths], exitCode: 0, output }));
+// Respostas que acompanham um contrato próprio: a SPEC, o relato do operário, a revisão e as execuções cobrem os mesmos caminhos.
+const comContrato = (q, extra = {}) => ({
+  'spec:ids': () => ({ ...DEFAULTS['spec:ids'](), quality: structuredClone(q) }),
+  'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: [...new Set(q.checks.flatMap(c => c.paths))].filter(p => p !== TESTE && p !== APOIO) }),
+  'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), qualityReview: revisaoCobrindo(q) }),
+  'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityExecutions: execucoesDoContrato(q) }),
+  ...extra,
+});
+const INVENTARIO_SEM_O_ALVO = () => inventarioLiteral({ files: [SPEC_PATH, TESTE].map(linhaInventario), uninspected: [], errors: [] });
+// Segunda falha de evidência: erro nomeado com o campo, a chamada de origem, a recoleta e uma ação que manda run novo.
+const assertSegundaFalha = (resultado, chamadas, { fase, campo, chamada, recoleta, lista = false }, contexto = '') => {
+  assert.equal(resultado.status, 'erro', `${contexto}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+  assert.equal(resultado.fase, fase, contexto);
+  assert.equal(resultado.campo, campo, contexto);
+  assert.equal(resultado.chamada, chamada, contexto);
+  assert.equal(resultado.recoleta, recoleta, contexto);
+  if (lista) assert.ok(Array.isArray(resultado.detalhe), `${contexto}: detalhe é lista`);
+  assert.ok(typeof resultado.acao === 'string' && /run novo/.test(resultado.acao), `${contexto}: a ação manda run novo: ${resultado.acao}`);
+  assert.equal(chamadas.filter(c => c.label === recoleta).length, 1, `${contexto}: uma só chamada de recoleta`);
+};
+
+const OBSERVACAO_ORIGINAL = 'Observação original distintiva do primeiro retorno do revisor sobre limites e tratamento de erro.';
+test('304-A1: qualityReview inválido na primeira resposta é recolhido uma vez no revisor e o run fecha verde na iteração 1', async () => {
+  const mutacoes = [
+    ['linha além do limite do inventário', 'Q-NAMES', r => { r[0].evidence[0].line = 500; }],
+    ['check faltando', 'Q-PROJECT', r => { r.pop(); }],
+    ['ID repetido', 'Q-NAMES', r => { r.push(structuredClone(r[0])); }],
+    ['evidência fora dos alvos aprovados do check', 'Q-COMMENTS', r => { r[1].evidence[0].path = TESTE; }],
+  ];
+  for (const [nome, idDoCheck, mutar] of mutacoes) {
+    const invalida = structuredClone(LEGACY_REVIEW);
+    invalida[2].evidence[0].observation = OBSERVACAO_ORIGINAL;
+    mutar(invalida);
+    const recolhida = structuredClone(LEGACY_REVIEW);
+    recolhida[0].evidence[0].observation = 'Recolhida: a unidade foi inspecionada de novo e a validação de entrada confere com as convenções do projeto.';
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), qualityReview: invalida }),
+      'recoleta:quality-review:': () => ({ qualityReview: structuredClone(recolhida) }),
+    } });
+    assert.equal(resultado.status, 'verde', `${nome}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+    assert.equal(resultado.iteracoes, 1, nome);
+    const recoleta = chamadaUnica(chamadas, 'recoleta:quality-review:i1');
+    assert.equal(recoleta.opts.agentType, 'odin:revisor', `${nome}: a revisão é julgamento e volta ao revisor`);
+    assert.ok(recoleta.prompt.includes(idDoCheck), `${nome}: o prompt cita o check ${idDoCheck}`);
+    assert.ok(recoleta.prompt.includes('qualityReview'), `${nome}: o prompt pede o campo`);
+    assert.ok(recoleta.prompt.includes(OBSERVACAO_ORIGINAL), `${nome}: o prompt traz a revisão original`);
+    assert.notEqual(recoleta.prompt, promptDe(chamadas, 'ponytail:i1'), `${nome}: o prompt cita o que falhou, não repete o original`);
+    assert.deepEqual(Object.keys(recoleta.opts.schema.properties), ['qualityReview'], nome);
+    assert.deepEqual(recoleta.opts.schema.required, ['qualityReview'], nome);
+    assert.equal(chamadas.filter(c => c.label.startsWith('ponytail:')).length, 1, `${nome}: a recoleta não repete a auditoria`);
+    assert.deepEqual(resultado.quality.iterations[0].review, recolhida, `${nome}: o relatório guarda a revisão recolhida`);
+    assert.equal(resultado.fallbacks.length, 1, nome);
+    assert.equal(resultado.fallbacks[0].chamada, 'recoleta:quality-review:i1', nome);
+  }
+});
+
+test('304-A2: qualityReview inválido também na recoleta (ou sem recoleta) é erro nomeado na fase Auditar', async () => {
+  const invalida = () => { const r = structuredClone(LEGACY_REVIEW); r.pop(); return r; };
+  const casos = [
+    ['recoleta também inválida', { 'recoleta:quality-review:': () => ({ qualityReview: invalida() }) }, /recoleta: /],
+    ['recoleta que não retorna', {}, /a recoleta não retornou/],
+  ];
+  for (const [nome, extra, padrao] of casos) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), qualityReview: invalida() }), ...extra } });
+    assertSegundaFalha(resultado, chamadas, { fase: 'Auditar', campo: 'qualityReview', chamada: 'ponytail:i1', recoleta: 'recoleta:quality-review:i1' }, nome);
+    assert.match(JSON.stringify(resultado.detalhe), padrao, `${nome}: o detalhe leva as duas mensagens`);
+    for (const bloco of ['fallbacks', 'modelos', 'tdd', 'ponytail']) assert.ok(resultado[bloco] !== undefined, `${nome}: o desfecho traz o bloco ${bloco}`);
+    assert.equal(recoletasDe(chamadas).length, 1, nome);
+  }
+});
+
+test('304-A3: qualityExecutions inválido é recolhido uma vez no operário, e o relatório e a auditoria recebem o recolhido', async () => {
+  const q = contratoComComando(['src/a.js', 'src/b.js']);
+  const boas = execucoesDoContrato(q, 'recolhida: tests/a.test.js 3 cases passed against src/a.js and src/b.js');
+  const variantes = [
+    ['espaço a mais no command', execucoesDoContrato(q).map(e => ({ ...e, command: e.command.replace('--test ', '--test  ') }))],
+    ['paths em outra ordem', execucoesDoContrato(q).map(e => ({ ...e, paths: [...e.paths].reverse() }))],
+    ['execução faltando', []],
+  ];
+  for (const [nome, invalidas] of variantes) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: comContrato(q, {
+      'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityExecutions: invalidas }),
+      'recoleta:quality-executions:': () => ({ qualityExecutions: structuredClone(boas) }),
+    }) });
+    assert.equal(resultado.status, 'verde', `${nome}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+    assert.equal(resultado.iteracoes, 1, nome);
+    const recoleta = chamadaUnica(chamadas, 'recoleta:quality-executions:i1');
+    assert.equal(recoleta.opts.agentType, 'odin:operario', `${nome}: o operário recolhe, nunca o mecânico`);
+    for (const trecho of ['Q-TESTABILITY', COMANDO_Q, 'src/a.js', 'src/b.js']) assert.ok(recoleta.prompt.includes(trecho), `${nome}: o prompt traz ${trecho}`);
+    assert.notEqual(recoleta.prompt, promptDe(chamadas, 'validar:i1'), nome);
+    assert.deepEqual(Object.keys(recoleta.opts.schema.properties), ['qualityExecutions'], nome);
+    assert.deepEqual(resultado.quality.iterations[0].executions, boas, `${nome}: o relatório guarda as execuções recolhidas`);
+    assert.ok(promptDe(chamadas, 'ponytail:i1').includes('recolhida: tests/a.test.js 3 cases passed'), `${nome}: a auditoria recebe as execuções recolhidas`);
+  }
+});
+
+test('304-A4: qualityExecutions inválido também na recoleta (ou sem recoleta) é erro nomeado na fase Validar', async () => {
+  const q = contratoComComando();
+  const casos = [
+    ['recoleta também inválida', { 'recoleta:quality-executions:': () => ({ qualityExecutions: [] }) }, /recoleta: /],
+    ['recoleta que não retorna', {}, /a recoleta não retornou/],
+  ];
+  for (const [nome, extra, padrao] of casos) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: comContrato(q, { 'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityExecutions: [] }), ...extra }) });
+    assertSegundaFalha(resultado, chamadas, { fase: 'Validar', campo: 'qualityExecutions', chamada: 'validar:i1', recoleta: 'recoleta:quality-executions:i1', lista: true }, nome);
+    assert.match(resultado.detalhe.join(' | '), padrao, `${nome}: o detalhe leva as duas mensagens`);
+  }
+});
+
+test('304-A5: qualityInventory não utilizável é recolhido uma vez no operário; com dois campos inválidos há uma recoleta por campo', async () => {
+  const q = contratoComComando();
+  const variantes = [
+    ['caminho pedido fora de files, uninspected e aliases', INVENTARIO_SEM_O_ALVO, 'src/a.js'],
+    ['forma inválida', () => inventarioLiteral({ files: INVENTARIO_OK.map(p => ({ ...linhaInventario(p), lines: -1 })), uninspected: [], errors: [] }), null],
+  ];
+  for (const [nome, invalido, omitido] of variantes) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: comContrato(q, {
+      'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityExecutions: execucoesDoContrato(q), qualityInventory: invalido() }),
+      'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_COM(...INVENTARIO_OK) }),
+    }) });
+    assert.equal(resultado.status, 'verde', `${nome}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+    assert.equal(resultado.iteracoes, 1, nome);
+    const recoleta = chamadaUnica(chamadas, 'recoleta:quality-inventory:i1');
+    assert.equal(recoleta.opts.agentType, 'odin:operario', nome);
+    const comando = comandoDeInventario(recoleta.prompt);
+    assert.ok(comando && comando === comandoDeInventario(promptDe(chamadas, 'validar:i1')), `${nome}: a recoleta leva o mesmo comando de inventário da validação`);
+    if (omitido) assert.ok(semOComando(recoleta.prompt).includes(omitido), `${nome}: o prompt nomeia o caminho omitido ${omitido} fora da linha do comando`);
+    assert.deepEqual(Object.keys(recoleta.opts.schema.properties), ['qualityInventory'], nome);
+  }
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: comContrato(q, {
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityExecutions: [], qualityInventory: INVENTARIO_SEM_O_ALVO() }),
+    'recoleta:quality-executions:': () => ({ qualityExecutions: execucoesDoContrato(q) }),
+    'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_COM(...INVENTARIO_OK) }),
+  }) });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  assert.deepEqual(rotulosDe(recoletasDe(chamadas)).sort(), ['recoleta:quality-executions:i1', 'recoleta:quality-inventory:i1'], 'uma recoleta por campo');
+});
+
+test('304-A6: qualityInventory não utilizável também na recoleta (ou sem recoleta) é erro nomeado na fase Validar', async () => {
+  const casos = [
+    ['recoleta também não utilizável', { 'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_SEM_O_ALVO() }) }, /recoleta: /],
+    ['recoleta que não retorna', {}, /a recoleta não retornou/],
+  ];
+  for (const [nome, extra, padrao] of casos) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: INVENTARIO_SEM_O_ALVO() }), ...extra } });
+    assertSegundaFalha(resultado, chamadas, { fase: 'Validar', campo: 'qualityInventory', chamada: 'validar:i1', recoleta: 'recoleta:quality-inventory:i1', lista: true }, nome);
+    assert.match(resultado.detalhe.join(' | '), padrao, `${nome}: o detalhe leva as duas mensagens`);
+  }
+});
+
+test('304-A7: recusa do script e erro de caminho alheio não disparam recoleta; relato e alvo ausente seguem como correção', async () => {
+  const recusa = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ files: [], uninspected: [], errors: [MSG_FILTRO] }) }) } });
+  assert.equal(recusa.resultado.status, 'erro', JSON.stringify(recusa.resultado));
+  assert.equal(recusa.resultado.fase, 'Validar');
+  assert.match(recusa.resultado.detalhe.join(' '), /filtro Git clean ativo em src\/a\.js/);
+  assert.equal(recoletasDe(recusa.chamadas).length, 0, 'recusa global é a saída literal do script: repetir devolve o mesmo');
+  const alheio = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: ['outro/x.js'], errors: ['outro/x.js: arquivo ausente ou ignorado: outro/x.js'] }) }) } });
+  assert.equal(alheio.resultado.status, 'erro', JSON.stringify(alheio.resultado));
+  assert.equal(alheio.resultado.fase, 'Validar');
+  assert.match(alheio.resultado.detalhe.join(' '), /outro\/x\.js: arquivo ausente ou ignorado/);
+  assert.equal(recoletasDe(alheio.chamadas).length, 0, 'inventário bem formado com erro de caminho alheio não é falha de transporte');
+  let vezImpl = 0;
+  const relatoInexistente = await rodar({ args: ARGS, overrides: {
+    'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: vezImpl++ === 0 ? ['src/a.js', 'src/fantasma.js'] : ['src/a.js'] }),
+    'validar:': (o, c) => ({ ...DEFAULTS['validar:'](o), ...(c.filter(x => x.label.startsWith('validar:')).length === 1 ? { qualityInventory: inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: ['src/fantasma.js'], errors: ['src/fantasma.js: arquivo ausente ou ignorado: src/fantasma.js'] }) } : {}) }),
+  } });
+  assert.equal(relatoInexistente.resultado.status, 'verde', JSON.stringify(relatoInexistente.resultado.detalhe ?? relatoInexistente.resultado));
+  assert.equal(relatoInexistente.resultado.iteracoes, 2);
+  assert.ok(correcoesDoPrompt(promptDe(relatoInexistente.chamadas, 'impl:U1', 1)).findings.some(f => f.arquivo === 'src/fantasma.js' && f.natureza === 'procedimento'));
+  assert.equal(recoletasDe(relatoInexistente.chamadas).length, 0);
+  let vezImpl2 = 0;
+  const novoNaoRelatado = await rodar({ args: ARGS, overrides: {
+    'impl:': () => ({ ...DEFAULTS['impl:'](), arquivosTocados: vezImpl2++ === 0 ? ['src/a.js'] : ['src/a.js', 'src/novo.js'] }),
+    'validar:': (o, c) => ({ ...DEFAULTS['validar:'](o), ...(c.filter(x => x.label.startsWith('validar:')).length === 1 ? { qualityInventory: inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: ['src/novo.js'], errors: [] }) } : {}) }),
+  } });
+  assert.equal(novoNaoRelatado.resultado.status, 'verde', JSON.stringify(novoNaoRelatado.resultado.detalhe ?? novoNaoRelatado.resultado));
+  assert.equal(novoNaoRelatado.resultado.iteracoes, 2);
+  assert.equal(recoletasDe(novoNaoRelatado.chamadas).length, 0);
+  let vezAlvo = 0;
+  const alvoAusente = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o), ...(vezAlvo++ === 0 ? { qualityInventory: SEM_O_ALVO() } : {}) }) } });
+  assert.equal(alvoAusente.resultado.status, 'verde', JSON.stringify(alvoAusente.resultado.detalhe ?? alvoAusente.resultado));
+  assert.equal(alvoAusente.resultado.iteracoes, 2);
+  assert.ok(correcoesDoPrompt(promptDe(alvoAusente.chamadas, 'impl:U1', 1)).findings.some(f => f.origem === 'inventario-quality' && f.natureza === 'funcional' && f.arquivo === 'src/a.js'));
+  assert.equal(recoletasDe(alvoAusente.chamadas).length, 0, 'alvo required ausente está em uninspected: o inventário é utilizável');
+});
+
+test('304-A8: execucoes incompletas são recolhidas uma vez no operário e o run fecha verde na iteração 1, com uma só implementação', async () => {
+  const variantes = [
+    ['teste faltando', [], /T1/],
+    ['teste repetido', [execucao('T1', true), execucao('T1', true)], /repetid/],
+    ['teste desconhecido', [execucao('T9', true)], /T9/],
+  ];
+  for (const [nome, invalidas, problema] of variantes) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'validar:': o => ({ ...DEFAULTS['validar:'](o), execucoes: invalidas }),
+      'recoleta:execucoes:': () => ({ execucoes: [execucao('T1', true)] }),
+    } });
+    assert.equal(resultado.status, 'verde', `${nome}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+    assert.equal(resultado.iteracoes, 1, nome);
+    const recoleta = chamadaUnica(chamadas, 'recoleta:execucoes:i1');
+    assert.equal(recoleta.opts.agentType, 'odin:operario', nome);
+    assert.ok(recoleta.prompt.includes('T1') && recoleta.prompt.includes(`node --test --test-name-pattern=C1 ${TESTE}`), `${nome}: o prompt traz a lista de testes com o comando de cada um`);
+    assert.match(recoleta.prompt, problema, `${nome}: o prompt traz o problema`);
+    assert.deepEqual(Object.keys(recoleta.opts.schema.properties), ['execucoes'], nome);
+    assert.equal(chamadas.filter(c => c.label.startsWith('impl:')).length, 1, `${nome}: uma só implementação`);
+  }
+});
+
+test('304-A9: execucoes que continuam incompletas viram o bloqueante de evidência de hoje, citam a recoleta e a iteração seguinte recolhe de novo', async () => {
+  for (const [nome, extra] of [['recoleta que não retorna', {}], ['recoleta também incompleta', { 'recoleta:execucoes:': () => ({ execucoes: [] }) }]]) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o), execucoes: [] }), ...extra } });
+    assert.equal(resultado.status, 'escalado', `${nome}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+    assert.equal(resultado.historico.length, 3, nome);
+    const f = resultado.historico[0].findings.find(x => x.origem === 'portao-tdd' && x.natureza === 'evidencia');
+    assert.ok(f, `${nome}: ${JSON.stringify(resultado.historico[0].findings)}`);
+    assert.ok(f.cenario.includes('recoleta:execucoes:i1'), `${nome}: o cenário cita a recoleta: ${f.cenario}`);
+    assert.ok(resultado.fallbacks.some(x => x.chamada === 'recoleta:execucoes:i1'), `${nome}: fallbacks registra a recoleta`);
+    assert.deepEqual(rotulosDe(recoletasDe(chamadas)), ['recoleta:execucoes:i1', 'recoleta:execucoes:i2', 'recoleta:execucoes:i3'], `${nome}: a iteração seguinte recolhe de novo`);
+  }
+});
+
+test('304-A10: evidência recolhida válida não esconde o problema real: dependência, falha de comando, alvo ausente e reprodução vermelha', async () => {
+  const q = contratoComComando();
+  // (a) qualityReview recolhido, com dependência nova sem justificativa na primeira resposta.
+  const invalida = () => { const r = structuredClone(LEGACY_REVIEW); r.pop(); return r; };
+  const a = await rodar({ args: ARGS, overrides: {
+    'ponytail:': () => ({ ...DEFAULTS['ponytail:'](), qualityReview: invalida(), dependenciasNovas: [{ nome: 'left-pad', justificativaEncontrada: false, onde: 'package.json' }] }),
+    'recoleta:quality-review:': () => ({ qualityReview: structuredClone(LEGACY_REVIEW) }),
+  } });
+  assert.equal(a.resultado.status, 'escalado', `(a) ${JSON.stringify(a.resultado.detalhe ?? a.resultado)}`);
+  assert.equal(a.resultado.historico.length, 3);
+  assert.ok(a.resultado.historico.every(h => h.findings.some(f => f.natureza === 'dependencia')), '(a) o bloqueante de dependência continua');
+  assert.deepEqual(rotulosDe(recoletasDe(a.chamadas)), ['recoleta:quality-review:i1', 'recoleta:quality-review:i2', 'recoleta:quality-review:i3'], '(a) a iteração 2 recolhe com o label i2');
+  // (b) qualityExecutions recolhido com exitCode diferente de 0.
+  const b = await rodar({ args: ARGS, overrides: comContrato(q, {
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityExecutions: [] }),
+    'recoleta:quality-executions:': () => ({ qualityExecutions: execucoesDoContrato(q, 'tests/a.test.js: 1 case failed against src/a.js').map(e => ({ ...e, exitCode: 1 })) }),
+  }) });
+  assert.equal(b.resultado.status, 'escalado', `(b) ${JSON.stringify(b.resultado.detalhe ?? b.resultado)}`);
+  assert.equal(b.resultado.historico[0].validacaoVerde, false);
+  assert.ok(b.resultado.historico[0].validacoes.some(f => f.comando === COMANDO_Q), '(b) o exitCode diferente de 0 vira falha de validação');
+  // (c) inventário recolhido sem um alvo required.
+  let vez = 0;
+  const c = await rodar({ args: ARGS, overrides: {
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), ...(vez++ === 0 ? { qualityInventory: INVENTARIO_SEM_O_ALVO() } : {}) }),
+    'recoleta:quality-inventory:': () => ({ qualityInventory: SEM_O_ALVO() }),
+  } });
+  assert.equal(c.resultado.status, 'verde', `(c) ${JSON.stringify(c.resultado.detalhe ?? c.resultado)}`);
+  assert.equal(c.resultado.iteracoes, 2);
+  assert.equal(recoletasDe(c.chamadas).length, 1);
+  assert.ok(!c.chamadas.some(x => x.label === 'ponytail:i1'), '(c) sem auditoria enquanto o alvo falta');
+  assert.ok(correcoesDoPrompt(promptDe(c.chamadas, 'impl:U1', 1)).findings.some(f => f.origem === 'inventario-quality' && f.natureza === 'funcional' && f.arquivo === 'src/a.js'), '(c) correção de alvo ausente');
+  // (d) execucoes recolhidas com reprodução vermelha depois da implementação.
+  const d = await rodar({ args: ARGS, overrides: {
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), execucoes: [] }),
+    'recoleta:execucoes:': () => ({ execucoes: [execucao('T1', false)] }),
+  } });
+  assert.equal(d.resultado.status, 'escalado', `(d) ${JSON.stringify(d.resultado.detalhe ?? d.resultado)}`);
+  assert.ok(d.resultado.historico[0].findings.some(f => f.origem === 'portao-tdd' && f.natureza === 'funcional' && /reprodução vermelho/i.test(f.resumo)), `(d) ${JSON.stringify(d.resultado.historico[0].findings)}`);
+});
+
+test('304-A11: evidência válida na primeira resposta não gera recoleta; hash que não confere segue com tdd:hashes e hashes:i<N>', async () => {
+  const limpo = await rodar({ args: ARGS });
+  assert.equal(limpo.resultado.status, 'verde');
+  assert.equal(recoletasDe(limpo.chamadas).length, 0, 'nenhuma chamada recoleta: com evidência válida');
+  assert.deepEqual(limpo.resultado.fallbacks, []);
+  const base = await rodar({ args: ARGS, overrides: {
+    'tdd:vermelho': o => ({ ...DEFAULTS['tdd:vermelho'](o), hashesDosTestes: { [TESTE]: HASH_C_TROCADO } }),
+    'tdd:hashes': () => ({ hashesDosTestes: { [TESTE]: HASH_C } }),
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), hashesDosTestes: { [TESTE]: HASH_C } }),
+  } });
+  assert.equal(base.resultado.status, 'verde', JSON.stringify(base.resultado));
+  assert.equal(chamadaUnica(base.chamadas, 'tdd:hashes').opts.agentType, 'odin:operario');
+  assert.deepEqual(base.resultado.fallbacks.map(f => f.chamada), ['tdd:hashes']);
+  const validacao = await rodar({ args: ARGS, overrides: {
+    'tdd:vermelho': o => ({ ...DEFAULTS['tdd:vermelho'](o), hashesDosTestes: { [TESTE]: HASH_C } }),
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), hashesDosTestes: { [TESTE]: HASH_C_TROCADO } }),
+    'hashes:': () => ({ hashesDosTestes: { [TESTE]: HASH_C } }),
+  } });
+  assert.equal(validacao.resultado.status, 'verde', JSON.stringify(validacao.resultado));
+  assert.equal(chamadaUnica(validacao.chamadas, 'hashes:i1').opts.agentType, 'odin:operario');
+  assert.deepEqual(validacao.resultado.fallbacks.map(f => f.chamada), ['hashes:i1']);
+  assert.match(validacao.resultado.fallbacks[0].causa, /erro de transcrição/);
+  const segunda = await rodar({ args: ARGS, overrides: {
+    'tdd:vermelho': o => ({ ...DEFAULTS['tdd:vermelho'](o), hashesDosTestes: { [TESTE]: HASH_C } }),
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), hashesDosTestes: { [TESTE]: SHA_C } }),
+    'hashes:': () => ({ hashesDosTestes: { [TESTE]: HASH_C_TROCADO } }),
+  } });
+  assert.equal(segunda.resultado.status, 'erro');
+  assert.equal(segunda.resultado.fase, 'Validar');
+  assert.match(segunda.resultado.detalhe, /fora do formato/);
+  assert.match(segunda.resultado.detalhe, /recoleta: .*erro de transcrição/);
+  assert.equal(recoletasDe(segunda.chamadas).length, 0, 'hashes não usa o prefixo recoleta:');
+});
+
+test('304-A12: teste ou apoio não rastreado citado num check required e removido depois do portão volta como bloqueante, sem erro nem auditoria', async () => {
+  for (const [nome, removido, origem, extra] of [['teste da SPEC', TESTE, 'testes-intactos', {}], ['apoio do portão', APOIO, 'apoio-intacto', comApoio]]) {
+    const q = contratoCitando(removido);
+    const base = removido === APOIO ? { [TESTE]: HASH_A, [APOIO]: hashDeApoio(APOIO, '1') } : { [TESTE]: HASH_A };
+    const visiveis = ['src/a.js', SPEC_PATH, ...(removido === APOIO ? [TESTE] : [])];
+    let vez = 0;
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { ...extra, ...comContrato(q), 'tdd:vermelho': vermelhoComHashes(base),
+      'validar:': o => vez++ === 0
+        ? { ...DEFAULTS['validar:'](o), hashesDosTestes: hashesLiterais({ ...base, [removido]: 'ausente' }),
+            qualityInventory: inventarioLiteral({ files: visiveis.map(linhaInventario), uninspected: [removido], errors: [`${removido}: arquivo ausente ou ignorado: ${removido}`] }) }
+        : { ...DEFAULTS['validar:'](o), hashesDosTestes: hashesLiterais(base) },
+    } });
+    assert.equal(resultado.status, 'verde', `${nome}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+    assert.equal(resultado.iteracoes, 2, nome);
+    for (const proibida of ['ponytail:i1', 'rev:corretude:i1']) assert.ok(!chamadas.some(c => c.label === proibida), `${nome}: ${proibida} não roda na iteração do arquivo removido`);
+    assert.ok(!chamadas.some(c => c.label.startsWith('confirmar:')), nome);
+    const f = correcoesDoPrompt(promptDe(chamadas, 'impl:U1', 1)).findings.find(x => x.origem === origem && x.arquivo === removido);
+    assert.ok(f, `${nome}: bloqueante ${origem} nomeando ${removido}`);
+    assert.match(`${f.resumo} ${f.cenario}`, /restaur/i, `${nome}: manda restaurar o arquivo`);
+    assert.ok(chamadas.some(c => c.label === 'ponytail:i2'), `${nome}: com o arquivo de volta a auditoria roda`);
+  }
+});
+
+test('304-A13: teste rastreado removido ou alterado continua bloqueante sem confirmador, e sentinela no portão bloqueia a fase TDD nomeando o caminho', async () => {
+  let vez = 0;
+  const removido = await rodar({ args: ARGS, overrides: { 'validar:': o => vez++ === 0
+    ? { ...DEFAULTS['validar:'](o), hashesDosTestes: hashesLiterais({ [TESTE]: 'ausente' }),
+        qualityInventory: inventarioLiteral({ files: [...['src/a.js', SPEC_PATH].map(linhaInventario), { path: TESTE, lines: 0, bytes: 0, status: 'deleted' }], uninspected: [], errors: [] }) }
+    : DEFAULTS['validar:'](o) } });
+  assert.equal(removido.resultado.status, 'verde', JSON.stringify(removido.resultado.detalhe ?? removido.resultado));
+  assert.equal(removido.resultado.iteracoes, 2);
+  assert.ok(correcoesDoPrompt(promptDe(removido.chamadas, 'impl:U1', 1)).findings.some(f => f.origem === 'testes-intactos' && f.arquivo === TESTE));
+  assert.ok(!removido.chamadas.some(c => c.label.startsWith('confirmar:')));
+  const alterado = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o), hashesDosTestes: { [TESTE]: HASH_B } }) } });
+  assert.equal(alterado.resultado.status, 'escalado');
+  assert.ok(alterado.resultado.historico.every(h => h.findings.some(f => f.origem === 'testes-intactos' && f.arquivo === TESTE)));
+  assert.ok(!alterado.chamadas.some(c => c.label.startsWith('confirmar:')));
+  const portao = await rodar({ args: ARGS, overrides: { 'tdd:vermelho': vermelhoComHashes({ [TESTE]: 'ausente' }) } });
+  assert.equal(portao.resultado.status, 'bloqueado', JSON.stringify(portao.resultado));
+  assert.equal(portao.resultado.fase, 'TDD');
+  assert.ok(String(portao.resultado.detalhe).includes(TESTE), `o detalhe nomeia o teste: ${portao.resultado.detalhe}`);
+  assert.ok(!portao.chamadas.some(c => c.label.startsWith('impl:')));
+});
+
+test('304-A14: a fase Spec mede o inventário depois de spec:validar e antes de tdd:portao, e a recusa por filtro bloqueia com ação', async () => {
+  const { chamadas } = await rodar({ args: ARGS });
+  const rotulos = rotulosDe(chamadas);
+  const i = rotulos.indexOf('spec:inventario');
+  assert.ok(i > rotulos.indexOf('spec:validar') && i < rotulos.indexOf('tdd:portao'), `ordem: ${rotulos.join(', ')}`);
+  const medicao = chamadaUnica(chamadas, 'spec:inventario');
+  assert.equal(medicao.opts.agentType, 'odin:mecanico');
+  assert.deepEqual([...pathsDoPedidoDeInventario(medicao.prompt)].sort(), [SPEC_PATH, 'src/a.js'], 'os alvos required do contrato e a SPEC');
+  assert.deepEqual(Object.keys(medicao.opts.schema.properties), ['qualityInventory']);
+  assert.ok(!comandoDeInventario(medicao.prompt).includes('HEAD'), 'sem baseRef e sem pendenciasPath o comando não leva referência');
+  const comBase = await rodar({ args: { ...ARGS, baseRef: SHA_BASE } });
+  assert.ok(comandoDeInventario(chamadaUnica(comBase.chamadas, 'spec:inventario').prompt).includes(SHA_BASE), 'com baseRef o comando leva a base');
+  const comPendencias = await rodar({ args: { ...ARGS, pendenciasPath: 'docs/pendencias.md' } });
+  assert.ok(!comandoDeInventario(chamadaUnica(comPendencias.chamadas, 'spec:inventario').prompt).includes('pendencias'), 'o comando da medição cedo não leva o pendenciasPath');
+  const filtro = await rodar({ args: ARGS, overrides: { 'spec:inventario': () => refusaGlobal(MSG_FILTRO) } });
+  assert.equal(filtro.resultado.status, 'bloqueado', JSON.stringify(filtro.resultado));
+  assert.equal(filtro.resultado.fase, 'Spec');
+  assert.ok(String(filtro.resultado.detalhe).includes('src/a.js') && /clean/.test(String(filtro.resultado.detalhe)), `o detalhe leva o arquivo e o tipo de driver: ${filtro.resultado.detalhe}`);
+  assert.match(filtro.resultado.acao, /driver/);
+  assert.match(filtro.resultado.acao, /run novo/);
+  assert.ok(!filtro.chamadas.some(c => c.label === 'tdd:portao'), 'bloqueia antes do portão');
+});
+
+test('304-A15: recusa da fase Spec por flag, índice unmerged ou SPEC ausente ou ignorada bloqueia com o diagnóstico literal e sem portão', async () => {
+  const casos = [
+    ['flag skip-worktree ou assume-unchanged', refusaGlobal(MSG_FLAG), MSG_FLAG, /git update-index/],
+    ['índice unmerged', refusaGlobal('índice unmerged: src/a.js'), 'índice unmerged: src/a.js', null],
+    ['SPEC ausente ou ignorada', { qualityInventory: { files: [linhaInventario('src/a.js')], uninspected: [SPEC_PATH], errors: [`${SPEC_PATH}: arquivo ausente ou ignorado: ${SPEC_PATH}`] } }, `${SPEC_PATH}: arquivo ausente ou ignorado: ${SPEC_PATH}`, null],
+  ];
+  for (const [nome, resposta, literal, acao] of casos) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'spec:inventario': () => resposta } });
+    assert.equal(resultado.status, 'bloqueado', `${nome}: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.fase, 'Spec', nome);
+    assert.ok(String(resultado.detalhe).includes(literal), `${nome}: o detalhe leva o diagnóstico literal: ${resultado.detalhe}`);
+    assert.ok(typeof resultado.acao === 'string' && resultado.acao.trim(), `${nome}: ação não vazia`);
+    if (acao) assert.match(resultado.acao, acao, nome);
+    assert.ok(!chamadas.some(c => c.label === 'tdd:portao'), `${nome}: bloqueia antes do portão`);
+  }
+});
+
+test('304-A16: alvo do contrato que ainda não existe e não rastreado alheio na fase Spec não bloqueiam', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'spec:inventario': () => ({ qualityInventory: {
+    files: [linhaInventario(SPEC_PATH)], uninspected: ['notas.md', 'src/a.js'], errors: ['src/a.js: arquivo ausente ou ignorado: src/a.js'] } }) } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  assert.ok(chamadas.some(c => c.label === 'tdd:portao'));
+  assert.equal(recoletasDe(chamadas).length, 0, 'inventário bem formado com alvo futuro não é falha de transporte');
+});
+
+test('304-A17: inventário da fase Spec não utilizável é recolhido uma vez; segunda falha ou ausência de retorno é erro na fase Spec, sem TDD', async () => {
+  const inutil = () => ({ qualityInventory: { files: [linhaInventario('src/a.js')], uninspected: [], errors: [] } });
+  const valida = await rodar({ args: ARGS, overrides: { 'spec:inventario': inutil, 'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_COM('src/a.js', SPEC_PATH) }) } });
+  assert.equal(valida.resultado.status, 'verde', JSON.stringify(valida.resultado.detalhe ?? valida.resultado));
+  const recoleta = chamadaUnica(valida.chamadas, 'recoleta:quality-inventory:spec');
+  assert.equal(recoleta.opts.agentType, 'odin:operario');
+  const comando = comandoDeInventario(recoleta.prompt);
+  assert.ok(comando && comando === comandoDeInventario(promptDe(valida.chamadas, 'spec:inventario')), 'a recoleta leva o mesmo comando da medição');
+  const persistente = await rodar({ args: ARGS, overrides: { 'spec:inventario': inutil, 'recoleta:quality-inventory:': inutil } });
+  assertSegundaFalha(persistente.resultado, persistente.chamadas, { fase: 'Spec', campo: 'qualityInventory', chamada: 'spec:inventario', recoleta: 'recoleta:quality-inventory:spec' }, 'recoleta também não utilizável');
+  assert.ok(!persistente.chamadas.some(c => c.label === 'tdd:portao'));
+  const semRetorno = await rodar({ args: ARGS, overrides: { 'spec:inventario': () => null } });
+  assert.equal(semRetorno.resultado.status, 'erro', JSON.stringify(semRetorno.resultado));
+  assert.equal(semRetorno.resultado.fase, 'Spec');
+  assert.ok(!semRetorno.chamadas.some(c => c.label === 'tdd:portao'), 'sem a medição não há TDD');
+});
+
+test('304-A18: SPEC ou arquivo existente acima de 400 linhas sem decisão bloqueia a fase Spec nomeando cada arquivo e sua contagem', async () => {
+  const casos = [
+    ['a SPEC', { [SPEC_PATH]: 401 }, []],
+    ['alvo do contrato', { 'src/a.js': 450 }, []],
+    ['os dois e um arquivo alterado contra a base', { [SPEC_PATH]: 401, 'src/a.js': 450, 'src/legado.js': 500 }, ['src/legado.js']],
+  ];
+  for (const [nome, linhas, extras] of casos) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'spec:inventario': (o, _c, prompt) => ({ qualityInventory: inventarioComLinhas(prompt, linhas, extras) }) } });
+    assert.equal(resultado.status, 'bloqueado', `${nome}: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.fase, 'Spec', nome);
+    for (const [path, n] of Object.entries(linhas)) assert.ok(String(resultado.detalhe).includes(path) && String(resultado.detalhe).includes(String(n)), `${nome}: o detalhe nomeia ${path} com ${n}: ${resultado.detalhe}`);
+    assert.match(resultado.acao, /decomposi/i, nome);
+    assert.match(resultado.acao, /SPEC/, nome);
+    assert.ok(!chamadas.some(c => c.label === 'tdd:portao'), nome);
+  }
+});
+
+test('304-A19: depois do portão o harness mede testes e apoio com tdd:inventario, antes de qualquer implementação, e bloqueia acima de 400 linhas sem decisão', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { ...comApoio, 'tdd:vermelho': o => ({ ...DEFAULTS['tdd:vermelho'](o), hashesDosTestes: { [TESTE]: HASH_C_TROCADO, [APOIO]: hashDeApoio(APOIO, 'e') } }),
+    'tdd:hashes': () => ({ hashesDosTestes: hashesLiterais({ [TESTE]: HASH_C, [APOIO]: hashDeApoio(APOIO, 'e') }) }), 'validar:': o => ({ ...DEFAULTS['validar:'](o), hashesDosTestes: hashesLiterais({ [TESTE]: HASH_C, [APOIO]: hashDeApoio(APOIO, 'e') }) }) } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  const rotulos = rotulosDe(chamadas);
+  assert.ok(rotulos.indexOf('tdd:inventario') > rotulos.indexOf('tdd:vermelho') && rotulos.indexOf('tdd:inventario') > rotulos.indexOf('tdd:hashes') && rotulos.indexOf('tdd:inventario') < rotulos.indexOf('impl:U1'), `ordem: ${rotulos.join(', ')}`);
+  assert.deepEqual([...pathsDoPedidoDeInventario(chamadaUnica(chamadas, 'tdd:inventario').prompt)].sort(), [APOIO, TESTE].sort(), 'testes e apoio no comando');
+  for (const [nome, grande] of [['teste', TESTE], ['apoio', APOIO]]) {
+    const bloqueio = await rodar({ args: ARGS, overrides: { ...comApoio, 'tdd:inventario': (o, _c, prompt) => ({ qualityInventory: inventarioComLinhas(prompt, { [grande]: 401 }) }) } });
+    assert.equal(bloqueio.resultado.status, 'bloqueado', `${nome}: ${JSON.stringify(bloqueio.resultado)}`);
+    assert.equal(bloqueio.resultado.fase, 'TDD', nome);
+    assert.ok(String(bloqueio.resultado.detalhe).includes(grande) && String(bloqueio.resultado.detalhe).includes('401'), `${nome}: ${bloqueio.resultado.detalhe}`);
+    assert.ok(bloqueio.resultado.tdd && Array.isArray(bloqueio.resultado.tdd.paths), `${nome}: o bloqueio traz o relatório tdd`);
+    assert.ok(!bloqueio.chamadas.some(c => c.label.startsWith('impl:')), `${nome}: antes de qualquer implementação`);
+  }
+  const semTeste = await rodar({ args: ARGS, overrides: {
+    'spec:ids': () => ({ ok: true, ids: ['C1'], erros: [], verificacoesComplementares: { C1: 'revisar a tela' }, tipos: { C1: 'reproducao' } }),
+    'tdd:portao': () => ({ vermelhoConfirmado: true, testes: [] }),
+    'validar:': () => ({ verde: true, falhas: [], hashesDosTestes: {}, impressaoWorktree: IMP_D }),
+  } });
+  assert.ok(!semTeste.chamadas.some(c => c.label === 'tdd:inventario'), 'SPEC sem teste executável não gera a chamada');
+});
+
+test('304-A20: recusa de tdd:inventario por flag, teste ignorado ou não regular bloqueia a fase TDD; inventário não utilizável dispara uma recoleta', async () => {
+  const casos = [
+    ['flag no teste', refusaGlobal(`flag Git skip-worktree ou assume-unchanged no índice: ${TESTE}`), `flag Git skip-worktree ou assume-unchanged no índice: ${TESTE}`],
+    ['teste ignorado pelo git', { qualityInventory: { files: [], uninspected: [TESTE], errors: [`${TESTE}: arquivo ausente ou ignorado: ${TESTE}`] } }, `${TESTE}: arquivo ausente ou ignorado: ${TESTE}`],
+    ['teste não regular', { qualityInventory: { files: [], uninspected: [TESTE], errors: [`${TESTE}: arquivo não regular: ${TESTE}`] } }, `${TESTE}: arquivo não regular: ${TESTE}`],
+  ];
+  for (const [nome, resposta, literal] of casos) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'tdd:inventario': () => resposta } });
+    assert.equal(resultado.status, 'bloqueado', `${nome}: ${JSON.stringify(resultado)}`);
+    assert.equal(resultado.fase, 'TDD', nome);
+    assert.ok(String(resultado.detalhe).includes(literal), `${nome}: o detalhe leva o diagnóstico do script: ${resultado.detalhe}`);
+    assert.ok(!chamadas.some(c => c.label.startsWith('impl:')), `${nome}: antes de qualquer implementação`);
+  }
+  const inutil = () => ({ qualityInventory: { files: [], uninspected: [], errors: [] } });
+  const recolhido = await rodar({ args: ARGS, overrides: { 'tdd:inventario': inutil, 'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_COM(TESTE) }) } });
+  assert.equal(recolhido.resultado.status, 'verde', JSON.stringify(recolhido.resultado.detalhe ?? recolhido.resultado));
+  const recoleta = chamadaUnica(recolhido.chamadas, 'recoleta:quality-inventory:tdd');
+  assert.equal(recoleta.opts.agentType, 'odin:operario');
+  assert.ok(comandoDeInventario(recoleta.prompt) && comandoDeInventario(recoleta.prompt) === comandoDeInventario(promptDe(recolhido.chamadas, 'tdd:inventario')));
+});
+
+test('304-A21: arquivo de produção acima de 400 linhas na validação vira correção de natureza qualidade, e persistindo escala no teto', async () => {
+  let vez = 0;
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'validar:': (o, _c, prompt) => ({ ...DEFAULTS['validar:'](o), ...(vez++ === 0 ? { qualityInventory: inventarioLiteral(inventarioComLinhas(prompt, { 'src/a.js': 450 })) } : {}) }) } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  assert.equal(resultado.iteracoes, 2);
+  assert.ok(chamadas.some(c => c.label === 'ponytail:i1'), 'a auditoria roda na iteração da correção');
+  const f = correcoesDoPrompt(promptDe(chamadas, 'impl:U1', 1)).findings.find(x => x.origem === 'inventario-quality' && x.natureza === 'qualidade');
+  assert.ok(f, 'o operário recebe a correção automática');
+  assert.ok(JSON.stringify(f).includes('src/a.js') && JSON.stringify(f).includes('450'), `a correção cita o arquivo e a contagem: ${JSON.stringify(f)}`);
+  const persistente = await rodar({ args: ARGS, overrides: { 'validar:': (o, _c, prompt) => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral(inventarioComLinhas(prompt, { 'src/a.js': 450 })) }) } });
+  assert.equal(persistente.resultado.status, 'escalado', JSON.stringify(persistente.resultado.detalhe ?? persistente.resultado));
+  assert.equal(persistente.resultado.fase, 'Loop');
+  assert.equal(persistente.resultado.resumoDaEscalada.somenteProcedimento, false);
+  assert.equal(persistente.resultado.resumoDaEscalada.bloqueantesPorNatureza.qualidade, 1);
+  assert.equal(persistente.chamadas.filter(c => c.label.startsWith('impl:')).length, 3);
+});
+
+test('304-A22: SPEC, teste ou apoio intactos acima de 400 linhas bloqueiam a fase Validar; teste alterado segue só como testes-intactos', async () => {
+  for (const [nome, grande, extra] of [['SPEC', SPEC_PATH, {}], ['teste', TESTE, {}], ['apoio', APOIO, comApoio]]) {
+    const { resultado } = await rodar({ args: ARGS, overrides: { ...extra, 'validar:': (o, _c, prompt) => ({ ...DEFAULTS['validar:'](o), qualityInventory: inventarioLiteral(inventarioComLinhas(prompt, { [grande]: 401 })) }) } });
+    assert.equal(resultado.status, 'bloqueado', `${nome}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+    assert.equal(resultado.fase, 'Validar', nome);
+    assert.ok(String(resultado.detalhe).includes(grande) && String(resultado.detalhe).includes('401'), `${nome}: o detalhe nomeia o arquivo: ${resultado.detalhe}`);
+    assert.match(resultado.acao, /dono/, nome);
+    assert.match(resultado.acao, /run novo/, nome);
+  }
+  const alterado = await rodar({ args: ARGS, overrides: { 'validar:': (o, _c, prompt) => ({ ...DEFAULTS['validar:'](o), hashesDosTestes: { [TESTE]: HASH_B }, qualityInventory: inventarioLiteral(inventarioComLinhas(prompt, { [TESTE]: 401 })) }) } });
+  assert.equal(alterado.resultado.status, 'escalado', JSON.stringify(alterado.resultado.detalhe ?? alterado.resultado));
+  assert.ok(alterado.resultado.historico.every(h => h.findings.length === 1 && h.findings[0].origem === 'testes-intactos'), 'só o bloqueante de teste alterado');
+});
+
+test('304-A23: arquivo acima de 400 linhas com decisão em decomposition não bloqueia na fase Spec, depois do portão nem na validação', async () => {
+  const q = structuredClone(LEGACY_QUALITY);
+  q.decomposition = [SPEC_PATH, 'src/a.js', TESTE].map(path => ({ path, trigger: 'Arquivo coeso acima de 400 linhas medido.', decision: 'Manter junto: a fronteira é coesa e dividir só espalharia o contrato.', verification: 'A revisão independente confere cada caso contra o contrato público.' }));
+  const grande = { [SPEC_PATH]: 450, 'src/a.js': 450, [TESTE]: 450 };
+  const medir = (o, _c, prompt) => ({ qualityInventory: inventarioLiteral(inventarioComLinhas(prompt, grande)) });
+  const { resultado } = await rodar({ args: ARGS, overrides: {
+    'spec:ids': () => ({ ...DEFAULTS['spec:ids'](), quality: structuredClone(q) }),
+    'spec:inventario': medir, 'tdd:inventario': medir,
+    'validar:': (o, c, prompt) => ({ ...DEFAULTS['validar:'](o), ...medir(o, c, prompt) }),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  assert.equal(resultado.iteracoes, 1);
+});
+
+// Correções pós-revisão da 3.0.4 (achados não bloqueantes das lentes do run wf_426b2ff2-fe8), modo Solo.
+// Prefixo `304-F`: não são critérios da SPEC, são defeitos que a revisão confirmou no que a entrega criou.
+test('304-F1: a ação da recusa por filtro manda desligar os dois drivers (clean e process) e diz como achar o nome do filtro', async () => {
+  for (const mensagem of [MSG_FILTRO, 'filtro Git process ativo em src/a.js: inspeção recusada sem executar conversores']) {
+    const { resultado } = await rodar({ args: ARGS, overrides: { 'spec:inventario': () => refusaGlobal(mensagem) } });
+    assert.equal(resultado.status, 'bloqueado', JSON.stringify(resultado));
+    assert.match(resultado.acao, /filter\.<nome>\.clean/, `${mensagem}: ${resultado.acao}`);
+    assert.match(resultado.acao, /filter\.<nome>\.process/, `${mensagem}: ${resultado.acao}`);
+    assert.ok(resultado.acao.includes("git check-attr filter -- 'src/a.js'"), `${mensagem}: a ação diz como achar o nome do filtro do arquivo: ${resultado.acao}`);
+  }
+});
+
+test('304-F2: a ação da recusa por flag preserva caminho com dois-pontos ou ponto e vírgula e tira o sufixo do diagnóstico', async () => {
+  for (const [caminho, sufixo] of [['src/a:b.js', ': bytes alterados'], ['src/a;b.js', ''], ['src/c.js', ': ausência dentro das regras sparse']]) {
+    const { resultado } = await rodar({ args: ARGS, overrides: { 'spec:inventario': () => refusaGlobal(`flag Git skip-worktree ou assume-unchanged no índice: ${caminho}${sufixo}`) } });
+    assert.equal(resultado.status, 'bloqueado', JSON.stringify(resultado));
+    assert.ok(resultado.acao.includes(`git update-index --no-skip-worktree -- '${caminho}'`), `${caminho}: ${resultado.acao}`);
+  }
+});
+
+test('304-F3: na fase Spec, inventário só com erros por caminho pedido (sem o caminho em uninspected) não passa como recusa global e é recolhido', async () => {
+  const transcricao = { qualityInventory: { files: [], uninspected: [], errors: [`src/a.js: arquivo ausente ou ignorado: src/a.js`, `${SPEC_PATH}: arquivo ausente ou ignorado: ${SPEC_PATH}`] } };
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'spec:inventario': () => transcricao,
+    'recoleta:quality-inventory:': (o, c, prompt) => ({ qualityInventory: inventarioComLinhas(prompt) }),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  chamadaUnica(chamadas, 'recoleta:quality-inventory:spec');
+  const filtro = await rodar({ args: ARGS, overrides: { 'spec:inventario': () => refusaGlobal(MSG_FILTRO) } });
+  assert.equal(recoletasDe(filtro.chamadas).length, 0, 'a recusa global literal do script continua sem recoleta');
+});
+
+test('304-F4: duas recoletas na mesma validação registram em fallbacks o tier da chamada original, não a recoleta anterior', async () => {
+  const q = contratoComComando();
+  const { resultado } = await rodar({ args: ARGS, overrides: comContrato(q, {
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityExecutions: [], qualityInventory: INVENTARIO_SEM_O_ALVO() }),
+    'recoleta:quality-executions:': () => ({ qualityExecutions: execucoesDoContrato(q) }),
+    'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_COM(...INVENTARIO_OK) }),
+  }) });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  const recoletas = resultado.fallbacks.filter(f => String(f.chamada).startsWith('recoleta:'));
+  assert.equal(recoletas.length, 2, JSON.stringify(resultado.fallbacks));
+  assert.equal(recoletas[0].de, recoletas[1].de, `as duas recoletas vêm da mesma chamada original: ${JSON.stringify(recoletas)}`);
+  assert.ok(!/recoleta/.test(String(recoletas[1].de)), `de cita a recoleta anterior: ${recoletas[1].de}`);
+});
+
+test('304-F5: alvo do contrato ausente e arquivo de produção acima de 400 linhas na mesma validação levam as duas correções ao operário', async () => {
+  const q = contratoCitando('src/b.js');
+  let vez = 0;
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: comContrato(q, {
+    'validar:': (o, _c, prompt) => {
+      const base = { ...DEFAULTS['validar:'](o) };
+      if (vez++ > 0) return base;
+      const inv = inventarioComLinhas(prompt, { 'src/b.js': 450 });
+      return { ...base, qualityInventory: inventarioLiteral({ files: inv.files.filter(f => f.path !== 'src/a.js'), uninspected: ['src/a.js'], errors: ['src/a.js: arquivo ausente ou ignorado: src/a.js'] }) };
+    },
+  }) });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  const findings = correcoesDoPrompt(promptDe(chamadas, 'impl:U1', 1)).findings;
+  assert.ok(findings.some(f => f.origem === 'inventario-quality' && f.natureza === 'funcional' && JSON.stringify(f).includes('src/a.js')), `alvo ausente: ${JSON.stringify(findings)}`);
+  assert.ok(findings.some(f => f.origem === 'inventario-quality' && f.natureza === 'qualidade' && JSON.stringify(f).includes('src/b.js')), `tamanho: ${JSON.stringify(findings)}`);
 });

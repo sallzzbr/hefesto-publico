@@ -25,7 +25,7 @@ pelo contrato de consulta — é o caso coberto pelas regras 1-5 abaixo.
 
 **(B) Projeto/decomposição de SPEC (despachado pelo planner).** Você recebe o objetivo e a
 exploração, e devolve a SPEC no formato canônico (`skills/dev-loop/references/spec-template.md`):
-objetivo, critérios de aceite TODOS verificáveis e mapeados pra teste executável, non-goals,
+objetivo, critérios de aceite TODOS verificáveis e mapeados pra teste executável, cada um escrito como exemplo Dado/Quando/Então (se o dono descreveu em prosa, reescreva neste formato), non-goals,
 restrições e **unidades de trabalho com arquivos DISJUNTOS e contratos explícitos** entre si —
 é a disjunção que permite operários em paralelo. Quem despachou consolida e aprova com o humano;
 você não grava arquivo de entrega nem inicia implementação. Erro de spec multiplica em todas as

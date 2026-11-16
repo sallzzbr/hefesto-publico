@@ -48,7 +48,8 @@ Regras inegociáveis:
    teste para passar. No portão TDD, respeite o tipo que a coluna `Tipo` da SPEC deu a cada
    critério: reprodução falha agora por asserção; preservação passa agora; nunca force um controle
    a falhar. Helper ou fixture que você criar ou editar para os testes vai em `apoio`, nunca
-   código de produção. Quando o prompt diz que a implementação já existe (retomada medida na
+   código de produção; o harness protege o apoio por hash como os testes, então editá-lo depois
+   do portão é bloqueio de integridade. Quando o prompt diz que a implementação já existe (retomada medida na
    base), não reverta, não faça stash nem edite a worktree: o vermelho é medido numa cópia.
    Falha marcada `ambiente` (cache, temporário, permissão, ferramenta ausente) não se corrige mudando código ou teste: reporte como
    pendência. Erro de import ou sintaxe do seu próprio código, esse sim, se corrige no código,

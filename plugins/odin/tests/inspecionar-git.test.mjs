@@ -163,3 +163,53 @@ test('nomes de driver iguais às sentinelas de check-attr não burlam a guarda',
     assert.equal(existsSync(resolve(root, 'efeito-filtro')), false, nome);
   }
 }));
+
+// ── odin 3.0.3: nome canônico do git quando o pedido difere só na caixa (A19, A20) ────────────────
+// Operário e contrato escrevem `src/Novo.js` para o arquivo que o git guarda como `src/novo.js`. Com
+// `core.ignoreCase=true` o git trata os dois como o mesmo arquivo, e o inventário reportava "ausente".
+// Todo caso liga ou desliga `core.ignoreCase` explicitamente: o default do `git init` depende do SO.
+const identidade = ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgSign=false', '-c', 'core.hooksPath=/dev/null'];
+const saida = p => JSON.parse(p.stdout);
+const porPedido = lista => [...lista].sort((a, b) => (a.requested < b.requested ? -1 : 1));
+
+test('A19: com core.ignoreCase=true, pedido que difere só na caixa de um nome do git é medido pelo nome do git e devolve aliases', () => fixture(({ root, git, cli }) => {
+  git('config', 'core.ignoreCase', 'true');
+  writeFileSync(resolve(root, 'src/novo.js'), 'linha 1\nlinha 2\n');
+  const p = cli('quality', ['src/A.js', 'src/Novo.js']);
+  assert.equal(p.status, 0, p.stderr);
+  const out = saida(p);
+  assert.deepEqual(porPedido(out.aliases), [{ requested: 'src/A.js', path: 'src/a.js' }, { requested: 'src/Novo.js', path: 'src/novo.js' }]);
+  const medido = Object.fromEntries(out.files.map(f => [f.path, f]));
+  assert.deepEqual(medido['src/a.js'], { path: 'src/a.js', lines: 1, bytes: 9, status: 'text' }, 'rastreado: medido pelo nome do git');
+  assert.deepEqual(medido['src/novo.js'], { path: 'src/novo.js', lines: 2, bytes: 16, status: 'text' }, 'não rastreado e não ignorado: medido pelo nome do git');
+  for (const nome of ['src/A.js', 'src/Novo.js', 'src/a.js', 'src/novo.js']) {
+    assert.ok(!out.uninspected.includes(nome), `${nome} não fica em uninspected: ${out.uninspected}`);
+    assert.ok(!out.errors.some(e => e.includes(nome)), `${nome} não fica em errors: ${out.errors}`);
+  }
+  assert.ok(!out.files.some(f => f.path === 'src/A.js' || f.path === 'src/Novo.js'), 'o nome pedido não vira entrada de files');
+}));
+
+test('A20: sem ignoreCase, com dois nomes do git iguais sem caixa ou sem nome correspondente, o pedido segue ausente e sem aliases; nome exato do git não ganha o campo', () => fixture(({ root, git, cli }) => {
+  const ausente = (paths, nome) => {
+    const p = cli('quality', paths);
+    assert.equal(p.status, 1, `${nome}: ${p.stdout}`);
+    const out = saida(p);
+    assert.ok(out.errors.some(e => e.includes(paths[0]) && e.includes('arquivo ausente ou ignorado')), `${nome}: ${out.errors}`);
+    assert.ok(out.uninspected.includes(paths[0]), nome);
+    assert.equal(Object.hasOwn(out, 'aliases'), false, `${nome}: sem aliases`);
+  };
+  git('config', 'core.ignoreCase', 'false');
+  ausente(['src/A.js'], 'ignoreCase=false');
+  // Dois nomes do git iguais sob dobra ASCII: o índice é montado com ignoreCase desligado e a
+  // consulta roda com ele ligado; nenhum dos dois é "o" nome, então não há troca.
+  const blob = git('hash-object', '-w', '--', 'src/a.js').trim();
+  git('update-index', '--add', '--cacheinfo', `100644,${blob},src/x.js`);
+  git('update-index', '--add', '--cacheinfo', `100644,${blob},src/X.js`);
+  git(...identidade, 'commit', '-qm', 'dois nomes');
+  git('config', 'core.ignoreCase', 'true');
+  ausente(['src/x.JS'], 'dois nomes do git iguais sem caixa');
+  ausente(['src/zzz.js'], 'nenhum nome do git corresponde');
+  const exato = cli('quality', ['src/a.js']);
+  assert.equal(exato.status, 0, exato.stderr);
+  assert.equal(Object.hasOwn(saida(exato), 'aliases'), false, 'pedido que já é nome do git devolve o JSON sem o campo aliases');
+}));

@@ -68,12 +68,20 @@ auditoria explica a convenção ao avaliar a decisão.
 
 Planeje o recorte antes de acumular responsabilidades num arquivo gigante. Se ele crescer
 além do previsto, atualize a decisão e verifique interfaces e testes sem ampliar a tarefa.
+
+O harness mede isso cedo (3.0.4): `spec:inventario` na fase Spec e `tdd:inventario` depois do portão TDD usam o mesmo comando de inventário da validação. SPEC, alvo ou arquivo alterado, e depois do portão teste ou apoio, acima de 400 linhas sem entrada em `decomposition` bloqueiam antes da implementação; filtro ativo e flag `skip-worktree` ou `assume-unchanged` também. Na validação, arquivo de produção acima de 400 linhas sem decisão volta como correção ao operário (origem `inventario-quality`, natureza `qualidade`).
+
 Não dividir cegamente, não espalhar fragmentos para baixar número, não refatorar o legado
 inteiro. Generated/vendored/binary exigem classificação e motivo, nunca divisão automática.
 
 Exemplo sintético: um módulo de 430 linhas mistura parsing e envio. Extrair o parser puro
 com seu contrato pode permitir teste independente; manter um catálogo gerado de 430 linhas
 pode ser correto. A contagem inicia a análise, não escolhe a arquitetura.
+
+## Recoleta de evidência com falha de formato
+
+Evidência de `qualityReview`, `qualityExecutions`, `qualityInventory` ou `execucoes` fora do formato é pedida de novo uma vez, por campo, em chamada `recoleta:` com o que falhou no prompt. O revisor recolhe `qualityReview`; o operário recolhe os campos do mecânico. A recoleta passa pela mesma validação da original e não dispensa a prova: a segunda falha é `erro` com `campo`, `chamada` e `recoleta` (a de `execucoes` é o bloqueante de origem `portao-tdd` e natureza `evidencia`, e a iteração seguinte recolhe de novo), e o erro que o próprio script do inventário reporta não dispara recoleta.
+
 
 ## Execução e auditoria
 
@@ -86,7 +94,7 @@ e metadados Git continuam recusados; pendência-link nunca recebe dispensa. Reco
 arquivos relatados e novos autorizados; erro ou arquivo não inspecionado impede verde.
 O comando inclui alvos, arquivos relatados, testes protegidos, apoio TDD e a SPEC autorizada
 quando ela está dentro do workspace. A cobertura do inventário deve incluir todos os caminhos
-solicitados, sem omitir testes ou apoio. SPEC externa continua disponível ao preflight, mas
+solicitados, sem omitir testes ou apoio. Alvo `required` ausente ou ignorado nesse inventário volta como correção ao operário, não como `erro`. SPEC externa continua disponível ao preflight, mas
 não entra no inventário do workspace nem pode servir de evidência inventariada ou de dispensa.
 Quando uma decisão precisar citar a SPEC como evidência, use uma SPEC autorizada dentro do
 workspace, medida no inventário; não substitua essa fonte por uma citação externa.

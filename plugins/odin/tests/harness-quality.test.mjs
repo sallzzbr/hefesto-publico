@@ -26,6 +26,7 @@ test('A3 malformed or missing preflight quality blocks before TDD', async () => 
     assert.ok(!calls.some(c => c.label === 'tdd:portao'));
   }
 });
+// 3.0.4: evidência de execução incompleta passa primeiro por uma recoleta (sem resposta no agente falso); o run continua não verde pela segunda falha, agora `erro` nomeado.
 test('A3 missing duplicate swapped failed and fabricated command evidence never closes green', async () => {
   const quality = contract(); const table = responses(quality);
   const mutations = [
@@ -42,6 +43,7 @@ test('A3 missing duplicate swapped failed and fabricated command evidence never 
     blocked(result, `${perfil}: ${mutate}`);
   }
 });
+// 3.0.4: revisão inválida passa primeiro por uma recoleta no revisor (sem resposta no agente falso); o run continua não verde pela segunda falha, `erro` nomeado na fase Auditar.
 test('A3 missing duplicate fabricated or unauthorized review evidence never closes green', async () => {
   const table = responses();
   const mutations = [
@@ -60,6 +62,7 @@ test('A3 missing duplicate fabricated or unauthorized review evidence never clos
     blocked(result, `${perfil}: ${mutate}`);
   }
 });
+// 3.0.4: inventário não utilizável passa primeiro por uma recoleta (sem resposta no agente falso); o run continua não verde pela segunda falha, `erro` nomeado na fase Validar.
 test('A3 incomplete inventory and invented textual evidence cannot approve quality', async () => {
   const table = responses();
   const mutations = [
@@ -75,6 +78,7 @@ test('A3 incomplete inventory and invented textual evidence cannot approve quali
     blocked(result, String(mutate));
   }
 });
+// 3.0.4: arquivo de produção acima de 400 linhas sem decisão deixa de ser `erro` na validação: vira correção de natureza qualidade e o ramo sem decisão sai `escalado` no teto.
 test('A3 large cohesive files need an explicit decomposition decision rather than automatic rejection', async () => {
   const quality = contract(); const table = responses(quality);
   const large = opts => { const value = table['validar:'](opts); value.qualityInventory.files[0].lines = 401; value.qualityInventory.files[0].bytes = 9000; return value; };

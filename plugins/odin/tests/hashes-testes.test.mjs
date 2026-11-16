@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -29,12 +29,13 @@ test('hash muda quando conteúdo muda',t=>{
  writeFileSync(join(root,'tests/a.js'),'abcd');const depois=run(root,['tests/a.js']);assert.equal(depois.status,0,depois.stderr);
  assert.notEqual(antes.json['tests/a.js'],depois.json['tests/a.js']);
 });
-test('arquivo ausente, traversal, path absoluto e symlink externo reprovam sem mapa parcial',t=>{
+test('traversal, path absoluto e symlink externo reprovam sem mapa parcial; arquivo ausente vira sentinela (3.0.3)',t=>{
  const root=fixture(t);writeFileSync(join(root,'fora.js'),'externo');symlinkSync('../fora.js',join(root,'tests/link.js'));
  // Link é interno ao projeto: permitido. O externo aponta para outro diretório.
  const externo=fixture(t);symlinkSync(externo,join(root,'externo'));
  assert.equal(run(root,['tests/link.js']).status,0);
- for(const paths of [['tests/a.js','sumiu.js'],['../fora.js'],[join(root,'tests/a.js')],['externo/tests/a.js']]){
+ const ausente=run(root,['tests/a.js','sumiu.js']);assert.equal(ausente.status,0,ausente.stderr);assert.equal(ausente.json['sumiu.js'],'ausente');
+ for(const paths of [['../fora.js'],[join(root,'tests/a.js')],['externo/tests/a.js']]){
   const r=run(root,paths);assert.equal(r.status,1);assert.equal(r.stdout,'');
  }
 });
@@ -66,4 +67,39 @@ test('CLI chamado por diretório symlink imprime também com --preserve-symlinks
   const r=spawnSync(process.execPath,[join(link,'hashes-testes.mjs'),'["tests/a.js"]'],{cwd:root,encoding:'utf8',env:{...process.env,NODE_OPTIONS}});
   assert.equal(r.status,0,r.stderr);assert.deepEqual(JSON.parse(r.stdout),run(root,['tests/a.js']).json,NODE_OPTIONS);
  }
+});
+
+// ── odin 3.0.3: sentinelas por caminho (A4) e o que não pode mudar (A5) ─────────────────────────
+// O apoio do portão entra no mesmo lote de hashes dos testes. Sem sentinela, uma fixture removida ou
+// uma pasta declarada derrubava o lote inteiro (exit 1) e virava `erro` de evidência no harness.
+test('A4: a CLI devolve ausente e nao-regular por caminho, com hash conferido para o arquivo, e sai 0',t=>{
+ const root=fixture(t);mkdirSync(join(root,'tests/pasta'));
+ const r=run(root,['tests/a.js','sumiu.js','tests/pasta','tests/a.js/dentro']);
+ assert.equal(r.status,0,r.stderr);
+ // Mesmo vetor do teste de SHA conhecido: SHA-256 de "abc" e a conferência calculada pelo zlib do Python.
+ assert.deepEqual(r.json,{'tests/a.js':'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad-2b61c175','sumiu.js':'ausente','tests/pasta':'nao-regular','tests/a.js/dentro':'ausente'});
+});
+test('A5: caminho inválido segue saindo 1 sem JSON, hashesDeTestes segue estrito e --impressao devolve o mesmo valor',async t=>{
+ const root=fixture(t);writeFileSync(join(root,'fora.js'),'externo');
+ const externo=fixture(t);symlinkSync(externo,join(root,'externo'));
+ for(const paths of [[join(root,'tests/a.js')],['../fora.js'],['tests/../fora.js'],['tests/a:b.js'],['tests\\a.js'],['externo/tests/a.js'],['tests/a.js','../fora.js'],['tests/a.js','tests/a:b.js']]){
+  const r=run(root,paths);assert.equal(r.status,1,JSON.stringify(paths));assert.equal(r.stdout,'',JSON.stringify(paths));
+ }
+ const { hashesDeTestes }=await import(pathToFileURL(SCRIPT).href);
+ const raiz=realpathSync(root);
+ assert.deepEqual(Object.keys(hashesDeTestes(['tests/a.js'],raiz)),['tests/a.js']);
+ assert.throws(()=>hashesDeTestes(['sumiu.js'],raiz),'arquivo inexistente continua lançando sem a opção de tolerância');
+ mkdirSync(join(root,'tests/pasta'));
+ assert.throws(()=>hashesDeTestes(['tests/pasta'],raiz),'pasta continua lançando sem a opção de tolerância');
+ // Árvore determinística: commit com identidade e datas fixas. O valor esperado foi gravado com o
+ // script da 3.0.2; mudar a impressão da mesma árvore invalidaria toda `validacaoAnterior` já registrada.
+ const dir=realpathSync(mkdtempSync(join(tmpdir(),'odin-hashes-fixa-')));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+ const env={...process.env,GIT_CONFIG_GLOBAL:'/dev/null',GIT_CONFIG_NOSYSTEM:'1',GIT_AUTHOR_NAME:'Fixture',GIT_AUTHOR_EMAIL:'fixture@example.invalid',GIT_COMMITTER_NAME:'Fixture',GIT_COMMITTER_EMAIL:'fixture@example.invalid',GIT_AUTHOR_DATE:'2026-01-01T00:00:00Z',GIT_COMMITTER_DATE:'2026-01-01T00:00:00Z'};
+ const git=(...args)=>{const g=spawnSync('git',args,{cwd:dir,env,encoding:'utf8'});assert.equal(g.status,0,g.stderr);};
+ git('init','-q');mkdirSync(join(dir,'tests'));writeFileSync(join(dir,'tests/a.js'),'abc');writeFileSync(join(dir,'LEIA.md'),'x\n');
+ git('add','.');git('-c','commit.gpgSign=false','-c','core.hooksPath=/dev/null','commit','-qm','fixa');
+ writeFileSync(join(dir,'novo.js'),'y\n');
+ const imp=spawnSync(process.execPath,[SCRIPT,'--impressao'],{cwd:dir,env,encoding:'utf8'});
+ assert.equal(imp.status,0,imp.stderr);
+ assert.deepEqual(JSON.parse(imp.stdout),{impressao:'82181a8d20e20695c749d985be66254cb7f7840c8e05b058575c4e50c1cdbc96-9b5ac0b0'});
 });

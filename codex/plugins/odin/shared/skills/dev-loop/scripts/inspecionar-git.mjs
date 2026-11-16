@@ -145,9 +145,34 @@ function sparseExcludedPaths(paths) {
     return true;
   }));
 }
-function qualityInventory(paths, root, base, pendingPath) {
+// odin 3.0.3: com core.ignoreCase=true o git trata `src/Novo.js` e `src/novo.js` como o mesmo arquivo,
+// mas o inventário comparava nomes byte a byte e reportava o pedido como ausente. Troca o pedido pelo
+// nome que o git conhece só quando há exatamente um nome igual sob dobra ASCII (dois ou nenhum seguem
+// ausentes) e devolve o par em `aliases`. Roda antes de toda guarda que consulta os pedidos.
+function canonicalizeRequestedPaths(paths, gitNames) {
+  let ignoreCase = false;
+  try { ignoreCase = git('config', '--bool', '--get', 'core.ignoreCase').trim() === 'true'; }
+  catch (error) { if (error.status !== 1) throw error; }
+  if (!ignoreCase) return { paths, aliases: [] };
+  const fold = value => value.replace(/[A-Z]/g, letter => letter.toLowerCase());
+  const byFold = new Map();
+  for (const name of gitNames) byFold.set(fold(name), [...(byFold.get(fold(name)) ?? []), name]);
+  const aliases = [];
+  const resolved = new Set();
+  for (const requested of paths) {
+    const same = byFold.get(fold(requested)) ?? [];
+    if (!gitNames.has(requested) && same.length === 1) {
+      aliases.push({ requested, path: same[0] });
+      resolved.add(same[0]);
+    } else resolved.add(requested);
+  }
+  return { paths: resolved, aliases };
+}
+function qualityInventory(requestedPaths, root, base, pendingPath) {
   const indexed = new Set(list(git('ls-files', '--cached', '-z')));
   const tracked = new Set([...indexed, ...list(git('ls-tree', '-r', '--name-only', '-z', base.sha))]);
+  const gitNames = new Set([...tracked, ...list(git('ls-files', '--others', '--exclude-standard', '-z'))]);
+  const { paths, aliases } = canonicalizeRequestedPaths(requestedPaths, gitNames);
   let excludedPending;
   // Até o diff de nomes pode ler arquivos para detectar alterações. Verificar os
   // ancestrais primeiro impede que um diretório trocado por symlink escape da raiz.
@@ -252,6 +277,7 @@ function qualityInventory(paths, root, base, pendingPath) {
     }
   }
   result.uninspected.sort();
+  if (aliases.length) result.aliases = aliases;
   return result;
 }
 try {

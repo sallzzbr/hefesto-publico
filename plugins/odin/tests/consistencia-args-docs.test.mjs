@@ -273,3 +273,77 @@ test('retomada de SPEC verifica associação e não presume branchBase já regis
   const nativa = readFileSync(join(CODEX, 'skills/entregar/SKILL.md'), 'utf8');
   assert.match(nativa, /3\. Leia[^\n]*execute primeiro[^\n]*antes de qualquer escrita/);
 });
+
+// ── odin 3.0.3 (A28): a correção do harness não cria arg e não deixa item sem par ───────────────
+// Código e docs se conferem nos DOIS sentidos: item do código sem documentação é capacidade que
+// ninguém usa, e item documentado sem código manda a sessão montar invocação que o harness recusa.
+// A 3.0.3 acrescenta a natureza `integridade-do-apoio` e a origem `apoio-intacto`, os campos
+// `aliases` e `linhasRemovidasAcumuladas` e nenhum arg, motivo ou modo de script novo.
+const ARGS_ACEITOS = ['autorizacoesTdd', 'baseRef', 'branch', 'hoje', 'modeloArquiteto', 'pendenciasPath', 'perfil', 'rebaselineTdd', 'scriptsDir', 'specPath', 'tiering', 'validacoes', 'vermelhoNaBase', 'workspaceRoot'];
+test('A28: nenhum arg novo; motivos, naturezas e modos de script do código e das docs coincidem, nos dois sentidos', () => {
+  // Args: o cabeçalho e as leituras do código são os da 3.0.2, e as docs citam os mesmos.
+  assert.deepEqual(argsDoCabecalho(), ARGS_ACEITOS, 'arg novo (ou removido) no cabeçalho do loop.mjs');
+  assert.deepEqual(argsLidosPeloCodigo(), ARGS_ACEITOS, 'arg novo (ou removido) lido pelo loop.mjs');
+  assert.deepEqual(diferenca(argsDaSkillClaude(), ARGS_ACEITOS), [], 'dev-loop/SKILL.md cita arg que o harness não tem');
+  const { obrigatorios, opcionais } = argsDoCodex();
+  assert.deepEqual(diferenca([...obrigatorios, ...opcionais], ARGS_ACEITOS), [], 'execucao.md cita arg que o harness não tem');
+  // Motivos de bloqueio: o que o código emite e o que cada distribuição lista.
+  const motivos = motivosComHifen();
+  const claude = kebabEntreCrases(recorte(SKILL, '- **`status: "bloqueado"`**', '- **`status: "escalado"`**'));
+  const codex = kebabEntreCrases(recorte(EXECUCAO, '- `bloqueado`', '- `escalado`'));
+  for (const [nome, citados] of [['dev-loop/SKILL.md', claude], ['execucao.md', codex]]) {
+    assert.deepEqual(diferenca(citados, motivos), [], `${nome} cita motivo que o harness não emite`);
+    assert.deepEqual(diferenca(motivos, citados), [], `${nome} omite motivo que o harness emite`);
+  }
+  // Naturezas: toda natureza do código está no bloco do escalado, e todo termo composto que o bloco
+  // cita é natureza, origem ou motivo que o código tem.
+  const naturezas = naturezasDoCodigo();
+  const origens = unicos([...LOOP.matchAll(/origem: '([a-z]+(?:-[a-z]+)*)'/g)].map((m) => m[1]));
+  const escalado = recorte(SKILL, '- **`status: "escalado"`**', '- **`status: "erro"`**');
+  assert.deepEqual(naturezas.filter((n) => !escalado.includes(`\`${n}\``)), [], 'natureza do código sem documentação no escalado');
+  assert.deepEqual(diferenca(kebabEntreCrases(escalado), [...naturezas, ...origens, ...motivos]), [], 'o escalado documenta termo que o código não tem');
+  // Modos de script: todo modo do código é citado nas docs de cada distribuição, e o inverso já
+  // está no caso "todo modo e flag de script citado nas docs".
+  const modos = modosDosScripts();
+  const todas = docsDoOdin();
+  for (const dist of ['plugins/odin', 'codex/plugins/odin']) {
+    const texto = todas.filter(([rel]) => rel.startsWith(dist)).map(([, t]) => t).join('\n');
+    for (const script of ['inspecionar-git', 'hashes-testes']) {
+      for (const modo of modos[script].modos) assert.ok(texto.includes(`${script}.mjs ${modo}`) || texto.includes(`${script}.mjs" ${modo}`), `${dist}: nenhuma doc cita "${script}.mjs ${modo}"`);
+    }
+    // O Codex cita o copia-base por link e pela forma curta: o script e o modo de limpeza bastam.
+    assert.ok(texto.includes('copia-base.mjs') && modos['copia-base'].modos.every((modo) => texto.includes(modo)), `${dist}: nenhuma doc cita copia-base.mjs e seus modos`);
+  }
+});
+
+// ── odin 3.0.4 (A27): recoleta e medição cedo não criam arg, motivo nem natureza ────────────────
+// A 3.0.4 acrescenta labels (`recoleta:...`, `spec:inventario`, `tdd:inventario`) e os campos de desfecho
+// `campo`, `chamada` e `recoleta`, mas nenhum arg, `motivo` ou natureza: as listas abaixo são as da 3.0.3,
+// congeladas aqui de propósito (lista lida do código não pegaria um item novo), e as docs das duas
+// distribuições continuam coincidindo com o código nos dois sentidos.
+const MOTIVOS_DA_3_0_3 = ['arquivos-fora-do-workspace', 'artefato-nao-rastreado', 'controle-vermelho', 'evidencia-invalida', 'implementacao-preexistente', 'nao-confirmado', 'sem-vermelho', 'tipo-divergente'];
+// 3.1.0 acrescenta `mutacao` (sobrevivente real da fase Mutar).
+const NATUREZAS_DA_3_0_3 = ['dependencia', 'evidencia', 'funcional', 'indeterminada', 'integridade-do-apoio', 'integridade-dos-testes', 'mutacao', 'peso-de-diff', 'procedimento', 'qualidade', 'revisao'];
+test('304-A27: args, motivos e naturezas são os da 3.0.3 e coincidem com as docs das duas distribuições, nos dois sentidos', () => {
+  assert.deepEqual(argsDoCabecalho(), ARGS_ACEITOS, 'arg novo (ou removido) no cabeçalho do loop.mjs');
+  assert.deepEqual(argsLidosPeloCodigo(), ARGS_ACEITOS, 'arg novo (ou removido) lido pelo loop.mjs');
+  assert.deepEqual(motivosComHifen(), MOTIVOS_DA_3_0_3, 'motivo novo (ou removido) no loop.mjs');
+  assert.deepEqual(motivosSemHifen(), ['ambiente'], 'motivo sem hífen novo (ou removido) no loop.mjs');
+  assert.deepEqual(naturezasDoCodigo(), NATUREZAS_DA_3_0_3, 'natureza nova (ou removida) no loop.mjs');
+  const claude = kebabEntreCrases(recorte(SKILL, '- **`status: "bloqueado"`**', '- **`status: "escalado"`**'));
+  const codex = kebabEntreCrases(recorte(EXECUCAO, '- `bloqueado`', '- `escalado`'));
+  for (const [nome, citados] of [['dev-loop/SKILL.md', claude], ['execucao.md', codex]]) {
+    assert.deepEqual(diferenca(citados, MOTIVOS_DA_3_0_3), [], `${nome} cita motivo que o harness não emite`);
+    assert.deepEqual(diferenca(MOTIVOS_DA_3_0_3, citados), [], `${nome} omite motivo que o harness emite`);
+  }
+  const escalado = recorte(SKILL, '- **`status: "escalado"`**', '- **`status: "erro"`**');
+  const origens = unicos([...LOOP.matchAll(/origem: '([a-z]+(?:-[a-z]+)*)'/g)].map((m) => m[1]));
+  assert.deepEqual(NATUREZAS_DA_3_0_3.filter((n) => !escalado.includes(`\`${n}\``)), [], 'natureza do código sem documentação no escalado');
+  assert.deepEqual(diferenca(kebabEntreCrases(escalado), [...NATUREZAS_DA_3_0_3, ...origens, ...MOTIVOS_DA_3_0_3]), [], 'o escalado documenta termo que o código não tem');
+  const modos = modosDosScripts();
+  for (const [rel, texto] of docsDoOdin()) {
+    for (const [, trecho] of texto.matchAll(/`([^`\n]+)`/g)) {
+      for (const m of trecho.matchAll(/(inspecionar-git|hashes-testes|copia-base)\.mjs"?\s+(--?[a-z]+|[a-z]+)/g)) assert.ok(modos[m[1]].modos.includes(m[2]), `${rel}: "${m[1]}.mjs ${m[2]}" não é modo do script`);
+    }
+  }
+});
