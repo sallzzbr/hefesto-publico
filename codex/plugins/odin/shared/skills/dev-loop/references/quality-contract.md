@@ -87,6 +87,7 @@ Evidência de `qualityReview`, `qualityExecutions`, `qualityInventory` ou `execu
 
 A validação independente usa `inspecionar-git.mjs quality <paths-json> [base [pendenciasPath]]` e devolve a saída
 literal em `qualityInventory`: `{files: [{path, lines, bytes, status}], uninspected, errors}`.
+`uninspected` e `errors` são copiados como o script os emite, sem nota do agente: checks `review` são do auditor e não entram em `qualityInventory` nem em `qualityExecutions`. Entrada de `uninspected` que não é caminho, ou erro que não começa por `<caminho>: ` de um caminho de `uninspected` (fora da recusa global), é transcrição e dispara a recoleta.
 Status `text`, `binary`, `deleted` ou `symlink`; excluídos têm linhas/bytes zero.
 Symlink interno para arquivo regular tem `lines: 0` e `bytes` positivos dos bytes reais
 de `readlink`, sem ler conteúdo do alvo. Diretório, dangling, loop, tipo especial, fuga

@@ -13,7 +13,7 @@ Oito plugins e 66 skills nativas Codex, distribuídos no [marketplace público H
 | TitBits | 11 | GDD, direção audiovisual, produção, playtests e aprendizados privados |
 | Iris | 2 | Prompts e briefs de delegação adequados ao modelo de destino |
 
-> Snapshot 6.2.0: oito plugins, 66 skills nesta distribuição. A instalação por tag abaixo requer esta versão publicada no espelho.
+> Snapshot 6.2.1: oito plugins, 66 skills nesta distribuição. A instalação por tag abaixo requer esta versão publicada no espelho.
 
 ## Instalação
 
@@ -29,7 +29,7 @@ O Codex lê o manifesto `.agents/plugins/marketplace.json` da raiz do repositór
 Para fixar uma release, registre o marketplace a partir de um checkout da tag:
 
 ```sh
-git clone --branch v6.2.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v6.2.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add .
 codex plugin add hefesto@hefesto

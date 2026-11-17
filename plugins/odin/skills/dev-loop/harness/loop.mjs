@@ -909,12 +909,17 @@ function inventarioUtilizavel(inv, pedidos) {
   const omitidos = pedidos.filter(p => !nomes.includes(p) && !inv.uninspected.includes(p) && !(inv.aliases || []).some(a => objetoPlano(a) && a.requested === p))
   const defeituosos = inv.files.filter(f => !arquivoDeInventarioBemFormado(f)).map(f => objetoPlano(f) ? String(f.path) : String(f))
   const repetidos = [...new Set(nomes.filter((n, i) => nomes.indexOf(n) !== i))]
-  if (defeituosos.length || repetidos.length || omitidos.length) throw new Error(`${diagnosticoDoInventario(inv, omitidos)}${defeituosos.length ? ` Itens de files mal formados: ${defeituosos.join(', ')}.` : ''}${repetidos.length ? ` Caminhos repetidos em files: ${repetidos.join(', ')}.` : ''}`)
+  // 3.1.1: fora da recusa global, o script só põe caminhos em uninspected e cada erro começa por
+  // `<caminho>: ` de um caminho de uninspected. Nota do agente nessas listas é transcrição, não saída.
+  const naoCaminhos = inv.uninspected.filter(p => typeof p !== 'string' || pathNoWorkspace(p) !== p)
+  const errosSemCaminho = inv.errors.filter(e => typeof e !== 'string' || !inv.uninspected.some(p => typeof p === 'string' && e.startsWith(`${p}: `)))
+  if (defeituosos.length || repetidos.length || omitidos.length || naoCaminhos.length || errosSemCaminho.length) throw new Error(`${diagnosticoDoInventario(inv, omitidos)}${defeituosos.length ? ` Itens de files mal formados: ${defeituosos.join(', ')}.` : ''}${repetidos.length ? ` Caminhos repetidos em files: ${repetidos.join(', ')}.` : ''}${naoCaminhos.length ? ` Entradas de uninspected que não são caminho (o script só lista caminhos ali): ${naoCaminhos.map(p => JSON.stringify(p)).join('; ')}.` : ''}${errosSemCaminho.length ? ` Entradas de errors sem o caminho correspondente em uninspected (o script só emite "<caminho>: <motivo>"): ${errosSemCaminho.map(e => JSON.stringify(e)).join('; ')}.` : ''}`)
   return inv
 }
 const pedidoDeInventario = (paths, pendencias, falha = null) => `Execute somente este comando, sem editar nada, e cole em qualityInventory o JSON literal do stdout (inclusive quando sair 1: recusa e erro por caminho fazem parte do JSON). Só execute e copie, não edite nada: não reconcilie, não omita erro nem invente medida. Não execute filtros ou conversores Git.${falha ? `
     A resposta anterior não serviu: ${falha}
-    Confira que todo caminho pedido aparece em files, em uninspected ou em aliases[].requested, e que cada item de files tem path, lines, bytes e status.` : ''}
+    Confira que todo caminho pedido aparece em files, em uninspected ou em aliases[].requested, e que cada item de files tem path, lines, bytes e status.
+    Copie uninspected e errors como o script os emite, sem nota sua: checks \`review\` são do auditor e não entram em qualityInventory.` : ''}
     \`\`\`bash
     ${comandoInventario(paths, pendencias)}
     \`\`\``
@@ -1766,9 +1771,10 @@ ${listaDeTestes}
     identifique alvo e resultado. Exit 0 sem alvo/relatório não prova qualidade.
     Falha de comando de qualidade também entra em falhas, com natureza e evidencia: funcional
     segue correção; ambiente exige causa operacional; relato ausente/incoerente é erro de evidência.
-    Cole em qualityInventory o JSON literal deste inventário seguro; reconcilie uninspected,
-    sem omitir erro nem inventar medida. A lista inclui arquivos autorizados, testes, apoio e SPEC;
-    extras exigem reconciliação explícita com o escopo. Nunca inclua notas privadas automaticamente.
+    Cole em qualityInventory o JSON literal deste inventário seguro; copie uninspected e errors como o script os emite,
+    sem nota sua, sem omitir erro nem inventar medida. A lista inclui arquivos autorizados, testes, apoio e SPEC;
+    extras ficam em uninspected como o script os lista e o controlador os confronta com o escopo. Nunca inclua notas privadas automaticamente.
+    Checks \`review\` são do auditor e não entram em qualityInventory nem em qualityExecutions.
     Não execute filtros ou conversores Git.
     \`\`\`bash
     ${comandoInventario(qualityInventoryPaths, qualityPendingPath)}

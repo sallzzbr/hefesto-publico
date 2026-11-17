@@ -8,7 +8,7 @@ O repo é um **marketplace** que publica oito plugins: **hefesto** (a forja de p
 
 > **Migração v3**: as skills de voz (`escrever-como-autor`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
 
-> Snapshot 6.2.0: oito plugins, 64 skills Claude e 66 skills Codex, com Iris 0.1.2. A instalação por tag abaixo requer esta versão publicada no espelho. O Bragir usa `escrever-como-autor` e exige perfil preenchido fora do pacote.
+> Snapshot 6.2.1: oito plugins, 64 skills Claude e 66 skills Codex, com Iris 0.1.2. A instalação por tag abaixo requer esta versão publicada no espelho. O Bragir usa `escrever-como-autor` e exige perfil preenchido fora do pacote.
 
 ## Como instalar no Codex
 
@@ -24,7 +24,7 @@ Para atualizar depois, rode `codex plugin marketplace upgrade` e abra uma nova s
 Para fixar uma release, registre o marketplace a partir de um checkout da tag:
 
 ```sh
-git clone --branch v6.2.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v6.2.1 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add .
 codex plugin add hefesto@hefesto

@@ -4073,3 +4073,76 @@ test('304-F5: alvo do contrato ausente e arquivo de produção acima de 400 linh
   assert.ok(findings.some(f => f.origem === 'inventario-quality' && f.natureza === 'funcional' && JSON.stringify(f).includes('src/a.js')), `alvo ausente: ${JSON.stringify(findings)}`);
   assert.ok(findings.some(f => f.origem === 'inventario-quality' && f.natureza === 'qualidade' && JSON.stringify(f).includes('src/b.js')), `tamanho: ${JSON.stringify(findings)}`);
 });
+
+// 3.1.1: run wf_a8f187f3-e1d. O mecânico pôs uma nota em qualityInventory.uninspected, onde o script só
+// emite caminhos. O inventário passava como utilizável e caía no `erro` genérico, sem recoleta.
+const NOTA_EM_UNINSPECTED = 'Checks required de revisão sem command (Q-NAMES, Q-COMMENTS, Q-BOUNDARIES, Q-COHESION, Q-ERRORS, Q-PROJECT): não há comando mecânico; dependem de revisão humana/auditor e não foram executados aqui.';
+const INVENTARIO_COM_NOTA = () => inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: [NOTA_EM_UNINSPECTED], errors: [] });
+test('311-R1: texto livre em qualityInventory.uninspected dispara a recoleta única, com a entrada no prompt, e o run fecha verde', async () => {
+  const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+    'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: INVENTARIO_COM_NOTA() }),
+    'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_COM(...INVENTARIO_OK) }),
+  } });
+  assert.equal(resultado.status, 'verde', JSON.stringify(resultado.detalhe ?? resultado));
+  assert.equal(resultado.iteracoes, 1);
+  const recoleta = chamadaUnica(chamadas, 'recoleta:quality-inventory:i1');
+  assert.equal(recoleta.opts.agentType, 'odin:operario');
+  assert.ok(semOComando(recoleta.prompt).includes('Q-NAMES, Q-COMMENTS'), 'o prompt da recoleta mostra a entrada que não é caminho');
+  assert.match(semOComando(recoleta.prompt), /uninspected/);
+});
+
+test('311-R2: texto livre em uninspected também na recoleta é erro nomeado (campo, chamada, recoleta e ação), nunca o genérico', async () => {
+  const casos = [
+    ['recoleta também com texto livre', { 'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_COM_NOTA() }) }, /recoleta: /],
+    ['recoleta que não retorna', {}, /a recoleta não retornou/],
+  ];
+  for (const [nome, extra, padrao] of casos) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: { 'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: INVENTARIO_COM_NOTA() }), ...extra } });
+    assertSegundaFalha(resultado, chamadas, { fase: 'Validar', campo: 'qualityInventory', chamada: 'validar:i1', recoleta: 'recoleta:quality-inventory:i1', lista: true }, nome);
+    assert.match(resultado.detalhe.join(' | '), padrao, nome);
+    assert.match(resultado.detalhe.join(' | '), /uninspected/, `${nome}: o detalhe nomeia a lista`);
+    assert.doesNotMatch(resultado.acao, /^Completar evidência de qualidade/, nome);
+  }
+});
+
+test('311-R3: nota em errors sem caminho correspondente em uninspected, ou entrada não textual em uninspected, dispara a recoleta e o run fecha verde', async () => {
+  const variantes = [
+    ['nota em errors', () => inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: [], errors: ['Checks de revisão não executados: dependem do auditor'] }), 'Checks de revisão não executados'],
+    ['erro de caminho que não está em uninspected', () => inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: [], errors: ['outro/x.js: arquivo ausente ou ignorado: outro/x.js'] }), 'outro/x.js'],
+    ['entrada não textual em uninspected', () => inventarioLiteral({ files: INVENTARIO_OK.map(linhaInventario), uninspected: [{ nota: 'Q-NAMES' }], errors: [] }), 'Q-NAMES'],
+  ];
+  for (const [nome, invalido, trecho] of variantes) {
+    const { resultado, chamadas } = await rodar({ args: ARGS, overrides: {
+      'validar:': o => ({ ...DEFAULTS['validar:'](o), qualityInventory: invalido() }),
+      'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_COM(...INVENTARIO_OK) }),
+    } });
+    assert.equal(resultado.status, 'verde', `${nome}: ${JSON.stringify(resultado.detalhe ?? resultado)}`);
+    assert.equal(resultado.iteracoes, 1, nome);
+    const recoleta = chamadaUnica(chamadas, 'recoleta:quality-inventory:i1');
+    assert.ok(semOComando(recoleta.prompt).includes(trecho), `${nome}: o prompt mostra a entrada recusada`);
+  }
+});
+
+test('311-R4: nota em uninspected na fase Spec é recolhida; segunda falha é erro nomeado na fase Spec, sem TDD', async () => {
+  const comNota = () => ({ qualityInventory: inventarioLiteral({ files: ['src/a.js', SPEC_PATH].map(linhaInventario), uninspected: [NOTA_EM_UNINSPECTED], errors: [] }) });
+  const valida = await rodar({ args: ARGS, overrides: { 'spec:inventario': comNota, 'recoleta:quality-inventory:': () => ({ qualityInventory: INVENTARIO_COM('src/a.js', SPEC_PATH) }) } });
+  assert.equal(valida.resultado.status, 'verde', JSON.stringify(valida.resultado.detalhe ?? valida.resultado));
+  assert.ok(semOComando(chamadaUnica(valida.chamadas, 'recoleta:quality-inventory:spec').prompt).includes('Q-NAMES, Q-COMMENTS'));
+  const persistente = await rodar({ args: ARGS, overrides: { 'spec:inventario': comNota, 'recoleta:quality-inventory:': comNota } });
+  assertSegundaFalha(persistente.resultado, persistente.chamadas, { fase: 'Spec', campo: 'qualityInventory', chamada: 'spec:inventario', recoleta: 'recoleta:quality-inventory:spec' }, 'nota também na recoleta');
+  assert.ok(!persistente.chamadas.some(c => c.label === 'tdd:portao'));
+});
+
+test('311-R5: o pedido da Validar e as docs mandam copiar o inventário como o script emite, sem reconciliar, e deixam os checks review fora', async () => {
+  const { chamadas } = await rodar({ args: ARGS });
+  const pedido = promptDe(chamadas, 'validar:i1');
+  assert.doesNotMatch(pedido, /reconcili/i, 'o pedido não manda reconciliar');
+  assert.match(pedido, /uninspected e errors como o script os emite/);
+  assert.match(pedido, /checks `review` são do auditor e não entram em qualityInventory nem em qualityExecutions/i);
+  const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+  for (const doc of ['plugins/odin/skills/dev-loop/references/quality-contract.md', 'codex/plugins/odin/skills/dev-loop/references/execucao.md']) {
+    const texto = readFileSync(resolve(raiz, doc), 'utf8');
+    assert.doesNotMatch(texto, /Reconcilie `uninspected`/, doc);
+    assert.match(texto, /checks `review` são do auditor e não entram em `qualityInventory` nem em `qualityExecutions`/i, doc);
+  }
+});
