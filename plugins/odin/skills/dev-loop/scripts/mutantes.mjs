@@ -24,20 +24,16 @@
 // Linha de comentário e texto entre aspas não geram mutante; o resíduo (regex, JSX, genéricos) vira
 // sobrevivente que o confirmador de equivalência descarta. `<` e `>` soltos só valem com espaço dos
 // dois lados, para não tocar em seta, genérico e anotação de tipo.
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { accessSync, chmodSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, posix, relative, resolve } from 'node:path';
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { dirname, join, posix, relative, resolve } from 'node:path';
+import { crc32 } from './crc32.mjs';
+import { dentro, git, gitEnv as env, lstatExiste, parseOptionPairs, relativoSeguro, resolveCopyParent, writeGitBlocker } from './copia-descartavel.mjs';
 
 const LIMITE = 20;
 const TIMEOUT_PADRAO = 120;
 const ELEGIVEL = /\.(?:js|mjs|cjs|ts|tsx|jsx|py)$/;
-const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0' };
-const git = (args, opcoes = {}) => execFileSync('git', ['-c', 'core.fsmonitor=false', '-c', 'core.quotepath=false', ...args], {
-  env, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'], ...opcoes,
-});
-const lstatExiste = p => { try { lstatSync(p); return true; } catch { return false; } };
 // Só arquivo regular de texto UTF-8 conta e vira mutante: link simbólico seria lido pelo alvo (que pode
 // estar fora do workspace) e binário não tem linha a mutar.
 const textoRegular = p => {
@@ -45,8 +41,6 @@ const textoRegular = p => {
   const bytes = readFileSync(p);
   return !bytes.includes(0) && Buffer.from(bytes.toString('utf8'), 'utf8').equals(bytes);
 };
-const dentro = (base, alvo) => { const r = relative(base, alvo); return r === '' || (!isAbsolute(r) && r !== '..' && !r.startsWith('../') && !r.startsWith('..\\')); };
-const relativoSeguro = p => typeof p === 'string' && p.trim() && p === p.trim() && !isAbsolute(p) && !/[:\\\x00-\x1f]/.test(p) && !p.split('/').some(x => x === '..' || x.toLowerCase() === '.git');
 const listaJson = (texto, nome, { vazio, item, descricao }) => {
   let v;
   try { v = JSON.parse(texto); } catch { throw new Error(`${nome}: JSON inválido`); }
@@ -54,28 +48,11 @@ const listaJson = (texto, nome, { vazio, item, descricao }) => {
   return v;
 };
 
-// CRC-32 (IEEE) em JS puro, byte a byte igual ao `crc32` de `harness/loop.mjs` (o harness não
-// importa módulos): unidade UTF-16 abaixo de 256 vale um byte, as demais dois.
-function crc32(texto) {
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < texto.length; i++) {
-    const u = texto.charCodeAt(i);
-    for (const b of u < 256 ? [u] : [u & 0xFF, u >>> 8]) {
-      c ^= b;
-      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1));
-    }
-  }
-  return ((c ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0');
-}
 const ordenado = v => Array.isArray(v) ? v.map(ordenado)
   : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, ordenado(v[k])])) : v;
 
 function opcoes(resto) {
-  const o = {};
-  for (let i = 0; i < resto.length; i += 2) {
-    if (!['--vincular', '--pai', '--max', '--timeout', '--prioridade'].includes(resto[i]) || resto[i + 1] === undefined) throw new Error(`opção inválida: ${resto[i]}`);
-    o[resto[i].slice(2)] = resto[i + 1];
-  }
+  const o = parseOptionPairs(resto, ['--vincular', '--pai', '--max', '--timeout', '--prioridade']);
   const inteiro = (nome, padrao) => {
     if (o[nome] === undefined) return padrao;
     if (!/^[1-9]\d*$/.test(o[nome])) throw new Error(`--${nome}: inteiro positivo esperado`);
@@ -250,14 +227,7 @@ function arquivosDaWorktree() {
 }
 
 function criarCopia(root, arquivos, opts) {
-  const pai = resolve(opts.pai ?? tmpdir());
-  if (!existsSync(pai)) throw new Error(`diretório pai da cópia não existe: ${pai}`);
-  try { accessSync(pai, constants.W_OK); } catch (e) { throw new Error(`diretório pai da cópia não é gravável: ${pai} (${e.code}); isto é ambiente. Passe --pai <dir gravável>.`); }
-  // Dentro do workspace só em diretório ignorado pelo Git: senão a cópia vira arquivo novo da entrega.
-  if (dentro(root, realpathSync(pai))) {
-    try { git(['check-ignore', '-q', relative(root, realpathSync(pai)) || '.']); }
-    catch { throw new Error(`diretório pai da cópia dentro do workspace precisa ser ignorado pelo Git: ${pai}. Passe --pai <dir ignorado ou fora do workspace>.`); }
-  }
+  const pai = resolveCopyParent(root, opts.pai);
   const dir = realpathSync(mkdtempSync(join(pai, 'odin-mutar-')));
   copiaAtual = dir;
   try {
@@ -282,9 +252,7 @@ function criarCopia(root, arquivos, opts) {
       if (lstatExiste(join(dir, p))) continue;
       symlinkSync(origem, join(dir, p), process.platform === 'win32' ? 'junction' : undefined);
     }
-    // Sem .git própria, `git` rodado na cópia subiria ao repositório que a contém; o gitfile inválido
-    // faz o git falhar ali em vez de operar no índice e nas refs do projeto.
-    writeFileSync(join(dir, '.git'), 'odin: copia descartavel sem repositorio\n');
+    writeGitBlocker(dir);
     return dir;
   } catch (e) {
     rmSync(dir, { recursive: true, force: true });

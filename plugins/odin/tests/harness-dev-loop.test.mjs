@@ -1142,7 +1142,7 @@ test('R1: comando que não roda o próprio arquivo protegido por hash bloqueia a
   assert.ok(!chamadas.some((c) => c.label === 'tdd:vermelho'));
 });
 
-// 2026-11-13: três runs do munin (unittest) morreram neste bloqueio porque o pedido do portão não
+// 2026-11-13: runs de um projeto com unittest morreram neste bloqueio porque o pedido do portão não
 // dizia o que a conferência cobra. O operário seguia o costume do projeto (módulo pontilhado) e o
 // run parava sem medir nada. O pedido declara a exigência, e o bloqueio ensina a forma por arquivo.
 const TESTE_PY = 'tests/unidades/test_mod.py';
@@ -2860,7 +2860,7 @@ test('parada por ambiente preserva histórico anterior e acrescenta a iteração
 });
 
 // ── Caminhos relatados por agente (odin 3.0.2) ───────────────────────────────
-// Run wf_9dd8d7f9-e7d (munin, onda 3.2-B, 2026-11-13): os operários relataram arquivosTocados com
+// Cenário (2026-11-13): os operários relataram arquivosTocados com
 // o caminho absoluto da worktree. O harness juntou esses caminhos crus ao inventário de qualidade,
 // o `inspecionar-git.mjs quality` recusou ("path de qualidade inválido") e o run terminou em
 // `erro` na fase Validar antes de a falha funcional voltar ao operário. A regra: todo caminho

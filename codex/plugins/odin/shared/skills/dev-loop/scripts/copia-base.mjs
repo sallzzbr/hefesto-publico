@@ -14,34 +14,14 @@
 // faz a cópia importar a implementação; isso aparece como teste verde na base e bloqueia
 // (direção segura), nunca como vermelho falso.
 import { execFileSync } from 'node:child_process';
-import { accessSync, chmodSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, posix, relative, resolve } from 'node:path';
+import { dentro, git, gitEnv, lstatExiste, parseOptionPairs, relativoSeguro as relativoSeguroComum, resolveCopyParent, writeGitBlocker } from './copia-descartavel.mjs';
 import { hashesDeTestes } from './hashes-testes.mjs';
 
 const MARCA = '.odin-copia-base';
-const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0' };
-const git = (args, extraEnv = {}) => execFileSync('git', ['-c', 'core.fsmonitor=false', ...args], {
-  env: { ...env, ...extraEnv }, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'],
-});
-const dentro = (base, alvo) => { const r = relative(base, alvo); return r === '' || (!isAbsolute(r) && r !== '..' && !r.startsWith('../') && !r.startsWith('..\\')); };
-const lstatExiste = p => { try { lstatSync(p); return true; } catch { return false; } };
-const relativoSeguro = p => typeof p === 'string' && p.trim() && p === p.trim() && !isAbsolute(p) && !/[:\\\x00-\x1f]/.test(p) && !p.split('/').some(x => x === '..' || x.toLowerCase() === '.git' || x === MARCA);
-
-function opcoes(resto) {
-  const o = {};
-  for (let i = 0; i < resto.length; i += 2) {
-    if (!['--pai', '--vincular', '--apoio'].includes(resto[i]) || resto[i + 1] === undefined) throw new Error(`opção inválida: ${resto[i]}`);
-    o[resto[i].slice(2)] = resto[i + 1];
-  }
-  return o;
-}
-
-function gravavel(dir, origem) {
-  if (!existsSync(dir)) throw new Error(`diretório pai da cópia não existe: ${dir} (${origem}). Crie-o ou passe --pai <dir gravável>.`);
-  try { accessSync(dir, constants.W_OK); }
-  catch (e) { throw new Error(`diretório pai da cópia não é gravável: ${dir} (${e.code}; ${origem}). Passe --pai <dir gravável fora do workspace> ou ajuste TMPDIR; isto é ambiente, não falha do teste.`); }
-}
+// A marca da cópia também não vale como componente de path vindo de fora.
+const relativoSeguro = p => relativoSeguroComum(p) && !p.split('/').includes(MARCA);
 
 function criar(ref, testesJson, resto) {
   const root = realpathSync(git(['rev-parse', '--show-toplevel']).trim());
@@ -51,7 +31,7 @@ function criar(ref, testesJson, resto) {
   if (!/^[0-9a-f]{40,64}$/.test(sha)) throw new Error(`ref não resolve para commit: ${ref}`);
   const testes = JSON.parse(testesJson);
   if (!Array.isArray(testes) || !testes.length || !testes.every(relativoSeguro)) throw new Error('testes: array JSON não vazio de paths relativos');
-  const o = opcoes(resto);
+  const o = parseOptionPairs(resto, ['--pai', '--vincular', '--apoio']);
   const vincular = o.vincular === undefined ? [] : JSON.parse(o.vincular);
   if (!Array.isArray(vincular) || !vincular.every(relativoSeguro)) throw new Error('--vincular: array JSON de paths relativos');
   // Apoio do portão TDD (helpers, fixtures): sobreposto como os testes, sem hash de proteção.
@@ -68,13 +48,7 @@ function criar(ref, testesJson, resto) {
     return [p, origem];
   });
 
-  const pai = resolve(o.pai ?? tmpdir());
-  gravavel(pai, o.pai ? '--pai' : 'TMPDIR/tmpdir do sistema');
-  // Dentro do workspace só em diretório ignorado pelo Git: senão a cópia vira arquivo novo na entrega.
-  if (dentro(root, realpathSync(pai))) {
-    try { git(['check-ignore', '-q', relative(root, realpathSync(pai)) || '.']); }
-    catch { throw new Error(`diretório pai da cópia (${o.pai ? '--pai' : 'TMPDIR/tmpdir do sistema'}) dentro do workspace precisa ser ignorado pelo Git: ${pai}. Passe --pai <dir ignorado ou fora do workspace>.`); }
-  }
+  const pai = resolveCopyParent(root, o.pai);
   const dir = realpathSync(mkdtempSync(join(pai, 'odin-base-')));
   try {
     writeFileSync(join(dir, MARCA), JSON.stringify({ ref, sha, workspace: root }) + '\n');
@@ -97,7 +71,7 @@ function criar(ref, testesJson, resto) {
       }
       const destino = join(dir, p);
       if (lstatExiste(destino)) throw new Error(`colisão de caminhos na base: ${p}`);
-      const bytes = execFileSync('git', ['cat-file', 'blob', oid], { env, maxBuffer: 64 * 1024 * 1024, timeout: 120000 });
+      const bytes = execFileSync('git', ['cat-file', 'blob', oid], { env: gitEnv, maxBuffer: 64 * 1024 * 1024, timeout: 120000 });
       if (modo === '120000') symlinkSync(bytes.toString('utf8'), destino);
       else { writeFileSync(destino, bytes, { flag: 'wx' }); chmodSync(destino, modo === '100755' ? 0o755 : 0o644); }
     }
@@ -125,11 +99,8 @@ function criar(ref, testesJson, resto) {
       symlinkSync(origem, destinoSeguro(p), process.platform === 'win32' ? 'junction' : undefined);
       vinculados.push(p);
     }
-    // Sem .git própria, `git` rodado na cópia subia até o repositório que a contém (ex.: --pai
-    // ignorado dentro do workspace) e operava no índice e nas refs do projeto. Um gitfile
-    // inválido por sintaxe faz o git falhar aqui em vez de subir; nenhum path da base pode
-    // transformá-lo em um repositório válido.
-    writeFileSync(join(dir, '.git'), 'odin: copia descartavel sem repositorio\n');
+    // O --pai pode ser um diretório ignorado dentro do workspace: sem o bloqueador, git na cópia subiria até ele.
+    writeGitBlocker(dir);
     return {
       dir, ref, sha, testes: copiados, apoio: apoioCopiado, vinculados,
       hashesDosTestes: hashesDeTestes(copiados, dir),

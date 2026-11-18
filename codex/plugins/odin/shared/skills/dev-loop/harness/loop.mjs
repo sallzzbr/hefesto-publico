@@ -426,7 +426,8 @@ async function chamarOperario(step, prompt, opts) {
 }
 
 // Revisor é opus SEMPRE (MODELOS_STEP não permite outro modelo) — só o effort é configurável.
-const chamarRevisor = (step, prompt, extra) => { registrarExec(step, 'opus'); return tentar(prompt, { ...REVISOR, ...(TIERING[step].effort ? { effort: TIERING[step].effort } : {}), ...extra }) }
+const agenteDoRevisor = step => ({ ...REVISOR, ...(TIERING[step].effort ? { effort: TIERING[step].effort } : {}) })
+const chamarRevisor = (step, prompt, extra) => { registrarExec(step, 'opus'); return tentar(prompt, { ...agenteDoRevisor(step), ...extra }) }
 // Agente das recoletas de campo do mecânico (3.0.4): o piso do papel, com o effort do step `validar`.
 const agenteDoValidar = () => ({ ...OPERARIO, ...(TIERING.validar.effort ? { effort: TIERING.validar.effort } : {}) })
 
@@ -613,9 +614,9 @@ function pathNoWorkspace(relatado) {
   if (/[:\\]/.test(key) || key.split('/').includes('..')) return null;
   return pathCanonico(key);
 }
-// CRC-32 (IEEE) em JS puro — o sandbox não tem crypto nem Buffer. Mesmo algoritmo, byte a byte,
-// do `crc32` de `scripts/hashes-testes.mjs` (este script não importa nada): unidade UTF-16
-// abaixo de 256 entra como um byte, as demais como byte baixo e byte alto.
+// CRC-32 (IEEE) em JS puro — o sandbox não tem crypto nem Buffer. Cópia de `scripts/crc32.mjs` (este
+// script não importa nada): unidade UTF-16 abaixo de 256 entra como um byte, as demais como byte baixo
+// e byte alto. `tests/scripts-comuns.test.mjs` compara as duas.
 function crc32(texto) {
   let c = 0xFFFFFFFF;
   for (let i = 0; i < texto.length; i++) {
@@ -809,7 +810,7 @@ if (PENDENCIAS !== null && arquivosDeUnidade.some(a => !a.endsWith('/') && pathC
 // Diretório de unidade pode conter pendências legítimas, mas também código novo. Sem
 // prova de separação não se reaproveita verde e o path conta na detecção de implementação.
 const pendenciasNaAreaDeTrabalho = PENDENCIAS !== null && emArquivoDeUnidade(PENDENCIAS)
-const EXCLUIDOS_IMPRESSAO = [pathNoWorkspace(ARGS.specPath)].filter(Boolean)
+const EXCLUIDOS_IMPRESSAO = [qualitySpecPath].filter(Boolean)
 const EXCLUIDOS_NAO_RASTREADOS = PENDENCIAS !== null && !EXCLUIDOS_IMPRESSAO.includes(PENDENCIAS) ? [PENDENCIAS] : []
 const rotuloTipo = id => TIPOS[id] === 'preservacao' ? 'preservação' : 'reprodução'
 // Escopo que os args deste run declaram para exceção humana ou rebaseline. O que de fato fica
@@ -857,7 +858,7 @@ function revisaoDeQualidadeValida(revisao, inv) {
   for (const id of new Set(ids.filter((x, i) => ids.indexOf(x) !== i))) problemas.push(`${id}: ID repetido em qualityReview`)
   for (const id of new Set(ids.filter(x => !checks.some(c => c.id === x)))) problemas.push(`${String(id)}: ID fora do contrato`)
   for (const c of checks) if (!ids.includes(c.id)) problemas.push(`${c.id}: sem entrada em qualityReview`)
-  const specPath = pathNoWorkspace(ARGS.specPath)
+  const specPath = qualitySpecPath
   for (const r of convertida) {
     const check = checks.find(c => c.id === r?.id)
     if (!check) continue
@@ -1290,7 +1291,7 @@ ${listaDeTestes}
   const altOk = !!alt && !textoCheio(alt.erro) && Array.isArray(alt.alterados) && Array.isArray(alt.adicionados)
   const listaDoGit = l => [...new Set(l.filter(textoCheio).map(p => pathCanonico(p)))]
   const adicionadosDesdeABase = new Set(altOk ? listaDoGit(alt.adicionados) : [])
-  const naoImplementacao = new Set([...testesDaSpec, ...apoioDoTdd, pathNoWorkspace(ARGS.specPath), PENDENCIAS !== null && !pendenciasNaAreaDeTrabalho && adicionadosDesdeABase.has(PENDENCIAS) ? PENDENCIAS : null].filter(Boolean))
+  const naoImplementacao = new Set([...testesDaSpec, ...apoioDoTdd, qualitySpecPath, PENDENCIAS !== null && !pendenciasNaAreaDeTrabalho && adicionadosDesdeABase.has(PENDENCIAS) ? PENDENCIAS : null].filter(Boolean))
   const alteradosAntes = altOk ? listaDoGit(alt.alterados).filter(p => !naoImplementacao.has(p)) : []
   implementacaoPreexistente = { detectada: altOk ? alteradosAntes.length > 0 : null, comparadoCom: alt && typeof alt.comparadoCom === 'string' ? alt.comparadoCom : null, arquivos: alteradosAntes,
     ...(altOk ? {} : { erro: alt && textoCheio(alt.erro) ? alt.erro : 'alterações não reportadas pela execução independente' }) }
@@ -1659,8 +1660,8 @@ while (iteracao < MAX_ITERACOES && !verde) {
 
   // Caminhos relatados (3.0.2): arquivosTocados alimenta o inventário de qualidade e o diff dos
   // revisores, e os dois scripts só aceitam caminho relativo. Absoluto sob a raiz vira relativo
-  // aqui, uma vez; o que não é do workspace bloqueia antes de gastar validação. No run
-  // wf_9dd8d7f9-e7d o caminho cru chegou ao inventário e o run morreu em `erro` na fase Validar.
+  // aqui, uma vez; o que não é do workspace bloqueia antes de gastar validação. Sem isso o caminho
+  // cru chegava ao inventário e o run morria em `erro` na fase Validar.
   const arquivosForaDoWorkspace = []
   for (const r of resultados) {
     if (!Array.isArray(r.arquivosTocados)) continue
@@ -1694,9 +1695,9 @@ while (iteracao < MAX_ITERACOES && !verde) {
   for (const r of resultados) for (const p of (r.arquivosTocados || [])) arquivosParaRevisao.add(p)
   // Só do relato: o que veio de arquivosTocados e não é teste, apoio, SPEC nem alvo aprovado do
   // contrato. É o que pode virar correção de relato no inventário (abaixo).
-  const naoSaoDoRelato = new Set([...testesDaSpec, ...apoioDoTdd, pathNoWorkspace(ARGS.specPath), ...qualityContract.checks.filter(c => c.applicability === 'required').flatMap(c => c.paths)])
+  const naoSaoDoRelato = new Set([...testesDaSpec, ...apoioDoTdd, qualitySpecPath, ...alvosDoContrato])
   for (const r of resultados) for (const p of (r.arquivosTocados || [])) if (!naoSaoDoRelato.has(p)) relatadosPeloOperario.add(p)
-  const qualityTargets = [...new Set([...qualityContract.checks.filter(c => c.applicability === 'required').flatMap(c => c.paths), ...[...arquivosParaRevisao].filter(p => !testesDaSpec.includes(p))])]
+  const qualityTargets = [...new Set([...alvosDoContrato, ...[...arquivosParaRevisao].filter(p => !testesDaSpec.includes(p))])]
   const qualityInventoryPaths = [...new Set([...qualityTargets, ...testesDaSpec, ...apoioDoTdd, ...(qualitySpecPath === null ? [] : [qualitySpecPath])])]
   const qualityPendingPath = PENDENCIAS !== null && !pendenciasNaAreaDeTrabalho && !qualityInventoryPaths.includes(PENDENCIAS) ? PENDENCIAS : null
 
@@ -1916,7 +1917,7 @@ ${expectedCommands.map(c => `        - ${c.id}: comando \`${c.command}\` sobre $
   const protegidosDoPortao = new Set([...testesDaSpec, ...apoioDoTdd, qualitySpecPath].filter(Boolean))
   // Inventário que lista o mesmo caminho em `files` e em `errors` é incoerente: continua erro nomeado,
   // não vira correção ao operário por um alvo que o próprio script diz ter medido.
-  const ehAlvoAusente = p => p !== null && alvosDoContrato.has(p) && !protegidosDoPortao.has(p) && !(objetoPlano(inventory) && Array.isArray(inventory.files) && inventory.files.some(f => objetoPlano(f) && f.path === p))
+  const ehAlvoAusente = p => p !== null && alvosDoContrato.has(p) && !protegidosDoPortao.has(p) && !inventory.files.some(f => f.path === p)
 
   // Nome canônico do git (3.0.3): `aliases` só existe quando o script trocou um pedido pelo nome que o
   // git conhece (core.ignoreCase=true e pedido que difere só na caixa). Cada par é validado antes de
@@ -1925,11 +1926,10 @@ ${expectedCommands.map(c => `        - ${c.id}: comando \`${c.command}\` sobre $
   // volta como ausente, citando o nome do git. Teste, apoio e SPEC com alias são erro nomeado.
   const nomesCanonicos = new Map()
   const errosDeAlias = []
-  if (objetoPlano(inventory) && inventory.aliases !== undefined) {
-    const nomesDoInventario = new Set(Array.isArray(inventory.files) ? inventory.files.filter(objetoPlano).map(f => f.path) : [])
+  if (inventory.aliases !== undefined) {
+    const nomesDoInventario = new Set(inventory.files.map(f => f.path))
     const dobraAscii = t => t.replace(/[A-Z]/g, c => c.toLowerCase())
-    if (!Array.isArray(inventory.aliases)) errosDeAlias.push('aliases deve ser lista de {requested, path}')
-    else for (const a of inventory.aliases) {
+    for (const a of inventory.aliases) {
       const nome = objetoPlano(a) ? `${a.requested} -> ${a.path}` : JSON.stringify(a)
       const motivo = !objetoPlano(a) || !textoCheio(a.requested) || !textoCheio(a.path) ? 'par sem requested e path textuais'
         : !qualityInventoryPaths.includes(a.requested) ? 'o harness não pediu esse caminho ao inventário'
@@ -1961,36 +1961,32 @@ ${expectedCommands.map(c => `        - ${c.id}: comando \`${c.command}\` sobre $
   // só com `nao-regular`. Sem sentinela correspondente, ou com outro erro, o diagnóstico do script
   // segue valendo (teste ausente sem medida continua erro).
   const sentinelasConfirmadas = new Set()
-  if (objetoPlano(inventory) && Array.isArray(inventory.errors)) {
-    const restantes = inventory.errors.filter(e => {
-      const m = /^([^:]+): (arquivo ausente ou ignorado|arquivo não regular): (.+)$/.exec(String(e))
-      const medida = m && hashesAgora[m[1]]
-      if (!m || m[1] !== m[3] || !pathsComHash.includes(m[1]) || !(medida === 'nao-regular' || (medida === 'ausente' && m[2] !== 'arquivo não regular'))) return true
-      sentinelasConfirmadas.add(m[1])
-      return false
-    })
-    if (sentinelasConfirmadas.size) inventory = { ...inventory, errors: restantes, ...(Array.isArray(inventory.uninspected) ? { uninspected: inventory.uninspected.filter(p => !sentinelasConfirmadas.has(p)) } : {}) }
-  }
-  if (objetoPlano(inventory) && Array.isArray(inventory.files) && Array.isArray(inventory.uninspected) && Array.isArray(inventory.errors)) {
-    const ausentes = inventory.errors.map(e => { const m = /^([^:]+): arquivo ausente ou ignorado: (.+)$/.exec(String(e)); return m && m[1] === m[2] ? m[1] : null })
-    const naoRelatados = inventory.uninspected.filter(p => typeof p === 'string' && !ausentes.includes(p) && !pedidosCanonicos.includes(p) && pathNoWorkspace(p) === p)
-    const restante = inventory.uninspected.filter(p => !ausentes.includes(p) && !naoRelatados.includes(p))
-    if (ausentes.every(p => p !== null && (relatadosPeloOperario.has(p) || ehAlvoAusente(p))) && restante.length === 0 && ausentes.length + naoRelatados.length > 0) {
-      for (const p of ausentes) {
-        if (ehAlvoAusente(p)) { correcoesDeRelato.push({ path: p, tipo: 'alvo-ausente' }); continue }
-        correcoesDeRelato.push({ path: p, tipo: 'ausente' }); arquivosParaRevisao.delete(p); relatadosPeloOperario.delete(p)
-      }
-      // Não relatado que já voltou como correção e reaparece não é relato: é artefato que a
-      // validação recria (cache, saída de teste). Repetir a correção só gastaria o teto.
-      const reincidentes = naoRelatados.filter(p => naoRelatadosJaCorrigidos.has(p))
-      if (reincidentes.length > 0) {
-        return { quality: qualityReport, status: 'bloqueado', fase: 'Validar', motivo: 'artefato-nao-rastreado', iteracao, artefatos: reincidentes, detalhe: `arquivo não rastreado reaparece na worktree depois da correção ao operário: ${reincidentes.join(', ')}`, historico: historicoFalhas, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), tdd: relatorioTdd(),
-          acao: 'é provável que a validação ou um teste gere esse arquivo a cada rodada. Conferir o que o cria: se é artefato, incluí-lo no .gitignore do projeto; se faz parte da entrega, declará-lo na SPEC. Depois iniciar run novo. Nenhum agente apaga esse arquivo.' }
-      }
-      for (const p of naoRelatados) { correcoesDeRelato.push({ path: p, tipo: 'nao-relatado' }); naoRelatadosJaCorrigidos.add(p) }
-      inventory = { ...inventory, uninspected: [], errors: [] }
-      log(`Relato de arquivos da iteração ${iteracao} não fecha com a worktree: ${correcoesDeRelato.map(c => `${c.path} (${c.tipo})`).join(', ')}; volta como correção`)
+  const restantes = inventory.errors.filter(e => {
+    const m = /^([^:]+): (arquivo ausente ou ignorado|arquivo não regular): (.+)$/.exec(String(e))
+    const medida = m && hashesAgora[m[1]]
+    if (!m || m[1] !== m[3] || !pathsComHash.includes(m[1]) || !(medida === 'nao-regular' || (medida === 'ausente' && m[2] !== 'arquivo não regular'))) return true
+    sentinelasConfirmadas.add(m[1])
+    return false
+  })
+  if (sentinelasConfirmadas.size) inventory = { ...inventory, errors: restantes, uninspected: inventory.uninspected.filter(p => !sentinelasConfirmadas.has(p)) }
+  const ausentes = inventory.errors.map(e => { const m = /^([^:]+): arquivo ausente ou ignorado: (.+)$/.exec(String(e)); return m && m[1] === m[2] ? m[1] : null })
+  const naoRelatados = inventory.uninspected.filter(p => !ausentes.includes(p) && !pedidosCanonicos.includes(p))
+  const restante = inventory.uninspected.filter(p => !ausentes.includes(p) && !naoRelatados.includes(p))
+  if (ausentes.every(p => p !== null && (relatadosPeloOperario.has(p) || ehAlvoAusente(p))) && restante.length === 0 && ausentes.length + naoRelatados.length > 0) {
+    for (const p of ausentes) {
+      if (ehAlvoAusente(p)) { correcoesDeRelato.push({ path: p, tipo: 'alvo-ausente' }); continue }
+      correcoesDeRelato.push({ path: p, tipo: 'ausente' }); arquivosParaRevisao.delete(p); relatadosPeloOperario.delete(p)
     }
+    // Não relatado que já voltou como correção e reaparece não é relato: é artefato que a
+    // validação recria (cache, saída de teste). Repetir a correção só gastaria o teto.
+    const reincidentes = naoRelatados.filter(p => naoRelatadosJaCorrigidos.has(p))
+    if (reincidentes.length > 0) {
+      return { quality: qualityReport, status: 'bloqueado', fase: 'Validar', motivo: 'artefato-nao-rastreado', iteracao, artefatos: reincidentes, detalhe: `arquivo não rastreado reaparece na worktree depois da correção ao operário: ${reincidentes.join(', ')}`, historico: historicoFalhas, consultas: consultasLog, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ponytail: ponytailAteAgora(), tdd: relatorioTdd(),
+        acao: 'é provável que a validação ou um teste gere esse arquivo a cada rodada. Conferir o que o cria: se é artefato, incluí-lo no .gitignore do projeto; se faz parte da entrega, declará-lo na SPEC. Depois iniciar run novo. Nenhum agente apaga esse arquivo.' }
+    }
+    for (const p of naoRelatados) { correcoesDeRelato.push({ path: p, tipo: 'nao-relatado' }); naoRelatadosJaCorrigidos.add(p) }
+    inventory = { ...inventory, uninspected: [], errors: [] }
+    log(`Relato de arquivos da iteração ${iteracao} não fecha com a worktree: ${correcoesDeRelato.map(c => `${c.path} (${c.tipo})`).join(', ')}; volta como correção`)
   }
   const bloqueanteDeRelato = c => c.tipo === 'alvo-ausente' ? {
     arquivo: c.path,
@@ -2004,11 +2000,11 @@ ${expectedCommands.map(c => `        - ${c.id}: comando \`${c.command}\` sobre $
     severidade: 'bloqueante', confianca: 'confirmado', origem: 'inventario-quality', natureza: 'procedimento',
   }
   const pedidosAoInventario = pedidosCanonicos.filter(p => !sentinelasConfirmadas.has(p) && !correcoesDeRelato.some(c => (c.tipo === 'ausente' || c.tipo === 'alvo-ausente') && c.path === p))
-  if (!inventarioEmLista(inventory) || inventory.uninspected.length || inventory.errors.length || inventory.files.some(f => !arquivoDeInventarioBemFormado(f)) || new Set(inventory.files.map(f => f.path)).size !== inventory.files.length || pedidosAoInventario.some(p => !inventory.files.some(f => f.path === p))) {
+  if (inventory.uninspected.length || inventory.errors.length || pedidosAoInventario.some(p => !inventory.files.some(f => f.path === p))) {
     // Diagnóstico com o que o script disse e o que faltou (3.0.2): a frase genérica sozinha não
     // separava relato inválido de arquivo ausente nem de transcrição incompleta. Aqui o inventário já é
     // utilizável (3.0.4): sobra o diagnóstico do próprio script (recusa global, erro de caminho alheio).
-    const omitidos = objetoPlano(inventory) && Array.isArray(inventory.files) ? pedidosAoInventario.filter(p => !inventory.files.some(f => objetoPlano(f) && f.path === p)) : qualityInventoryPaths
+    const omitidos = pedidosAoInventario.filter(p => !inventory.files.some(f => f.path === p))
     qualityErrors.push(diagnosticoDoInventario(inventory, omitidos))
   }
   if (qualityErrors.length) return { status: 'erro', fase: 'Validar', iteracao, detalhe: qualityErrors, quality: qualityReport, tdd: relatorioTdd(), acao: 'Completar evidência de qualidade; não converter omissão em sucesso.' }
@@ -2148,7 +2144,7 @@ ${expectedCommands.map(c => `        - ${c.id}: comando \`${c.command}\` sobre $
   try {
     qualityReview = await evidenciaComRecoleta({
       campo: 'qualityReview', valor: auditoria.qualityReview, valida: v => revisaoDeQualidadeValida(v, inventory), label: rotuloRecoletaRevisao, fase: 'Auditar', step: 'auditoria',
-      agente: { ...REVISOR, ...(TIERING.auditoria.effort ? { effort: TIERING.auditoria.effort } : {}) },
+      agente: agenteDoRevisor('auditoria'),
       pedir: falha => ({
         prompt: `Recoleta de qualityReview da auditoria ponytail da branch ${ARGS.branch} (iteração ${iteracao}): o controlador recusou a revisão que você devolveu. Devolva SÓ qualityReview, a lista inteira (uma entrada por check do contrato), corrigindo o que falhou e mantendo o que serviu.
         Problemas por check: ${falha}

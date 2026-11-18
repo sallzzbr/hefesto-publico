@@ -3,6 +3,10 @@
 > Histórico anterior à 2.4.6 vive nos commits do repositório privado; o espelho público nasce
 > com histórico fresco a cada release, e este arquivo é o que sobrevive à travessia.
 
+## 3.1.2
+
+- Dev-loop: limpeza sem mudança de comportamento do harness. Os scripts passam a importar dois módulos comuns em `skills/dev-loop/scripts/`: `crc32.mjs` (a conferência CRC-32, antes copiada em `hashes-testes.mjs` e `mutantes.mjs`) e `copia-descartavel.mjs` (git sem fsmonitor, `dentro`, `relativoSeguro`, pares de opção, escolha do diretório pai e o gitfile que bloqueia o git na cópia, antes duplicados entre `copia-base.mjs` e `mutantes.mjs`). A cópia do CRC em `harness/loop.mjs` fica, porque o script de Workflow não importa módulos, e um teste compara as duas. No harness, o caminho da SPEC e os alvos do contrato deixam de ser recalculados, a composição do agente revisor vem de uma função só e saem as guardas de forma do inventário que `inventarioUtilizavel` já tornava inalcançáveis. `inspecionar-git.mjs quality` lê `core.ignoreCase` uma vez. Duas diferenças visíveis, aprovadas pelo dono: os erros do `--pai` de `mutantes.mjs` usam o texto de `copia-base.mjs` (com a origem e a dica de ambiente), e `copia-base.mjs` aceita saída do git até 256 MB, como `mutantes.mjs` (antes falhava acima de 16 MB). Sem arg, motivo, natureza ou dependência novos.
+
 ## 3.1.1
 
 - Dev-loop: nota do agente no inventário deixa de virar `erro` genérico. Entrada de `qualityInventory.uninspected` que não é caminho, ou mensagem de `errors` que não começa por `<caminho>: ` de um caminho de `uninspected` (fora da recusa global), passa a disparar a recoleta única da 3.0.4, na validação e nas medições `spec:inventario` e `tdd:inventario`, com a entrada recusada no prompt; na segunda falha o desfecho é `erro` com `campo`, `chamada`, `recoleta` e `acao` de run novo. O pedido da validação deixa de mandar reconciliar `uninspected`: manda copiar as duas listas como o script as emite e diz que checks `review` são do auditor e não entram em `qualityInventory` nem em `qualityExecutions`. Caso real: run `wf_a8f187f3-e1d`, Validar i2. Sem arg, motivo, natureza ou dependência novos.

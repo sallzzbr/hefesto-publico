@@ -286,3 +286,12 @@ test('A3: --prioridade põe o mutante pendente (mesmo path, trecho e troca) na a
   assert.notEqual(invalida.status, 0, '--prioridade sem trecho e troca é argumento inválido');
   assert.equal(invalida.stdout.trim(), '');
 });
+
+test('312-R4: --pai inexistente sai com a mensagem de copia-base, com a origem, sem JSON', t => {
+  const r = repo(t);
+  r.escrever('src/novo.js', NOVO_JS);
+  const p = medir(r.root, 'HEAD', [], ['node -e "0"'], '--pai', join(r.root, 'nao-existe'));
+  assert.notEqual(p.status, 0);
+  assert.equal(p.stdout.trim(), '');
+  assert.match(p.stderr, /diretório pai da cópia não existe: .*nao-existe \(--pai\)\. Crie-o ou passe --pai <dir gravável>\./);
+});

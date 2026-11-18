@@ -83,7 +83,7 @@ function validateGitAncestors(path, root) {
     if (!stat.isDirectory() && !stat.isSymbolicLink()) throw new Error(`ancestral não é diretório: ${path}`);
   }
 }
-function sparseExcludedPaths(paths) {
+function sparseExcludedPaths(paths, ignoreCase) {
   if (!paths.length) return new Set();
   const options = { env: { ...env, LC_ALL: 'C' }, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 15000 };
   const checked = spawnSync('git', ['sparse-checkout', 'check-rules', '-z'], { ...options, input: paths.join('\0') + '\0' });
@@ -101,12 +101,10 @@ function sparseExcludedPaths(paths) {
   const unavailable = checked.status === 129 && checked.stdout === '' &&
     /^error: unknown subcommand: `check-rules'\nusage: git sparse-checkout [^\n]+\n\n?$/.test(checked.stderr);
   if (!unavailable) throw new Error(`sparse check-rules falhou: ${checked.stderr || checked.status}`);
-  let cone = false, ignoreCase = false;
+  let cone = false;
   try { cone = git('config', '--bool', '--get', 'core.sparseCheckoutCone').trim() === 'true'; }
   catch (error) { if (error.status !== 1) throw error; }
   if (!cone) throw new Error('sparse não-cone exige Git com check-rules; subcomando indisponível');
-  try { ignoreCase = git('config', '--bool', '--get', 'core.ignoreCase').trim() === 'true'; }
-  catch (error) { if (error.status !== 1) throw error; }
   const listed = spawnSync('git', ['sparse-checkout', 'list'], options);
   if (listed.error || listed.signal || listed.status !== 0 || listed.stderr) {
     throw listed.error ?? new Error(`sparse list sem prova válida: ${listed.stderr || listed.signal || listed.status}`);
@@ -149,10 +147,7 @@ function sparseExcludedPaths(paths) {
 // mas o inventário comparava nomes byte a byte e reportava o pedido como ausente. Troca o pedido pelo
 // nome que o git conhece só quando há exatamente um nome igual sob dobra ASCII (dois ou nenhum seguem
 // ausentes) e devolve o par em `aliases`. Roda antes de toda guarda que consulta os pedidos.
-function canonicalizeRequestedPaths(paths, gitNames) {
-  let ignoreCase = false;
-  try { ignoreCase = git('config', '--bool', '--get', 'core.ignoreCase').trim() === 'true'; }
-  catch (error) { if (error.status !== 1) throw error; }
+function canonicalizeRequestedPaths(paths, gitNames, ignoreCase) {
   if (!ignoreCase) return { paths, aliases: [] };
   const fold = value => value.replace(/[A-Z]/g, letter => letter.toLowerCase());
   const byFold = new Map();
@@ -172,7 +167,11 @@ function qualityInventory(requestedPaths, root, base, pendingPath) {
   const indexed = new Set(list(git('ls-files', '--cached', '-z')));
   const tracked = new Set([...indexed, ...list(git('ls-tree', '-r', '--name-only', '-z', base.sha))]);
   const gitNames = new Set([...tracked, ...list(git('ls-files', '--others', '--exclude-standard', '-z'))]);
-  const { paths, aliases } = canonicalizeRequestedPaths(requestedPaths, gitNames);
+  // Lido uma vez: vale para a canonicalização dos pedidos e para o fallback sparse cone.
+  let ignoreCase = false;
+  try { ignoreCase = git('config', '--bool', '--get', 'core.ignoreCase').trim() === 'true'; }
+  catch (error) { if (error.status !== 1) throw error; }
+  const { paths, aliases } = canonicalizeRequestedPaths(requestedPaths, gitNames, ignoreCase);
   let excludedPending;
   // Até o diff de nomes pode ler arquivos para detectar alterações. Verificar os
   // ancestrais primeiro impede que um diretório trocado por symlink escape da raiz.
@@ -235,7 +234,7 @@ function qualityInventory(requestedPaths, root, base, pendingPath) {
     });
     if (!bytes.equals(indexedBytes)) throw new Error(`${diagnostic}: bytes alterados`);
   }
-  const sparseExcluded = sparseExcludedPaths([...new Set(sparseCandidates)]);
+  const sparseExcluded = sparseExcludedPaths([...new Set(sparseCandidates)], ignoreCase);
   for (const path of sparseCandidates) {
     if (!sparseExcluded.has(path)) throw new Error(`flag Git skip-worktree ou assume-unchanged no índice: ${path}: ausência dentro das regras sparse`);
   }

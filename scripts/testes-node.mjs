@@ -26,13 +26,14 @@ const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PLUGINS = join(RAIZ, 'plugins');
 
 // Pisos anti-regressão, não metas. Suba junto ao adicionar suíte.
-// Muralha de verificação, odin 3.1.0 (2026-11-15): 49 arquivos públicos descobertos recursivamente.
-const PISO_ARQUIVOS = 49;
+// Limpeza do dev-loop, odin 3.1.2 (2026-11-17): 50 arquivos públicos descobertos recursivamente.
+const PISO_ARQUIVOS = 50;
 // Suítes da Forja e guards do repositório; arquivos complementam o piso de testes.
 const PISO_ARQUIVOS_HEFESTO = 8;
 // Contagem medida em 2026-11-14 (odin 3.0.2): 1171 testes públicos e 126 da publicação. Sobre 1158: +13 do harness do dev-loop (caminhos relatados por agente: arquivosTocados absoluto sob a raiz vira relativo e a falha funcional volta ao operário, arquivosTocados fora do workspace bloqueia na implementação, apoio fora do workspace bloqueia o TDD, apoio absoluto sob a raiz vira relativo, evidência de qualityReview absoluta normalizada e fora do workspace recusada nomeando o caminho, erro do inventário com o diagnóstico do script; relato que não fecha com a worktree: arquivo relatado inexistente e arquivo novo não relatado viram correção, relato persistente escala no teto, erro do script fora do relato segue erro, não relatado reincidente bloqueia como artefato e a correção nunca manda apagar).
 // Contagem medida em 2026-11-13 (odin 3.0.1): 1158 testes públicos e 126 da publicação. Sobre 1156: +2 do harness do dev-loop (o pedido do portão TDD declara a exigência do caminho do arquivo no comando, com exemplo de unittest, e unittest por arquivo com -k chega à medição).
 // Contagem medida em 2026-11-11 (decisões do dono, segunda rodada do PR 20): 1156 testes públicos e 126 da publicação. Sobre 1152: +4 do harness (segmentos por rota na mesma execução, lista de segmentos recusada quando inválida, fidelidade_mockup coagida a bloqueante e logRender com marcadores); a publicação segue com 126 (casos reescritos, não somados). Os casos novos de preflight são Python.
+// Contagem medida em 2026-11-17 (odin 3.1.2): 1296 testes públicos e 126 da publicação. Sobre 1292: +4 dos módulos comuns dos scripts do dev-loop (CRC-32 contra oráculo zlib, cópia do harness igual ao módulo, utilitários da cópia descartável, mensagem do --pai de mutantes.mjs igual à de copia-base.mjs).
 // Contagem medida em 2026-11-16 (odin 3.1.1): 1292 testes públicos e 126 da publicação. Sobre 1287: +5 do harness do dev-loop (nota do agente em qualityInventory.uninspected ou errors dispara a recoleta na validação e na fase Spec, segunda falha nomeada, pedido e docs sem "reconcilie").
 // Contagem medida em 2026-11-16 (revisão da odin 3.1.0): 1287 testes públicos e 126 da publicação. Sobre 1275: +12 dos achados da revisão adversarial (pedido de medição em segundo plano, amostra espalhada um por linha, trecho no mutante, --prioridade, sobrevivente real retido até prova: na prioridade, sumido bloqueia, reforço pela mesma troca com id novo, nao-medida não fecha verde; reforço só aceito com mortoPor igual ao comando dele, mortoPor obrigatório e coerente na evidência, sinal limpa a cópia e o comando em andamento, link simbólico e binário fora das linhas acrescentadas, --vincular nunca escreve através de link da cópia).
 // Contagem medida em 2026-11-15 (odin 3.1.0): 1275 testes públicos e 126 da publicação, em 49 arquivos. Sobre 1237: +38 da muralha de verificação (script `mutantes.mjs` rodando de verdade num repositório git temporário, fase Mutar pelo harness embrulhado com agente falso, relatório `mutacao`, `paraConferir` e `numeros`, critérios Dado/Quando/Então e contratos de documentação). Os 2 arquivos novos são `mutantes.test.mjs` e `harness-mutar.test.mjs`.
@@ -50,7 +51,7 @@ const PISO_ARQUIVOS_HEFESTO = 8;
 // do odin dava 23 reais + 2 passes de arquivo vazio = 25, e passava. Verificado.
 // Ao adicionar teste, o piso continua satisfeito; ao remover de propósito, baixe aqui no
 // mesmo commit e diga por quê.
-const PISO_TESTES = 1292;
+const PISO_TESTES = 1296;
 // Publicador e suíte são privados. O package privado solicita a flag; o scrub a
 // remove do package público. Path literal ausente falha, sem skip por existência.
 const PISO_TESTES_PUBLICACAO = 126;

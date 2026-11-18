@@ -549,6 +549,14 @@
       "target": "plugins/odin/shared/skills/dev-loop/scripts/copia-base.mjs"
     },
     {
+      "source": "plugins/odin/skills/dev-loop/scripts/copia-descartavel.mjs",
+      "target": "plugins/odin/shared/skills/dev-loop/scripts/copia-descartavel.mjs"
+    },
+    {
+      "source": "plugins/odin/skills/dev-loop/scripts/crc32.mjs",
+      "target": "plugins/odin/shared/skills/dev-loop/scripts/crc32.mjs"
+    },
+    {
       "source": "plugins/odin/skills/dev-loop/scripts/hashes-testes.mjs",
       "target": "plugins/odin/shared/skills/dev-loop/scripts/hashes-testes.mjs"
     },

@@ -3,26 +3,15 @@
 //
 // Contrato fixado AQUI (a SPEC diz "CRC-32 da serialização canônica do resto" sem escolher a forma):
 //   - serialização canônica = JSON com as chaves de todo objeto em ordem alfabética, sem espaços;
-//   - `conferencia` = CRC-32 (o mesmo do harness: unidade UTF-16 abaixo de 256 vale um byte, as demais
-//     dois) dessa serialização do objeto SEM o campo `conferencia`, em 8 dígitos hexadecimais minúsculos;
+//   - `conferencia` = CRC-32 (o de `scripts/crc32.mjs`, igual à cópia do harness: unidade UTF-16 abaixo
+//     de 256 vale um byte, as demais dois) dessa serialização do objeto SEM o campo `conferencia`, em 8 dígitos hexadecimais minúsculos;
 //   - `mutantes[].resultado`: 'morto' ou 'sobrevivente';
 //   - o mecânico devolve ao harness o JSON do script nos campos de topo da resposta.
 // O teste do script real (`mutantes.test.mjs`) confere a mesma definição contra a saída do script, então
 // o harness e o script não podem divergir sem um dos dois reprovar.
 import { hashDeApoio, legacyDefaults, pathsDoComandoDeHashes, completarHashesDeApoio } from './quality-fixtures.mjs';
 import { readFileSync } from 'node:fs';
-
-export function crc32(texto) {
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < texto.length; i++) {
-    const u = texto.charCodeAt(i);
-    for (const b of u < 256 ? [u] : [u & 0xFF, u >>> 8]) {
-      c ^= b;
-      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1));
-    }
-  }
-  return ((c ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0');
-}
+import { crc32 } from '../../skills/dev-loop/scripts/crc32.mjs';
 
 const ordenado = v => Array.isArray(v) ? v.map(ordenado)
   : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, ordenado(v[k])])) : v;

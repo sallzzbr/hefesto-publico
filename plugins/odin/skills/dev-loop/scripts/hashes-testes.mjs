@@ -33,20 +33,8 @@ import { execFileSync } from 'node:child_process';
 import { lstatSync, readFileSync, readlinkSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
-// CRC-32 (IEEE) de `path\nsha`. Mesmo algoritmo, byte a byte, do `crc32` de `harness/loop.mjs`
-// (o harness não importa nada): unidade UTF-16 abaixo de 256 entra como um byte, as demais
-// como byte baixo e byte alto. `tests/harness-dev-loop.test.mjs` roda os dois juntos.
-function crc32(texto) {
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < texto.length; i++) {
-    const u = texto.charCodeAt(i);
-    for (const b of u < 256 ? [u] : [u & 0xFF, u >>> 8]) {
-      c ^= b;
-      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1));
-    }
-  }
-  return ((c ^ 0xFFFFFFFF) >>> 0).toString(16).padStart(8, '0');
-}
+// Conferência de cada valor: CRC-32 de `path\nsha` (ou `worktree\nsha`), o mesmo do harness.
+import { crc32 } from './crc32.mjs';
 // `opcoes.sentinelas` (odin 3.0.3, só a CLI usa): caminho sintaticamente válido e dentro do projeto,
 // mas inexistente (ENOENT/ENOTDIR) ou não regular, vira `ausente` / `nao-regular` em vez de derrubar o
 // lote inteiro. Sem a opção o export segue estrito. Path inválido ou fora do projeto lança sempre.
