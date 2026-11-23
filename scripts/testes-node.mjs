@@ -27,7 +27,7 @@ const PLUGINS = join(RAIZ, 'plugins');
 
 // Pisos anti-regressão, não metas. Suba junto ao adicionar suíte.
 // Limpeza do dev-loop, odin 3.1.2 (2026-11-17): 50 arquivos públicos descobertos recursivamente.
-const PISO_ARQUIVOS = 51;
+const PISO_ARQUIVOS = 52;
 // Suítes da Forja e guards do repositório; arquivos complementam o piso de testes.
 const PISO_ARQUIVOS_HEFESTO = 8;
 // Contagem medida em 2026-11-14 (odin 3.0.2): 1171 testes públicos e 126 da publicação. Sobre 1158: +13 do harness do dev-loop (caminhos relatados por agente: arquivosTocados absoluto sob a raiz vira relativo e a falha funcional volta ao operário, arquivosTocados fora do workspace bloqueia na implementação, apoio fora do workspace bloqueia o TDD, apoio absoluto sob a raiz vira relativo, evidência de qualityReview absoluta normalizada e fora do workspace recusada nomeando o caminho, erro do inventário com o diagnóstico do script; relato que não fecha com a worktree: arquivo relatado inexistente e arquivo novo não relatado viram correção, relato persistente escala no teto, erro do script fora do relato segue erro, não relatado reincidente bloqueia como artefato e a correção nunca manda apagar).
@@ -51,7 +51,7 @@ const PISO_ARQUIVOS_HEFESTO = 8;
 // do odin dava 23 reais + 2 passes de arquivo vazio = 25, e passava. Verificado.
 // Ao adicionar teste, o piso continua satisfeito; ao remover de propósito, baixe aqui no
 // mesmo commit e diga por quê.
-const PISO_TESTES = 1313;
+const PISO_TESTES = 1323;
 // Publicador e suíte são privados. O package privado solicita a flag; o scrub a
 // remove do package público. Path literal ausente falha, sem skip por existência.
 const PISO_TESTES_PUBLICACAO = 126;

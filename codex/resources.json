@@ -1019,6 +1019,14 @@
     {
       "source": "plugins/higeia/scripts/verificar-claude-mem.py",
       "target": "plugins/higeia/shared/scripts/verificar-claude-mem.py"
+    },
+    {
+      "source": "plugins/higeia/scripts/hook-sessao.mjs",
+      "target": "plugins/higeia/shared/scripts/hook-sessao.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/temporarios.py",
+      "target": "plugins/higeia/shared/scripts/temporarios.py"
     }
   ]
 }

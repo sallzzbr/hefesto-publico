@@ -35,3 +35,14 @@ O coletor lê o registro de imagens e os dispositivos do CoreSimulator. Compara 
 Use `node scripts/diagnostico.mjs uv --executavel "<nome>" --root "<projeto>"`. As raízes repetíveis indicam quais ambientes de projeto conferir. Sem filtro, o coletor investiga todos os ambientes Python sob `archive-v0`. Ele cruza os links dos índices do uv, as instalações da ferramenta, executáveis do usuário, as pastas `.venv` indicadas, o ambiente ativo e uma amostra dos arquivos abertos visíveis ao usuário no macOS. Mostra composição, referências, motivos e GB por classe. A análise mantém fontes diretas e itens adicionais na raiz para revisão individual. A medição expressa uma hipótese de recriação, sujeita à disponibilidade das dependências e à preservação do estado do consumidor. O coletor só lê arquivos e metadados.
 
 Para executar as provas de Claude-Mem, rode `python3 -B scripts/verificar-claude-mem.py` e forneça o JSON do modo uv a `python3 -B scripts/provar-ambientes-uv.py` pela entrada padrão. Para preparar uma lista exata de aparelhos e imagens, rode `node scripts/plano-ios.mjs "<modelo a manter>" "<versão do iOS>"`. Os três comandos produzem evidência em leitura. A skill descreve como verificar o consumidor e medir o ganho após uma retirada autorizada.
+
+## Rascunhos por sessão
+
+No macOS e Linux, Codex e Claude Code recebem uma instrução em `SessionStart` para criar cada arquivo descartável com o comando `novo` fornecido pelo hook. Ele cria um arquivo vazio numa pasta privada do usuário e registra um segundo link para o mesmo arquivo. O próximo `Stop` normal recolhe esse rascunho se a identidade conferir. Uma sessão que apenas faz diagnósticos dispensa a criação de reservas. São necessários Node.js 22+, Python 3.8+ e suporte a hard links no volume temporário.
+
+- **Entrega** — grave o resultado no projeto ou mova o rascunho para o destino final antes de concluir. Se a resposta apontar para uma reserva ou para a pasta da sessão, o hook retém o arquivo e pede ao agente que confira o destino e atualize o link.
+- **Trabalho entre turnos ou em segundo plano** — aplique `reter CAMINHO` antes de iniciar e `liberar CAMINHO` quando terminar. O Claude pode informar trabalho em segundo plano no evento de parada. Nesse caso a coleta aguarda outro turno.
+- **Interrupção** — o inventário reaparece na retomada da mesma sessão, enquanto o sistema mantiver a pasta temporária. Use `listar` para conferi-lo. Um arquivo substituído por uma gravação atômica fica para revisão.
+- **Cobertura** — a limpeza alcança arquivos criados pelo reservador. Pastas de build, arquivos anteriores e temporários de outras ferramentas ficam fora da coleta. Os diagnósticos continuam disponíveis no Windows.
+
+Abra uma nova sessão após instalar ou atualizar o plugin. No Codex, confira a habilitação e a confiança dos dois hooks em `/hooks`. No Claude Code, use `/hooks` para conferir a origem. O modo de diagnóstico não requer executar nenhum comando do reservador.

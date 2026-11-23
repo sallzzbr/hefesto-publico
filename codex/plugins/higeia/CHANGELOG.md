@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0 — 2026-11-23
+
+- Os hooks de sessão reservam e recolhem rascunhos individuais no macOS e Linux. Arquivos retidos ficam disponíveis na retomada e entregas movidas para o projeto são preservadas.
+
 ## 0.5.0 — 2026-11-23
 
 - Confere a busca semântica do Claude-Mem, testa o erro de cada ambiente Chroma do uv e gera o plano de simuladores por modelo, versão e identificador.

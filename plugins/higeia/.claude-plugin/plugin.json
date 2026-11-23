@@ -4,8 +4,8 @@
     "url": "https://github.com/sallzzbr"
   },
   "name": "higeia",
-  "version": "0.5.0",
-  "description": "Diagnóstico em leitura de ambientes de IA, worktrees, caches de desenvolvimento e simuladores.",
+  "version": "0.6.0",
+  "description": "Diagnóstico local de IA e desenvolvimento, com limpeza de rascunhos registrados pela própria sessão.",
   "license": "MIT",
   "repository": "https://github.com/sallzzbr/hefesto-publico",
   "keywords": [

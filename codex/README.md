@@ -14,7 +14,7 @@ O checkout em desenvolvimento reúne nove plugins e 69 skills nativas Codex dest
 | Higeia | 3 | Diagnóstico local de IA, worktrees, caches e simuladores |
 | Iris | 2 | Prompts e briefs de delegação adequados ao modelo de destino |
 
-> Snapshot 6.4.3: nove plugins, 69 skills nesta distribuição. A instalação por tag abaixo requer esta versão publicada no espelho.
+> Snapshot 6.5.0: nove plugins, 69 skills nesta distribuição. A instalação por tag abaixo requer esta versão publicada no espelho.
 
 ## Instalação
 
@@ -30,7 +30,7 @@ O Codex lê o manifesto `.agents/plugins/marketplace.json` da raiz do repositór
 Para fixar uma release, registre o marketplace a partir de um checkout da tag:
 
 ```sh
-git clone --branch v6.4.3 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v6.5.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add .
 codex plugin add hefesto@hefesto
