@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Hefesto — forja de skills reutilizáveis para Claude Code.",
-    "version": "6.2.2"
+    "version": "6.4.3"
   },
   "plugins": [
     {
@@ -113,6 +113,18 @@
         "agentes",
         "delegacao",
         "portuguese"
+      ]
+    },
+    {
+      "name": "higeia",
+      "version": "0.5.0",
+      "description": "Diagnóstico em leitura de ambientes de IA, worktrees, caches de desenvolvimento e simuladores.",
+      "source": "./plugins/higeia",
+      "category": "productivity",
+      "tags": [
+        "diagnostico",
+        "skills",
+        "worktrees"
       ]
     }
   ]

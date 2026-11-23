@@ -1,0 +1,25 @@
+{
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "name": "higeia",
+  "version": "0.5.0",
+  "description": "Diagnóstico em leitura de ambientes de IA, worktrees, caches de desenvolvimento e simuladores.",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Higeia",
+    "shortDescription": "Diagnóstico de IA, caches e simuladores",
+    "longDescription": "Diagnóstico em leitura de ambientes de IA, worktrees, caches de desenvolvimento e simuladores.",
+    "developerName": "Antonio Salgado",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": [
+      "Audite as skills deste projeto e mostre possíveis sobreposições.",
+      "Revise as worktrees e os resíduos das sessões de IA.",
+      "Meça caches e simuladores antigos em GB e percentual do disco."
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/sallzzbr/hefesto-publico"
+}

@@ -4,15 +4,15 @@
 
 > Forja de skills reutilizáveis para Claude Code e Codex. O nome vem do deus grego da metalurgia e do artesanato — este repo é onde as ferramentas são marteladas, afiadas e distribuídas.
 
-O repo é um **marketplace** que publica oito plugins: **hefesto** (a forja de plugins), **bragir** (voz, escrita e editorial), **mimyr** (cursos e didática), **hestia** (economia doméstica), **hermes** (marketing de performance e criativos), **odin** (desafios pelo double diamond), **titbits** (game design, GDD vivo e produção: 11 skills; dados privados fora do pacote) e **iris** (prompts e briefs de delegação adequados ao modelo de destino).
+O repo é um **marketplace** que publica plugins e reúne nove no catálogo em desenvolvimento: **hefesto** (a forja de plugins), **bragir** (voz, escrita e editorial), **mimyr** (cursos e didática), **hestia** (economia doméstica), **hermes** (marketing de performance e criativos), **odin** (desafios pelo double diamond), **titbits** (game design, GDD vivo e produção: 11 skills; dados privados fora do pacote) e **iris** (prompts e briefs de delegação adequados ao modelo de destino) e **higeia** (diagnóstico local de IA, caches e simuladores).
 
 > **Migração v3**: as skills de voz (`escrever-como-autor`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
 
-> Snapshot 6.2.2: oito plugins, 64 skills Claude e 66 skills Codex, com Iris 0.1.2. A instalação por tag abaixo requer esta versão publicada no espelho. O Bragir usa `escrever-como-autor` e exige perfil preenchido fora do pacote.
+> Snapshot 6.4.3: nove plugins, 67 skills Claude e 69 skills Codex, com Iris 0.1.2. A instalação por tag abaixo requer esta versão publicada no espelho. O Bragir usa `escrever-como-autor` e exige perfil preenchido fora do pacote.
 
 ## Como instalar no Codex
 
-A distribuição nativa Codex contém os mesmos oito plugins da distribuição Claude, com manifestos e runtime próprios em [`codex/`](codex/README.md). São 66 skills: as 64 da distribuição Claude e duas entradas do Odin que adaptam comandos. Para instalar por git, com atualização pelo próprio Codex:
+A distribuição nativa Codex contém os mesmos nove plugins da distribuição Claude, com manifestos e runtime próprios em [`codex/`](codex/README.md). São 69 skills: as 67 da distribuição Claude e duas entradas do Odin que adaptam comandos. Para instalar por git, com atualização pelo próprio Codex:
 
 ```sh
 codex plugin marketplace add sallzzbr/hefesto-publico --ref master
@@ -24,7 +24,7 @@ Para atualizar depois, rode `codex plugin marketplace upgrade` e abra uma nova s
 Para fixar uma release, registre o marketplace a partir de um checkout da tag:
 
 ```sh
-git clone --branch v6.2.2 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v6.4.3 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add .
 codex plugin add hefesto@hefesto
@@ -45,6 +45,7 @@ Dentro do Claude Code:
     /plugin install odin@hefesto        # double diamond de desafios
     /plugin install titbits@hefesto     # game design, GDD vivo e produção
     /plugin install iris@hefesto        # prompts adequados ao modelo de destino
+    /plugin install higeia@hefesto      # diagnóstico de disco, simuladores e ambientes de IA
 
 A primeira linha registra o marketplace; as demais instalam os plugins que você quiser (sintaxe `<plugin>@<marketplace>`). Verifique com `/plugin`.
 
@@ -205,11 +206,25 @@ em run novo.
 
 Documentação completa em [plugins/odin/README.md](plugins/odin/README.md).
 
-A partir da 2.6.0, o odin exige o plugin **iris**, declarado em `dependencies` no `plugin.json`: no Claude Code, instalar `odin` instala também a `iris`, e desativar a `iris` desativa o odin. O planner da SPEC monta o brief do arquiteto com `iris:delegar-agente`. No Codex, a etapa de autoria verifica a disponibilidade real da skill Iris na sessão e bloqueia se ela estiver ausente, sem instalação automática. A distribuição Codex tem ainda as entradas nativas `desafio` e `defaults` (66 skills no total); veja [o contrato de dependência](codex/plugins/odin/DEPENDENCIAS.md).
+A partir da 2.6.0, o odin exige o plugin **iris**, declarado em `dependencies` no `plugin.json`: no Claude Code, instalar `odin` instala também a `iris`, e desativar a `iris` desativa o odin. O planner da SPEC monta o brief do arquiteto com `iris:delegar-agente`. No Codex, a etapa de autoria verifica a disponibilidade real da skill Iris na sessão e bloqueia se ela estiver ausente, sem instalação automática. A distribuição Codex tem ainda as entradas nativas `desafio` e `defaults` (69 skills no total na distribuição pública em desenvolvimento); veja [o contrato de dependência](codex/plugins/odin/DEPENDENCIAS.md).
 
 ## Plugin titbits — game design e produção
 
 Veja [TitBits](plugins/titbits/README.md): onze skills, seis papéis, GDD vivo e histórico privado. Cada jogo é autossuficiente; acervo e Munin são opcionais.
+
+## Plugin higeia — diagnóstico local
+
+| Skill | O que faz |
+|---|---|
+| `auditar-ambiente-ia` | Mostra a origem de skills, instalações e versões em cache e compara arquivos homônimos. |
+| `revisar-residuos-ia` | Inventaria branches, worktrees, arquivos locais e possíveis resíduos de execuções. |
+| `limpar-desenvolvimento` | Mede caches de desenvolvimento e simuladores anteriores no macOS em GB e percentual do volume. |
+
+Com o marketplace registrado, instale com `codex plugin add higeia@hefesto` no Codex ou `/plugin install higeia@hefesto` no Claude Code. Em uma nova sessão no Mac, peça:
+
+> Higeia, rode um diagnóstico somente em leitura neste Mac. Mostre os caches de desenvolvimento, os simuladores e os ambientes de IA. Informe o potencial de limpeza por categoria e no total em GB e percentual do disco. Indique quais itens dependem de confirmação.
+
+[Escopo do diagnóstico e dependências](plugins/higeia/README.md).
 
 ## Plugin iris — prompts adequados ao modelo de destino
 

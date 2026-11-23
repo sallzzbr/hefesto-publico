@@ -951,6 +951,74 @@
     {
       "source": "plugins/odin/evals/quality/README.md",
       "target": "plugins/odin/shared/evals/quality/README.md"
+    },
+    {
+      "source": "codex/runtime/RUNTIME.md",
+      "target": "plugins/higeia/RUNTIME.md"
+    },
+    {
+      "source": "codex/runtime/MODELOS.md",
+      "target": "plugins/higeia/MODELOS.md"
+    },
+    {
+      "source": "LICENSE",
+      "target": "plugins/higeia/LICENSE"
+    },
+    {
+      "source": "plugins/higeia/README.md",
+      "target": "plugins/higeia/shared/README.md"
+    },
+    {
+      "source": "plugins/higeia/skills/auditar-ambiente-ia/SKILL.md",
+      "target": "plugins/higeia/shared/skills/auditar-ambiente-ia/CONTRATO.md"
+    },
+    {
+      "source": "plugins/higeia/skills/revisar-residuos-ia/SKILL.md",
+      "target": "plugins/higeia/shared/skills/revisar-residuos-ia/CONTRATO.md"
+    },
+    {
+      "source": "plugins/higeia/scripts/ambiente.mjs",
+      "target": "plugins/higeia/shared/scripts/ambiente.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/residuos.mjs",
+      "target": "plugins/higeia/shared/scripts/residuos.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/diagnostico.mjs",
+      "target": "plugins/higeia/shared/scripts/diagnostico.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/memoria.mjs",
+      "target": "plugins/higeia/shared/scripts/memoria.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/espaco.mjs",
+      "target": "plugins/higeia/shared/scripts/espaco.mjs"
+    },
+    {
+      "source": "plugins/higeia/skills/limpar-desenvolvimento/SKILL.md",
+      "target": "plugins/higeia/shared/skills/limpar-desenvolvimento/CONTRATO.md"
+    },
+    {
+      "source": "plugins/higeia/scripts/desenvolvimento.mjs",
+      "target": "plugins/higeia/shared/scripts/desenvolvimento.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/ambientes-uv.mjs",
+      "target": "plugins/higeia/shared/scripts/ambientes-uv.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/plano-ios.mjs",
+      "target": "plugins/higeia/shared/scripts/plano-ios.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/provar-ambientes-uv.py",
+      "target": "plugins/higeia/shared/scripts/provar-ambientes-uv.py"
+    },
+    {
+      "source": "plugins/higeia/scripts/verificar-claude-mem.py",
+      "target": "plugins/higeia/shared/scripts/verificar-claude-mem.py"
     }
   ]
 }

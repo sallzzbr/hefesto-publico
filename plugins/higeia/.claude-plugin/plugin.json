@@ -1,0 +1,16 @@
+{
+  "author": {
+    "name": "Antonio Salgado",
+    "url": "https://github.com/sallzzbr"
+  },
+  "name": "higeia",
+  "version": "0.5.0",
+  "description": "Diagnóstico em leitura de ambientes de IA, worktrees, caches de desenvolvimento e simuladores.",
+  "license": "MIT",
+  "repository": "https://github.com/sallzzbr/hefesto-publico",
+  "keywords": [
+    "diagnostico",
+    "skills",
+    "worktrees"
+  ]
+}

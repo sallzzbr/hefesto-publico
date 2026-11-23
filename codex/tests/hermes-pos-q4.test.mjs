@@ -1,7 +1,7 @@
 // hermes pós-Q4 na distribuição Codex (SPEC hermes-pos-q4, critérios B1, A1, A4 e A8): skills
 // nativas novas com RUNTIME, contrato em shared e links reais para os scripts sincronizados;
 // inventário dos recursos novos; a cópia empacotada da regua-decisao roda fora do repositório;
-// resumos nativos das skills alteradas; hermes Codex 0.3.0 e README com 66 skills.
+// resumos nativos das skills alteradas; hermes Codex 0.3.0 e README com 69 skills.
 // Arquivo ausente vira asserção (existsSync antes de ler): antes da implementação o vermelho é por
 // comportamento ausente, nunca por ENOENT. Termo presente não prova que a skill aplica a regra: a
 // árvore de decisão tem teste comportamental próprio na suíte Claude (regua-decisao.test.mjs).
@@ -189,11 +189,11 @@ test('hermes Codex 0.3.x ou maior, com CHANGELOG da versão empacotada', () => {
   assert.match(readFileSync(changelog, 'utf8'), entrada, `CHANGELOG sem ## ${versao}`);
 });
 
-test('README Codex anuncia 66 skills com Hermes em 18', () => {
+test('README Codex anuncia 69 skills com Hermes em 18', () => {
   const path = join(CODEX, 'README.md');
   assert.ok(existsSync(path), `${rel(path)} ausente`);
   const readme = readFileSync(path, 'utf8');
-  assert.ok(contem(readme, '66 skills'), 'README Codex sem "66 skills"');
+  assert.ok(contem(readme, '69 skills'), 'README Codex sem "69 skills"');
   assert.match(readme, /^\|\s*Hermes\s*\|\s*18\s*\|/m, 'linha do Hermes na tabela do README Codex sem 18 skills');
   assert.ok(!contem(readme, '61 skills'), 'README Codex ainda cita "61 skills"');
 });
