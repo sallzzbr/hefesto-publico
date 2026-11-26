@@ -985,6 +985,14 @@
       "target": "plugins/higeia/shared/scripts/residuos.mjs"
     },
     {
+      "source": "plugins/higeia/scripts/execucoes.mjs",
+      "target": "plugins/higeia/shared/scripts/execucoes.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/arquivar-worktree.mjs",
+      "target": "plugins/higeia/shared/scripts/arquivar-worktree.mjs"
+    },
+    {
       "source": "plugins/higeia/scripts/diagnostico.mjs",
       "target": "plugins/higeia/shared/scripts/diagnostico.mjs"
     },
@@ -1001,6 +1009,10 @@
       "target": "plugins/higeia/shared/skills/limpar-desenvolvimento/CONTRATO.md"
     },
     {
+      "source": "plugins/higeia/scripts/computador.mjs",
+      "target": "plugins/higeia/shared/scripts/computador.mjs"
+    },
+    {
       "source": "plugins/higeia/scripts/desenvolvimento.mjs",
       "target": "plugins/higeia/shared/scripts/desenvolvimento.mjs"
     },
@@ -1011,6 +1023,18 @@
     {
       "source": "plugins/higeia/scripts/plano-ios.mjs",
       "target": "plugins/higeia/shared/scripts/plano-ios.mjs"
+    },
+    {
+      "source": "plugins/higeia/scripts/caches-apps.py",
+      "target": "plugins/higeia/shared/scripts/caches-apps.py"
+    },
+    {
+      "source": "plugins/higeia/scripts/instaladores.py",
+      "target": "plugins/higeia/shared/scripts/instaladores.py"
+    },
+    {
+      "source": "plugins/higeia/scripts/cache-modulos.py",
+      "target": "plugins/higeia/shared/scripts/cache-modulos.py"
     },
     {
       "source": "plugins/higeia/scripts/provar-ambientes-uv.py",
@@ -1025,8 +1049,16 @@
       "target": "plugins/higeia/shared/scripts/hook-sessao.mjs"
     },
     {
+      "source": "plugins/higeia/scripts/hooks-codex.mjs",
+      "target": "plugins/higeia/shared/scripts/hooks-codex.mjs"
+    },
+    {
       "source": "plugins/higeia/scripts/temporarios.py",
       "target": "plugins/higeia/shared/scripts/temporarios.py"
+    },
+    {
+      "source": "plugins/higeia/skills/limpar-computador/SKILL.md",
+      "target": "plugins/higeia/shared/skills/limpar-computador/CONTRATO.md"
     }
   ]
 }

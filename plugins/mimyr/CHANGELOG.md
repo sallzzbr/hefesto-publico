@@ -1,5 +1,9 @@
 # Changelog — mimyr
 
+## 1.1.15 — 2026-11-25
+
+- Checks que examinam zero arquivos após a escrita orientam preservar os capítulos, conferir o ambiente e repetir a validação. O relatório distingue esse caso de uma chamada que falhou antes de responder.
+
 ## 1.1.14 (2026-11-10)
 
 Higiene do espelho público: resíduos de nome removidos do CHANGELOG e do teste de contrato. Sem mudança de comportamento das skills.

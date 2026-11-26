@@ -8,11 +8,11 @@ O repo é um **marketplace** que publica plugins e reúne nove no catálogo em d
 
 > **Migração v3**: as skills de voz (`escrever-como-autor`, `analisar-voz`, `gerenciar-personas`) saíram do plugin `hefesto` e agora vivem no plugin `bragir`. Se você as usava, rode `/plugin install bragir@hefesto`. O artefato de perfil de voz agora se chama `perfil-de-voz.md` (projetos com `voice-profile.md` legado continuam funcionando; a skill oferece renomear).
 
-> Snapshot 6.5.0: nove plugins, 67 skills Claude e 69 skills Codex, com Iris 0.1.2. A instalação por tag abaixo requer esta versão publicada no espelho. O Bragir usa `escrever-como-autor` e exige perfil preenchido fora do pacote.
+> Snapshot 6.11.0: nove plugins, 68 skills Claude e 70 skills Codex, com Iris 0.1.2. A instalação por tag abaixo requer esta versão publicada no espelho. O Bragir usa `escrever-como-autor` e exige perfil preenchido fora do pacote.
 
 ## Como instalar no Codex
 
-A distribuição nativa Codex contém os mesmos nove plugins da distribuição Claude, com manifestos e runtime próprios em [`codex/`](codex/README.md). São 69 skills: as 67 da distribuição Claude e duas entradas do Odin que adaptam comandos. Para instalar por git, com atualização pelo próprio Codex:
+A distribuição nativa Codex contém os mesmos nove plugins da distribuição Claude, com manifestos e runtime próprios em [`codex/`](codex/README.md). São 70 skills: as 68 da distribuição Claude e duas entradas do Odin que adaptam comandos. Para instalar por git, com atualização pelo próprio Codex:
 
 ```sh
 codex plugin marketplace add sallzzbr/hefesto-publico --ref master
@@ -24,7 +24,7 @@ Para atualizar depois, rode `codex plugin marketplace upgrade` e abra uma nova s
 Para fixar uma release, registre o marketplace a partir de um checkout da tag:
 
 ```sh
-git clone --branch v6.5.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
+git clone --branch v6.11.0 --depth 1 https://github.com/sallzzbr/hefesto-publico.git
 cd hefesto-publico
 codex plugin marketplace add .
 codex plugin add hefesto@hefesto
@@ -206,7 +206,7 @@ em run novo.
 
 Documentação completa em [plugins/odin/README.md](plugins/odin/README.md).
 
-A partir da 2.6.0, o odin exige o plugin **iris**, declarado em `dependencies` no `plugin.json`: no Claude Code, instalar `odin` instala também a `iris`, e desativar a `iris` desativa o odin. O planner da SPEC monta o brief do arquiteto com `iris:delegar-agente`. No Codex, a etapa de autoria verifica a disponibilidade real da skill Iris na sessão e bloqueia se ela estiver ausente, sem instalação automática. A distribuição Codex tem ainda as entradas nativas `desafio` e `defaults` (69 skills no total na distribuição pública em desenvolvimento); veja [o contrato de dependência](codex/plugins/odin/DEPENDENCIAS.md).
+A partir da 2.6.0, o odin exige o plugin **iris**, declarado em `dependencies` no `plugin.json`: no Claude Code, instalar `odin` instala também a `iris`, e desativar a `iris` desativa o odin. O planner da SPEC monta o brief do arquiteto com `iris:delegar-agente`. No Codex, a etapa de autoria verifica a disponibilidade real da skill Iris na sessão e bloqueia se ela estiver ausente, sem instalação automática. A distribuição Codex tem ainda as entradas nativas `desafio` e `defaults` (70 skills no total na distribuição pública em desenvolvimento); veja [o contrato de dependência](codex/plugins/odin/DEPENDENCIAS.md).
 
 ## Plugin titbits — game design e produção
 
@@ -218,11 +218,14 @@ Veja [TitBits](plugins/titbits/README.md): onze skills, seis papéis, GDD vivo e
 |---|---|
 | `auditar-ambiente-ia` | Mostra a origem de skills, instalações e versões em cache e compara arquivos homônimos. |
 | `revisar-residuos-ia` | Inventaria branches, worktrees, arquivos locais e possíveis resíduos de execuções. |
-| `limpar-desenvolvimento` | Mede caches de desenvolvimento e simuladores anteriores no macOS em GB e percentual do volume. |
+| `limpar-computador` | Mede o espaço no Mac e limpa caches de Chrome, Claude e Slack com prévia e medição após reabertura. |
+| `limpar-desenvolvimento` | Mede caches e simuladores no macOS e limpa módulos recompiláveis do Clang com verificação do ganho real. |
 
 Com o marketplace registrado, instale com `codex plugin add higeia@hefesto` no Codex ou `/plugin install higeia@hefesto` no Claude Code. Em uma nova sessão no Mac, peça:
 
 > Higeia, rode um diagnóstico somente em leitura neste Mac. Mostre os caches de desenvolvimento, os simuladores e os ambientes de IA. Informe o potencial de limpeza por categoria e no total em GB e percentual do disco. Indique quais itens dependem de confirmação.
+
+Peça “prepare o arquivamento da worktree desta branch” para conferir o merge na base remota e a recuperação do trabalho.
 
 [Escopo do diagnóstico e dependências](plugins/higeia/README.md).
 

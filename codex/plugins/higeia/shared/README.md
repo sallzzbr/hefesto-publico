@@ -7,14 +7,25 @@ Diagnóstico local de ambientes de IA, caches e simuladores. Node.js 22+; a revi
 | Skill | O que faz |
 |---|---|
 | `auditar-ambiente-ia` | Mostra a origem de skills, instalações e versões em cache e compara arquivos homônimos. |
-| `revisar-residuos-ia` | Inventaria branches, worktrees, arquivos locais e possíveis resíduos de execuções. |
-| `limpar-desenvolvimento` | Mede caches de desenvolvimento e simuladores anteriores no macOS em GB e percentual do volume. |
+| `revisar-residuos-ia` | Revisa resíduos de IA e arquiva worktrees inativas com prova de merge ou de cópia remota. |
+| `limpar-computador` | Mede o espaço no Mac e limpa caches de Chrome, Claude e Slack com prévia e medição após reabertura. |
+| `limpar-desenvolvimento` | Mede caches e simuladores no macOS e limpa módulos recompiláveis do Clang com verificação do ganho real. |
 
 Peça “audite as skills deste projeto” ou “revise as worktrees antigas desta pasta”. Informe o diretório para ampliar a análise. A saída vai para a conversa.
 
 O inventário considera os perfis locais, fontes de projeto e diretórios usuais de instalação. Habilitação declarada pode depender da confiança do projeto e de políticas administrativas. A idade do último commit, versões antigas no cache e histórico de uso desconhecido são sinais para investigar. A análise Git local usa as referências disponíveis no disco.
 
+Para investigar um rascunho que sobrou no Codex, peça “confira se o Stop do Higeia está habilitado e com confiança neste projeto”. A auditoria usa `diagnostico.mjs ambiente --hooks-codex --root "<projeto>"` e mostra o estado de cada evento segundo o Codex CLI. Para confirmar que o hook executou, confira o resultado de uma sessão de teste. Sem o CLI ou sem suporte à consulta, o inventário de arquivos continua disponível.
+
 Em uma dúvida de continuidade, a consulta ao contexto de projeto ou branch do Munin recupera até três notas pertinentes. Em máquinas sem o motor ou o acervo, as duas skills continuam.
+
+## Conferir uma execução
+
+Peça “confira se este workflow terminou, onde ficou a entrega e como retomar”. Informe a pasta do run Codex ou o registro do Claude se estiver fora das pastas examinadas no projeto. O relatório mostra o estado que o executor registrou, o desfecho do controlador e os arquivos que ele identificou. Uma execução encerrada pode ter terminado com bloqueio. Entregas e checkpoints ficam preservados.
+
+## Arquivar uma worktree
+
+Peça “confira se a worktree desta branch já foi integrada e prepare o arquivamento”. Informe a base e o remoto quando houver mais de uma opção. A prévia consulta o servidor e mostra o commit, a ação e o identificador do plano. A aplicação exige uma worktree limpa e evidência de que a sessão encerrou. Para branches com pelo menos 14 dias sem atividade Git e sem merge comprovado, o Higeia envia os commits se necessário e confere a ponta da branch no destino. A branch local continua disponível. Para recriar o checkout, use `git worktree add <nova-pasta> <branch>`.
 
 ## Potencial de limpeza
 
@@ -24,11 +35,19 @@ Entram como candidatos condicionais as worktrees secundárias limpas integradas 
 
 Em sistemas POSIX, a medida usa blocos alocados; no Windows usa tamanho lógico identificado no relatório. A medição preserva links simbólicos e exclui do potencial arquivos com vários hard links, que podem continuar alocados por outro caminho. Clones e snapshots do APFS também podem reduzir o espaço efetivamente liberado. Falhas de leitura aparecem em `limites` e marcam a estimativa parcial.
 
+## Instaladores em Downloads
+
+Peça “guarde este instalador de Downloads em quarentena” ou “restaure meu instalador”. A skill limpar-computador aceita arquivos regulares .pkg, .mpkg e .dmg no macOS. A quarentena ocupa o mesmo volume e permite recuperar o arquivo.
+
 ## Desenvolvimento no macOS
 
 O modo `desenvolvimento` mede nas pastas padrão do usuário os caches identificados de Node, Python, Gradle, Xcode, Homebrew, SwiftPM, CocoaPods e Playwright. Em `espaco --desenvolvimento`, o mesmo inventário entra uma vez no total com as raízes de Git e IA. Cada categoria tem potencial em GB decimais e percentual da capacidade do volume. Os stores compartilhados ficam identificados para investigação.
 
 O coletor lê o registro de imagens e os dispositivos do CoreSimulator. Compara versões numéricas da mesma plataforma e mede o arquivo de imagem no disco de origem. Aparelhos desligados sem inicialização, apps ou contêineres observados entram em revisão individual, inclusive na versão mais recente. Um sinal de uso preserva os dados do aparelho e mantém a imagem dependente e seu cache dyld fora do potencial até esclarecer a necessidade de compatibilidade. A imagem mais recente e registros incertos ficam preservados. O relatório distingue as ferramentas instaladas pelo uv e os ambientes encontrados no cache compartilhado. O Android AVD e suas imagens entram como ocupação a preservar. A cobertura inclui os caminhos padrão e as imagens registradas em DMG. Veja como o Xcode gerencia a retirada de [runtimes e dispositivos](https://developer.apple.com/documentation/safari-developer-tools/adding-additional-simulators).
+
+### Limpar módulos do Clang
+
+Peça “mostre a prévia do cache recriável do Xcode, limpe e confira quanto voltou ao disco”. A skill mede o subconjunto recompilável de ModuleCache.noindex, verifica o uso e reconstrói Foundation antes de expurgar os originais. Uma segunda compilação verifica a ferramenta. O relatório traz a redução da pasta, a variação líquida do espaço livre em GB e o percentual da capacidade do volume. Requer macOS, Xcode e Python 3.8+.
 
 ### Investigar ambientes Python
 

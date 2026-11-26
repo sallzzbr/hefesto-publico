@@ -35,10 +35,14 @@ export function candidatosResiduos(dados) {
     }
   }
   for (const a of dados.artefatos) {
-    if (registrados.has(a.caminho)) continue;
+    for (const arquivo of [...(a.execucao?.entregas || []), ...(a.execucao?.paraRevisao || []), ...(a.execucao?.intermediarios || []), ...(a.execucao?.arquivosTocados || [])]) {
+      if (arquivo.caminhoVerificado) candidatos.push({ caminho: arquivo.caminhoVerificado, categoria: 'Arquivos de workflow',
+        classe: 'preservar', motivo: 'arquivo presente e associado pelo registro da execução' });
+    }
+    if (registrados.has(a.caminho) && !a.execucao?.executor) continue;
     const marcador = a.origem === 'marcador de worktree Codex' && a.situacao.startsWith('somente marcador') && a.worktreeRegistrada === false;
     candidatos.push({ caminho: a.caminho, categoria: 'Resíduos de IA', classe: marcador ? 'condicional' : 'preservar',
-      motivo: marcador ? 'pasta com marcador isolado; conferir chat' : 'artefato com origem ou uso a verificar' });
+      motivo: marcador ? 'pasta com marcador isolado; conferir chat' : a.execucao?.executor ? 'preservar registro e arquivos da execução' : 'artefato com origem ou uso a verificar' });
   }
   return candidatos;
 }

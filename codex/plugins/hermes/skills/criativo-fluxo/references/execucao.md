@@ -94,6 +94,8 @@ Preserve `{{BASE}}` no comando de overlay IA: o controlador faz a substituição
 - `escalado`: teto ou impossibilidade de composição; preserve pacote/diagnóstico e aguarde decisão.
 - `erro`: preserve evidência e identifique solicitação que falhou; não esconda como ausência de achado. Rough/produção sem saída, com falha ou resposta parcial exigem reconciliação antes de nova geração; preserve também os resultados das outras rotas já iniciadas.
 
+Se o pré-voo devolveu `requerRunNovo: true`, `proximo` lê a resposta já gravada. Preserve o render e repita apenas o pré-voo após conferir o caminho, o script e o venv. Para refazer a produção inteira, confira os efeitos e o orçamento e use um novo diretório de execução.
+
 Reports de iteração são obrigatórios em verde/escalado quando houve iteração, incluindo _validacoes.csv. Aprendizado só vira regra com amostra/variância, variantes e contraexemplo checado, senão OBSERVAÇÃO. A saída inclui ficha/headline, rota, iterações/rodadas, veredito, pacote/render e execuções/modelo real. Upload aponta para playbook específico do objetivo no workspace; sem payloads/credenciais inventados nem publicação automática.
 
 Solo previsto: os dois portões humanos permanecem; ideia→prancheta/rotas→roughs→escolha visual→candidatos→seleção local declarada sem independência→composição→preflight→autocrítica A–Q→releitura de plausíveis→correção por causa, máximo 3 iterações e 2 regenerações após inicial→pacote/reports. Preserve limite de gasto; a ausência de seleção/crítica independente permanece como lacuna, nunca relato falso de harness executado.

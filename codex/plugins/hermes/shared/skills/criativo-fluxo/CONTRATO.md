@@ -407,8 +407,16 @@ Trate os desfechos:
   examine `parcial` e confronte comandos, arquivos e recibos com o efeito real antes de
   retomar. Não reenvie geração pela falta de arquivo ou resposta, nem troque o executor
   para contornar a interrupção. Só uma decisão humana após reconciliação e revisão de
-  orçamento permite outra tentativa. Nos demais erros, `resumeFromRunId` aproveita
-  respostas já concluídas; nunca presume que uma chamada sem resposta não teve efeito.
+  orçamento permite outra tentativa. Se o pré-voo retornou `requerRunNovo: true`,
+  preserve o render, corrija o ambiente e repita o pré-voo sobre o arquivo composto.
+  Para repetir a produção inteira, confira os efeitos e o orçamento de um run novo.
+  Se uma chamada ficou sem resposta, consulte a execução em `/workflows`. Em um histórico
+  completo, a primeira falha é a chamada com `state: "error"` de menor `index`.
+  O índice indica a ordem de enfileiramento. Chamadas paralelas podem começar em outra ordem.
+  Mesmo quando um fallback funcionou, a reinvocação pode partir da primeira chamada
+  que falhou e repetir as posteriores, inclusive geração e crítica. Confira os efeitos
+  e o orçamento desse trecho. Para uma seleção inválida, use os candidatos já gerados.
+  Para um pacote com falha de gravação, confira o render e os reports no relatório parcial.
 
 ## Pós-verde (fora do harness)
 

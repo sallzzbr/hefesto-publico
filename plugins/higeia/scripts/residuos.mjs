@@ -1,6 +1,7 @@
-import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { basename, join, resolve, sep } from 'node:path';
+import { inspecionarExecucao } from './execucoes.mjs';
 
 const ignorar = new Set(['node_modules', 'vendor', 'dist', 'build', 'target', 'Library', 'Applications']);
 const split0 = text => text.split('\0').filter(Boolean);
@@ -11,7 +12,7 @@ function git(cwd, args) {
   const p = spawnSync('git', ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-c', 'core.untrackedCache=false', ...args], {
     cwd, env, encoding: 'utf8', timeout: 12000, maxBuffer: 8 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
   });
-  return { ok: p.status === 0, text: p.stdout || '', erro: p.error?.code || p.status };
+  return { ok: p.status === 0, text: p.stdout || '', aviso: Boolean(p.stderr?.trim()), erro: p.error?.code || p.status };
 }
 function pastas(path, limites) {
   try { return readdirSync(path, { withFileTypes: true }); }
@@ -31,7 +32,7 @@ function descobrir(root, limites) {
   visitar(root, 0);
   return encontrados;
 }
-function listarWorktrees(raw) {
+export function listarWorktrees(raw) {
   return raw.split('\0\0').filter(Boolean).map(block => {
     const fields = {};
     for (const linha of split0(block)) {
@@ -42,7 +43,7 @@ function listarWorktrees(raw) {
     return fields;
   });
 }
-function status(path) {
+export function status(path, exigirCompleto = false) {
   // Um filtro clean/process configurado pode executar um programa ao coletar git status.
   const filtros = git(path, ['config', '--name-only', '--get-regexp', '^filter\\..*\\.(clean|process|smudge)$']);
   if (!filtros.ok && filtros.erro !== 1) return { erro: 'configuração Git ilegível' };
@@ -52,6 +53,7 @@ function status(path) {
   }
   const resp = git(path, [...limparFiltros, 'status', '--porcelain=v1', '-z', '--no-renames', '--ignored=matching', '--untracked-files=normal', '--ignore-submodules=all']);
   if (!resp.ok) return { erro: 'status incompleto (' + resp.erro + ')' };
+  if (exigirCompleto && resp.aviso) return { erro: 'Git emitiu aviso ao inspecionar os arquivos' };
   const contagem = { modificados: 0, novos: 0, ignorados: 0 };
   for (const s of split0(resp.text)) {
     if (s.startsWith('?? ')) contagem.novos++;
@@ -92,7 +94,7 @@ function repo(cwd, basePedida) {
   return { caminho: cwd, base: base || null, commitBase: tip?.ok ? tip.text.trim() : null, branches, worktrees };
 }
 
-function artefatos(dir, limites) {
+function artefatos(dir, limites, selecionada) {
   const result = [];
   for (const nome of ['.worktrees', '.claude/worktrees', '.higeia/tmp', '.claude/workflows', 'runs', 'outputs']) {
     const base = join(dir, nome);
@@ -100,25 +102,23 @@ function artefatos(dir, limites) {
     for (const e of pastas(base, limites)) {
       const path = join(base, e.name);
       const item = { caminho: path, origem: nome, situacao: 'origem e uso a conferir' };
-      const arquivo = join(path, 'state.json');
-      if (e.isDirectory() && existsSync(arquivo)) {
-        try {
-          const st = lstatSync(arquivo);
-          if (st.isFile() && st.size < 2_000_000) {
-            const state = JSON.parse(readFileSync(arquivo, 'utf8'));
-            if (state?.version === 1 && typeof state.runId === 'string' && typeof state.fingerprint === 'string' && state.respostas) {
-              item.situacao = 'estado de execução Hefesto; consultar o executor para determinar conclusão';
-            }
-          }
-        } catch { limites.push({ caminho: arquivo, erro: 'estado ilegível' }); }
+      if ((e.isDirectory() || ['.claude/workflows', 'runs', 'outputs'].includes(nome))
+          && path !== selecionada && join(path, 'state.json') !== selecionada) {
+        descreverExecucao(item, limites, dir);
       }
       result.push(item);
     }
   }
   return result;
 }
-export function residuos(root, basePedida) {
-  const limites = [], repositorios = [], artefatosLocais = [], comuns = new Set();
+function descreverExecucao(item, limites, raiz, pacote) {
+  item.execucao = inspecionarExecucao(item.caminho, raiz, pacote);
+  if (item.execucao.limite) limites.push({ caminho: item.caminho, erro: item.execucao.limite });
+  if (item.execucao.executor) item.situacao = 'preservar execução e arquivos associados';
+}
+export function residuos(root, basePedida, { execucao, pacoteCodex } = {}) {
+  const selecionada = execucao && resolve(root, execucao);
+  const limites = [], repositorios = [], artefatosLocais = [], comuns = new Set(), checkouts = new Set();
   for (const cwd of descobrir(root, limites)) {
     const comum = git(cwd, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
     if (!comum.ok) { limites.push({ caminho: cwd, erro: 'metadados Git inacessíveis' }); continue; }
@@ -127,10 +127,27 @@ export function residuos(root, basePedida) {
     comuns.add(key);
     const dados = repo(cwd, basePedida);
     repositorios.push(dados);
-    for (const a of artefatos(cwd, limites)) {
-      a.worktreeRegistrada = dados.worktrees?.some(w => w.caminho === a.caminho) ?? null;
-      artefatosLocais.push(a);
+    const pastas = new Set([cwd]);
+    for (const w of dados.worktrees || []) {
+      if (!w.bare && !w.inspecao && (w.caminho === root || w.caminho.startsWith(join(root, sep)))) pastas.add(w.caminho);
     }
+    for (const pasta of pastas) {
+      checkouts.add(pasta);
+      for (const a of artefatos(pasta, limites, selecionada)) {
+        a.worktreeRegistrada = dados.worktrees?.some(w => w.caminho === a.caminho) ?? null;
+        artefatosLocais.push(a);
+      }
+    }
+  }
+  if (selecionada) {
+    let item = artefatosLocais.find(a => a.caminho === selecionada || join(a.caminho, 'state.json') === selecionada);
+    if (!item) {
+      item = { caminho: selecionada, origem: 'execução indicada', situacao: 'origem e uso a conferir' };
+      artefatosLocais.push(item);
+    }
+    const projeto = [...checkouts].sort((a, b) => b.length - a.length)
+      .find(pasta => selecionada === pasta || selecionada.startsWith(join(pasta, sep)));
+    descreverExecucao(item, limites, projeto || root, pacoteCodex);
   }
   // Uma raiz gerenciada pode reter o marcador do aplicativo após o checkout sumir.
   if (basename(root) === 'worktrees') {

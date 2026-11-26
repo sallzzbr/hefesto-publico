@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.11 — 2026-11-25
+
+- Checks que examinam zero arquivos após a escrita orientam preservar os capítulos, conferir o ambiente e repetir a validação. O relatório distingue esse caso de uma chamada que falhou antes de responder.
+
 ## 0.1.10 (2026-11-10)
 
 Paridade com o mimyr 1.1.14: higiene de resíduos de nome, sem mudança de comportamento.

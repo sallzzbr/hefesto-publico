@@ -149,6 +149,8 @@ test('produzir: comando de overlay sem {{BASE}} em arquétipo IA bloqueia; port�
   const r2 = await rodar({ args: PRODUZIR, overrides: { 'portao:validar': () => ({ ...DEFAULTS['portao:validar'](), rota: { n: 1 } }) } });
   assert.equal(r2.resultado.status, 'erro');
   assert.equal(r2.resultado.fase, 'Portão');
+  assert.doesNotMatch(r2.resultado.acao, /resumeFromRunId/);
+  assert.match(r2.resultado.acao, /rota aprovada/);
 });
 
 test('produzir (IA): candidatos → seleção pelo validador → a base escolhida entra no comando de composição em código', async () => {
@@ -166,6 +168,8 @@ test('produzir (IA): seleção que aponta path fora dos candidatos é erro', asy
   const { resultado } = await rodar({ args: PRODUZIR, overrides: { 'selecao:': () => ({ escolhido: 'inventado.png', ranking: [] }) } });
   assert.equal(resultado.status, 'erro');
   assert.match(resultado.detalhe, /fora dos candidatos/);
+  assert.doesNotMatch(resultado.acao, /resumeFromRunId/);
+  assert.match(resultado.acao, /candidatos já gerados/);
 });
 
 test('produzir (texto): zero chamadas de geração de imagem, composição direta, verde', async () => {
@@ -183,6 +187,13 @@ test('produzir: pre-flight que não retorna, cego, ou que reprova sem falha nome
   assert.match(r2.resultado.detalhe, /cego/);
   const r3 = await rodar({ args: PRODUZIR, overrides: { 'preflight:': () => ({ ok: false, artefatos: ['out.png'], falhas: [] }) } });
   assert.match(r3.resultado.detalhe, /sem reportar falha nomeada/);
+  assert.match(r1.resultado.acao, /resumeFromRunId/);
+  assert.ok(!r1.resultado.requerRunNovo);
+  for (const { resultado } of [r2, r3]) {
+    assert.equal(resultado.requerRunNovo, true);
+    assert.match(resultado.acao, /render.*script.*venv/i);
+    assert.doesNotMatch(resultado.acao, /resumeFromRunId/);
+  }
   for (const { resultado, chamadas } of [r1, r2, r3]) {
     assert.equal(resultado.status, 'erro');
     assert.equal(labels(chamadas, 'crit:').length, 0);
@@ -211,6 +222,7 @@ for (const [caso, preflight] of [
     assert.equal(resultado.fase, 'Produzir');
     assert.equal(resultado.iteracao, 1);
     assert.deepEqual(resultado.preflight, preflight);
+    assert.equal(resultado.requerRunNovo, true);
     assert.equal(labels(chamadas, 'preflight:').length, 1);
     assert.equal(chamadas.at(-1).label, 'preflight:i1', 'nenhum agente deve ser chamado após a falha operacional');
     for (const prefixo of ['crit:', 'confirmar:', 'correcao:', 'pacote:']) {
@@ -294,11 +306,24 @@ test('produzir (texto): finding com custo "ia" é coergido a overlay — nunca l
   assert.match(resultado.findingsJulgados[0].criterio, /naturalidade_ia/);
 });
 
-test('produzir: pacote que não grava é erro reinvocável com o parcial no relatório', async () => {
-  const { resultado } = await rodar({ args: PRODUZIR, overrides: { 'pacote:montar': () => ({ ok: false, pacotePath: '', gravados: [], falhas: [{ comando: 'w', resumo: 'disco cheio' }] }) } });
+test('produzir: pacote com falha de gravação preserva o parcial e distingue a chamada sem resposta', async () => {
+  let tentativas = 0;
+  const { resultado, chamadas } = await rodar({ args: { ...PRODUZIR, tiering: { modelos: { portao: 'haiku' } } }, overrides: {
+    'portao:validar': () => {
+      if (++tentativas === 1) throw new Error('primeira chamada falhou');
+      return DEFAULTS['portao:validar']();
+    },
+    'pacote:montar': () => ({ ok: false, pacotePath: '', gravados: [], falhas: [{ comando: 'w', resumo: 'disco cheio' }] }),
+  } });
+  assert.equal(tentativas, 2); assert.ok(labels(chamadas, 'producao:').length); assert.ok(labels(chamadas, 'crit:').length);
   assert.equal(resultado.status, 'erro');
   assert.equal(resultado.fase, 'Pacote');
   assert.equal(resultado.parcial.desfecho, 'verde');
+  assert.doesNotMatch(resultado.acao, /resumeFromRunId/);
+  assert.match(resultado.acao, /gravação do pacote/);
+  const semResposta = await rodar({ args: PRODUZIR, overrides: { 'pacote:montar': () => null } });
+  assert.match(semResposta.resultado.detalhe, /não retornou/);
+  assert.match(semResposta.resultado.acao, /reinvocar com resumeFromRunId/);
 });
 
 // HH-03: o controlador real despacha um executor técnico que grava recibo no disco

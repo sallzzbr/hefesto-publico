@@ -634,7 +634,7 @@ if (ARGS.estagio === 'rotas') {
   if (!dir.ok) return { status: 'bloqueado', fase: 'Rotas', detalhe: dir.motivo || 'brief não passou no briefing interrogado', acao: 'completar o brief com o humano (produto, público, objetivo, mensagem única + a ideia do Portão 1: observação humana, headline aprovada nos 4 testes de copy, hierarquia de leitura) e reinvocar — o diretor não completa brief com suposição; nenhuma API de imagem foi gasta', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
   if (!dir.rotas || dir.rotas.length === 0) return { status: 'bloqueado', fase: 'Rotas', detalhe: 'diretor não propôs nenhuma rota', acao: 'revisar o brief com o humano e reinvocar', fallbacks: fallbacksModelo, modelos: relatorioModelos() }
   // ok=true incompleto (sem slug/artefato) é não-conformidade do agente, não problema de brief.
-  if (!dir.slug || !dir.artefatoPath) return { status: 'erro', fase: 'Rotas', detalhe: 'diretor aprovou o brief mas não devolveu slug/artefatoPath — resposta não-conforme', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'reinvocar com resumeFromRunId' }
+  if (!dir.slug || !dir.artefatoPath) return { status: 'erro', fase: 'Rotas', detalhe: 'diretor aprovou o brief mas não devolveu slug/artefatoPath — resposta não-conforme', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'conferir o documento de rotas gravado e identificar o slug e o caminho antes de gerar os roughs' }
   if (!SLUG_RE.test(dir.slug)) return { status: 'erro', fase: 'Rotas', detalhe: `slug inválido: ${JSON.stringify(dir.slug)} — só ^[a-z0-9][a-z0-9_-]{0,80}$`, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'reinvocar; o slug entra em paths e comandos e não aceita espaço, maiúscula nem metacaractere' }
   if (!pathCru(dir.artefatoPath)) return { status: 'erro', fase: 'Rotas', detalhe: `artefatoPath inválido: ${JSON.stringify(dir.artefatoPath)} — deve ser relativo ao cwd, sem .. nem caminho absoluto`, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'reinvocar; o artefato de rotas fica dentro do workspace' }
 
@@ -750,7 +750,7 @@ if (portao.renderJaExiste && !portao.reproduzir && ARGS.reproduzir !== true) {
 // run com TypeError SEM relatório, o invariante que este arquivo declara (finding #2, 1.0.1).
 const rotaTemAcoes = !!portao.rota && Array.isArray(portao.rota.acoes) && portao.rota.acoes.length > 0
 if (!portao.rota || !portao.rota.arquetipo || !portao.rota.slug || !portao.rota.segmento || !rotaTemAcoes) {
-  return { status: 'erro', fase: 'Portão', detalhe: 'portão aprovou mas não devolveu a rota completa (arquetipo, slug, segmento e acoes são obrigatórios)', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'reinvocar com resumeFromRunId' }
+  return { status: 'erro', fase: 'Portão', detalhe: 'portão aprovou mas não devolveu a rota completa (arquetipo, slug, segmento e acoes são obrigatórios)', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'conferir a rota aprovada no artefato de rotas e validar os campos obrigatórios antes de produzir' }
 }
 // Enforcement da aprovação VISUAL (a headline da fase, antes só em prosa — finding #6, 1.0.1):
 // rota aprovada cujo rough não existe no disco = escolha às cegas; o harness recusa.
@@ -965,7 +965,7 @@ ${comandosCand.map(blocoSh).join('\n')}
       )
       if (!sel) return { status: 'erro', fase: 'Produzir', iteracao, detalhe: 'o validador da seleção não retornou', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'sem seleção não há como compor sem viés do produtor; reinvocar com resumeFromRunId' }
       if (!prod.candidatos.includes(sel.escolhido)) {
-        return { status: 'erro', fase: 'Produzir', iteracao, detalhe: `seleção apontou path fora dos candidatos: ${sel.escolhido}`, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'reinvocar com resumeFromRunId' }
+        return { status: 'erro', fase: 'Produzir', iteracao, detalhe: `seleção apontou path fora dos candidatos: ${sel.escolhido}`, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'preservar os candidatos já gerados e pedir ao validador uma seleção entre esses arquivos' }
       }
       baseEscolhida = sel.escolhido
       selecaoInfo = sel
@@ -1032,18 +1032,21 @@ ${blocoSh(comandoPf)}
     { label: `preflight:i${iteracao}`, phase: 'Produzir', schema: PREFLIGHT_SCHEMA }
   )
   if (!pf) return { status: 'erro', fase: 'Produzir', iteracao, detalhe: 'o mecânico do pre-flight não retornou', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'portão que falha aberto não é portão; reinvocar com resumeFromRunId' }
+  // A resposta do mecânico foi salva, inclusive quando o script falhou. Corrigir o venv
+  // no mesmo caminho mantém o prompt e o replay pode devolver essa mesma resposta.
+  const repetirPreflight = { requerRunNovo: true, acao: 'preservar o render e as falhas, conferir o caminho, o script, as flags e o venv e repetir o pré-voo sobre o render existente. Para refazer o workflow inteiro, conferir efeitos e orçamento antes de iniciar um run novo' }
   // O mecânico nomeia crash/flag inválida como 'script': é erro operacional, não overlay.
   if ((pf.falhas || []).some(f => f.criterio === 'script')) {
-    return { status: 'erro', fase: 'Produzir', iteracao, detalhe: 'pre-flight falhou operacionalmente — crítica e correção não executadas', preflight: pf, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'conferir script/venv/flags no workspace; preservar render e falhas antes de retomar' }
+    return { status: 'erro', fase: 'Produzir', iteracao, detalhe: 'pre-flight falhou operacionalmente — crítica e correção não executadas', preflight: pf, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ...repetirPreflight }
   }
   if (pf.artefatos.length === 0) {
-    return { status: 'erro', fase: 'Produzir', iteracao, detalhe: 'pre-flight cego: render composto mas 0 artefatos analisados', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'provável path/venv errado — reinvocar com resumeFromRunId' }
+    return { status: 'erro', fase: 'Produzir', iteracao, detalhe: 'pre-flight cego: render composto mas 0 artefatos analisados', preflight: pf, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ...repetirPreflight }
   }
   // ok=false SEM falha nomeada = o script quebrou (crash ≠ reprovação) e o mecânico não soube
   // dizer o quê. Fingir pre-flight verde aqui era o fail-open nº 1 da revisão 1.0.1 (pf.ok
   // nunca era lido) — portão que falha aberto não é portão.
   if (!pf.ok && (!pf.falhas || pf.falhas.length === 0)) {
-    return { status: 'erro', fase: 'Produzir', iteracao, detalhe: 'pre-flight reprovou (exit ≠ 0) sem reportar falha nomeada — provável crash do validar_criativo.py (venv/flags/formato)', fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'conferir o script/venv no workspace e reinvocar com resumeFromRunId' }
+    return { status: 'erro', fase: 'Produzir', iteracao, detalhe: 'pre-flight reprovou (exit ≠ 0) sem reportar falha nomeada — provável crash do validar_criativo.py (venv/flags/formato)', preflight: pf, fallbacks: fallbacksModelo, modelos: relatorioModelos(), ...repetirPreflight }
   }
   preflightFinal = pf
   const falhasPreflight = pf.falhas || []
@@ -1275,7 +1278,12 @@ ${blocoSh(comandoPf)}
 // por montarPacote dentro de escaladoComPacote) ──────────────────────────────
 const desfecho = verde ? 'verde' : 'escalado'
 const pac = await montarPacote(desfecho)
-if (!pac || !pac.ok) return { status: 'erro', fase: 'Pacote', detalhe: pac ? pac.falhas : 'o mecânico do pacote não retornou', parcial: { desfecho, iteracoes: iteracao, render: renderAtual, historico, findingsJulgados }, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'report não gravado = validação que não aconteceu; reinvocar com resumeFromRunId (o loop já completo vem do cache)' }
+if (!pac || !pac.ok) return {
+  status: 'erro', fase: 'Pacote', detalhe: pac ? pac.falhas : 'o mecânico do pacote não retornou',
+  parcial: { desfecho, iteracoes: iteracao, render: renderAtual, historico, findingsJulgados }, fallbacks: fallbacksModelo, modelos: relatorioModelos(),
+  acao: pac ? 'conferir o render e os reports já gravados e corrigir a gravação do pacote a partir do relatório parcial'
+    : 'conferir gravações parciais e o histórico em /workflows. Se apenas a chamada final do pacote falhou, conferir seus efeitos; reinvocar com resumeFromRunId',
+}
 
 // ── relatório final ──────────────────────────────────────────────────────────
 if (!verde) {

@@ -4,13 +4,13 @@
     "url": "https://github.com/sallzzbr"
   },
   "name": "higeia",
-  "version": "0.6.0",
-  "description": "Diagnóstico local de IA e desenvolvimento, com limpeza de rascunhos registrados pela própria sessão.",
+  "version": "0.12.0",
+  "description": "Diagnóstico de espaço no Mac, ambientes de IA e desenvolvimento, limpeza de rascunhos e arquivamento de worktrees.",
   "skills": "./skills/",
   "interface": {
     "displayName": "Higeia",
     "shortDescription": "Diagnóstico de IA, caches e simuladores",
-    "longDescription": "Diagnóstico local de IA e desenvolvimento, com limpeza de rascunhos registrados pela própria sessão.",
+    "longDescription": "Diagnóstico de espaço no Mac, ambientes de IA e desenvolvimento, limpeza de rascunhos e arquivamento de worktrees.",
     "developerName": "Antonio Salgado",
     "category": "Productivity",
     "capabilities": [],

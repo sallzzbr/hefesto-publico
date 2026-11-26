@@ -93,6 +93,11 @@ test('checks que não retornam abortam; checks cegos (0 arquivos com trabalho) t
   const r2 = await rodar({ args: ARGS, overrides: { 'checks:': () => ({ verde: true, arquivosAnalisados: 0, falhas: [] }) } });
   assert.equal(r2.resultado.status, 'erro');
   assert.match(r2.resultado.acao, /cegos/);
+  assert.match(r1.resultado.acao, /resumeFromRunId/);
+  assert.ok(!r1.resultado.requerRunNovo);
+  assert.equal(r2.resultado.requerRunNovo, true);
+  assert.match(r2.resultado.acao, /capítulos.*venv.*checks/i);
+  assert.doesNotMatch(r2.resultado.acao, /resumeFromRunId/);
 });
 
 test('falha de check fora dos capítulos do run escala pro humano em vez de queimar o teto', async () => {

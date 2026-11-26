@@ -207,8 +207,11 @@ O script roda em background e devolve um resultado estruturado. Trate os 4 desfe
   check em arquivo fora dos capítulos (shell/asset — correção é sua, não dos escritores), ou
   finding bloqueante sem capítulo mapeável (furo de ESTRUTURA). Apresente o diagnóstico ao
   humano e espere decisão — loop que não converge é sinal de estrutura ruim.
-- **`status: "erro"`** → falha de infraestrutura de um agente (fail-closed); reinvocar com
-  `resumeFromRunId` aproveita tudo que já completou.
+- **`status: "erro"`** → se os checks retornaram zero arquivos após a escrita
+  (`requerRunNovo: true`), preserve os capítulos, confira os caminhos e o venv e repita
+  os checks nos arquivos existentes. Para refazer o workflow inteiro, confira o escopo
+  de reescrita de um run novo. Se a chamada falhou ou ficou sem resposta, siga a ação
+  do controlador e confira seus efeitos antes de usar `resumeFromRunId` na mesma sessão.
 
 ## Pós-verde (fora do harness — arquivos compartilhados, 1×)
 

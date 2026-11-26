@@ -503,11 +503,9 @@ while (iteracao < MAX_ITERACOES && !verde) {
   // Checks que não retornam ABORTAM (erro reinvocável), não viram "nada encontrado" — portão
   // que falha aberto não é portão (invariante herdado do odin 2.3.1).
   if (!chk) return { status: 'erro', fase: 'Checks', iteracao, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'o agente de checks não retornou — sem ele não há como afirmar verde mecânico; reinvocar com resumeFromRunId' }
-  // GUARDA DE CHECK CEGO: capítulos escritos + 0 arquivos analisados = o mecânico não achou a
-  // working tree (path errado, venv quebrado no meio do run). Objeto válido cheio de zeros NÃO
-  // é "tudo passou" — aborta como erro reinvocável, igual ao check que não retorna.
+  // A resposta com zero arquivos fica salva. Corrigir o ambiente exige medir de novo.
   if (houveTrabalho && chk.arquivosAnalisados === 0) {
-    return { status: 'erro', fase: 'Checks', iteracao, fallbacks: fallbacksModelo, modelos: relatorioModelos(), acao: 'checks voltaram cegos: 0 arquivos analisados com capítulos escritos na working tree — provável path/venv errado; reinvocar com resumeFromRunId' }
+    return { status: 'erro', fase: 'Checks', iteracao, fallbacks: fallbacksModelo, modelos: relatorioModelos(), requerRunNovo: true, acao: 'checks voltaram cegos: preserve os capítulos escritos, confira os caminhos e o venv e repita os checks nesses arquivos. Para refazer o workflow inteiro, confira o escopo de reescrita antes de iniciar um run novo' }
   }
   checksFinais = chk
 

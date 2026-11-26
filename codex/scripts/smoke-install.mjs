@@ -56,7 +56,7 @@ try {
   const version = cli(['--version']).trim();
   const marketplace = JSON.parse(cli(['plugin', 'marketplace', 'add', repo, '--json']));
   if (marketplace.marketplaceName !== 'hefesto') throw new Error('marketplace incorreto');
-  const esperado = { hefesto: 4, bragir: 12, hestia: 6, odin: 8, mimyr: 5, hermes: 18, titbits: 11, iris: 2, higeia: 3 };
+  const esperado = { hefesto: 4, bragir: 12, hestia: 6, odin: 8, mimyr: 5, hermes: 18, titbits: 11, iris: 2, higeia: 4 };
   const installed = [];
   for (const name of Object.keys(esperado)) installed.push(JSON.parse(cli(['plugin', 'add', `${name}@hefesto`, '--json'])));
   const data = (await descobrir()).data;

@@ -18,7 +18,7 @@ const NATIVE_COMMANDS = { odin: ['defaults', 'desafio'] };
 // Contagem fixa do conjunto: plugins (fonte, pacote e marketplace) e skills nativas. O publicador reescreve
 // estas duas linhas no stage quando a árvore de desenvolvimento carrega plugins que o espelho não leva.
 const PLUGINS_ESPERADOS = 9;
-const SKILLS_ESPERADAS = 69;
+const SKILLS_ESPERADAS = 70;
 
 function json(path, errors) {
   try { return JSON.parse(readFileSync(path, 'utf8')); }

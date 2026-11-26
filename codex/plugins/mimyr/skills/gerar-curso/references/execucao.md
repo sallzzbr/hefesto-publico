@@ -77,7 +77,7 @@ Econômico: capítulos sequenciais e lente didática; balanceado: até 4 simult�
 - `verde`: execute sidebar, índice e SEO em shared/scripts, uma vez sobre o curso; correções mecânicas autorizadas, checks de links e SVG com métricas reais das fontes. Atualize seo.json/meta e og:image próprios. GA4 usa scripts do workspace, prefixo /<curso>/; não invente tools/injetar_ga4.py quando ausente. Preserve analytics.js/cookie-consent.js próprios quando a configuração exige.
 - `bloqueado`: estrutura sem aprovação/critérios ou arquivo existente sem autorização; corrija com o dono antes de reiniciar.
 - `escalado`: teto, fonte ausente, falha fora de capítulo ou finding sem capítulo mapeável; shells não viram escopo de escritor por conveniência.
-- `erro`: infraestrutura/check/revisor indisponível; registre causa e não declare conteúdo validado.
+- `erro`: registre a causa. Com `requerRunNovo: true`, os checks já responderam. Confira os caminhos e o venv e repita a validação dos capítulos existentes. `proximo` lê o resultado salvo. Para repetir o workflow, confira o escopo de reescrita e use um novo diretório de execução.
 
 Persista `<cursoDir>/relatorio-geracao.md`: critérios, iterações, achados confirmados/refutados por capítulo, execuções/modelo real ou não informado e lacunas de revisão. Não escreva tabelas de modelos/fallbacks históricos como se fossem execução Codex. Relate páginas criadas/reusadas e próximo passo; build/deploy/commit/push ficam fora da geração.
 

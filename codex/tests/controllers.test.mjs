@@ -96,11 +96,21 @@ test('Mimyr real: estrutura → capítulo → checks → três lentes → verde 
   assert.equal(chamadas[0].label, 'estrutura:validar');
 });
 
-test('Hermes real: produção → seleção → base no overlay → crítica → pacote via replay', async t => {
-  const { resultado, chamadas } = await completar(t, {
+test('Hermes pelo bridge: replay mantém a falha de pré-voo e um run novo segue até o pacote', async t => {
+  const config = {
     plugin: 'hermes', arquivo: 'harness-criativo-fluxo.test.mjs', marcador: 'const nomesT',
     args: { estagio: 'produzir', rotasPath: 'rotas.md', perfil: 'maximo', python: '.venv/bin/python', hoje: DATA },
+  };
+  const { pacote, run, pedido } = await ateSolicitacao(t, config, 'preflight:');
+  const falhou = await responder(pacote, run, pedido.id, {
+    resultado: { ok: false, artefatos: ['render.png'], falhas: [], checks: [] },
   });
+  assert.equal(falhou.resultado.requerRunNovo, true);
+  assert.match(falhou.resultado.detalhe, /sem reportar falha nomeada/);
+  assert.deepEqual(await proximo(pacote, run), falhou);
+  const { resultado, chamadas } = await completar(t, config);
+  const novoPreflight = chamadas.find(c => c.label === pedido.label);
+  assert.equal(novoPreflight.prompt, pedido.prompt); assert.notEqual(novoPreflight.id, pedido.id);
   assert.equal(resultado.status, 'verde');
   assert.equal(chamadas.length, 7);
   assert.equal(resultado.rodadasIa, 1);

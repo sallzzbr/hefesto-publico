@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 — 2026-11-25
+
+- Quando o pré-voo responde com erro operacional ou examina zero artefatos, o relatório orienta repetir a validação no render existente após corrigir o ambiente. A resposta já gravada permanece disponível.
+- Se a resposta de rotas ou de seleção vier incompleta, o relatório orienta conferir o artefato ou os candidatos existentes. Em falha de gravação do pacote, indica como usar o render e os reports do resultado parcial.
+
 ## 1.0.0 (2026-11-10)
 
 Paridade com o hermes 2.0.0: perfil do negócio, segmento e eixos configuráveis, conectores por categoria, regras com origem rotulada e harness sem comando legado; as skills de revisão e sugestão de arte saem do pacote. Recursos sincronizados em `shared`.

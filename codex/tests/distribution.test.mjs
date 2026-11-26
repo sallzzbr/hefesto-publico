@@ -14,7 +14,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../..');
 // Mesma contagem de check.mjs: o publicador reescreve estas duas linhas no stage.
 const PLUGINS_ESPERADOS = 9;
-const SKILLS_ESPERADAS = 69;
+const SKILLS_ESPERADAS = 70;
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'hefesto-codex-distribution-'));

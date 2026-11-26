@@ -1,6 +1,6 @@
 ---
 name: limpar-desenvolvimento
-description: "Measure development caches and older simulator runtimes on macOS. Use when o usuário pedir para medir caches de desenvolvimento, simuladores antigos, espaço liberável em GB ou percentual do disco por categoria."
+description: "Measure and clean development caches and older simulator runtimes on macOS. Use when o usuário pedir para limpar o cache de módulos do Xcode, medir caches de desenvolvimento, simuladores antigos, espaço liberável em GB ou percentual do disco por categoria."
 ---
 
 # Diagnosticar caches de desenvolvimento e simuladores
@@ -12,6 +12,24 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/diagnostico.mjs" desenvolvimento
 ```
 
 Para incluir skills, worktrees e resíduos de IA no mesmo total, execute o coletor em modo `espaco --desenvolvimento` com `--root "<diretório>"` para cada raiz de projetos ou worktrees do pedido. Use a saída JSON dessa execução para descontar sobreposições. O diagnóstico usa as pastas padrão locais e o registro de imagens do CoreSimulator. Ele lê os plists com o plutil do macOS e dispensa iniciar o simulador.
+
+## Primeira ação de limpeza no macOS
+
+Para uma limpeza de desenvolvimento, ofereça a regra de módulos implícitos do Clang no cache padrão do Xcode. Requer Python 3.8+, Xcode com SDK de macOS e Foundation. Uma consulta geral de espaço usa apenas o diagnóstico acima.
+
+```sh
+python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/cache-modulos.py" prever
+```
+
+Apresente a quantidade, GB decimais, percentual do volume e custo de recompilar. O filtro exige diretório de hash, nome de módulo, formato binário CPCH e arquivo regular com um único vínculo. Outros formatos permanecem no cache. Se o usuário pediu a limpeza, reaproveite a autorização para o lote apresentado. Em um pedido só de prévia, termine aqui.
+
+```sh
+python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/cache-modulos.py" aplicar "<plano>"
+```
+
+O executor compara a identidade dos itens com a prévia e verifica compiladores e arquivos abertos. Ele isola os originais em uma pasta irmã, importa Foundation pelo Clang e expurga somente o lote conferido. Depois repete a compilação. Falha antes do expurgo inicia a devolução dos originais. Em caso de interrupção ou colisão, confira a pasta informada e restaure os arquivos pendentes pelos caminhos relativos dentro de ModuleCache.noindex, preservando qualquer arquivo novo. Uma reserva anterior impede outra aplicação.
+
+Informe o ganho líquido com `variacaoLivreGB` e `percentualLiberado`, inclusive valores negativos. Compare com `reducaoCacheBytes` e o potencial previsto. O espaço disponível é medido no mesmo volume antes da operação e depois da compilação final. Outros processos e snapshots podem influenciar a variação. A prova cobre a importação do framework pelo SDK local.
 
 ## Saída
 
@@ -48,4 +66,4 @@ O plano de iOS exige um aparelho disponível e identificável pelo modelo e vers
 
 Em uma limpeza de ambientes já autorizada, teste o consumidor corrigido com o acervo real, obtenha a trava exclusiva do uv e confira novamente identidades, índices, referências e arquivos em uso. Isole os candidatos e seus links em um cache temporário no mesmo volume. Teste a consulta com os ambientes isolados antes de expurgar esse cache com o uv. Conserve o mapa de origem e destino para reverter a etapa caso o teste falhe. Meça o espaço disponível no mesmo volume antes e depois de cada categoria, aguardando a remoção assíncrona. Informe o ganho líquido, seu percentual da capacidade e as exceções que precisam de decisão.
 
-O resultado vai para a conversa. Esta skill só mede. Em outra plataforma, informe que a medição de desenvolvimento desta versão cobre macOS.
+O resultado vai para a conversa. A remoção de módulos requer o modo explícito de aplicação. Em outra plataforma, informe que a medição de desenvolvimento desta versão cobre macOS.

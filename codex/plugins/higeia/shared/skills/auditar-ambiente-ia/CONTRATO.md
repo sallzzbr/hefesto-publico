@@ -1,6 +1,6 @@
 ---
 name: auditar-ambiente-ia
-description: "Audit AI skill origins, scopes and overlaps. Use when o usuário pedir para auditar o Claude ou Codex, entender de onde vêm suas skills, conferir plugins e versões em cache ou investigar instruções duplicadas."
+description: "Audit AI skill origins, scopes and overlaps. Use when o usuário pedir para auditar o Claude ou Codex, entender de onde vêm suas skills, conferir plugins e versões, investigar skills duplicadas ou saber por que o hook Stop não limpou um rascunho."
 ---
 
 # Auditar ambiente de IA
@@ -10,8 +10,14 @@ description: "Audit AI skill origins, scopes and overlaps. Use when o usuário p
 Requer Node.js 22+. Use a raiz informada pelo usuário ou o diretório atual. O script entrega JSON na saída padrão. Execute no workspace do usuário, passando o caminho real da raiz escolhida.
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT}/scripts/diagnostico.mjs" ambiente --root "<diretório>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/diagnostico.mjs" ambiente --hooks-codex --root "<diretório>"
 ```
+
+## Hooks do Higeia no Codex
+
+Com `--hooks-codex`, a auditoria pede a lista de hooks ao Codex CLI instalado para a pasta examinada. Leia `hooksCodex` e relate cada `SessionStart` e `Stop` com sua origem, habilitação e confiança. Para um rascunho que sobrou, comece pelo `Stop`. Se estiver desabilitado, indique a habilitação em `/hooks`. Para `untrusted` ou `modified`, peça que o usuário revise a origem ou alteração em `/hooks` e decida se confia. Para `managed`, identifique a política administrada. Um evento ausente de uma consulta completa aparece como “não listado”. Nesse caso confira o plugin e o projeto consultados. Se ambos estiverem ausentes, confira também a flag global `hooks` com `codex features list` no mesmo projeto.
+
+A consulta observa a configuração do CLI para aquela pasta. Para verificar a execução no cliente em uso, use o resultado de um teste na mesma sessão ou o registro do evento. Em caso de aviso, erro, cliente ausente ou versão incompatível, informe o limite e continue o inventário. Para um inventário restrito à leitura direta dos arquivos, omita `--hooks-codex`. A opção abre um processo local do Codex que pode manter seus próprios logs e caches.
 
 ## Investigação e saída
 
