@@ -2,6 +2,9 @@ import { lstatSync, opendirSync, readdirSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
+const PARTIAL_DOWNLOAD = /\.(crdownload|download|part|partial|filepart|opdownload|aria2)$/i;
+const downloadKey = name => name.normalize('NFC').toLowerCase();
+
 // As únicas entradas para a medição são caminhos conhecidos de cache ou locais
 // de revisão pessoal. A descoberta consulta metadados, inclusive em Downloads.
 export function computador({ home = homedir(), agora = Date.now() } = {}) {
@@ -69,22 +72,37 @@ export function computador({ home = homedir(), agora = Date.now() } = {}) {
   }
 
   const downloads = join(raiz, 'Downloads');
-  const reserva = join(downloads, '.higeia-instaladores');
-  for (const item of entradas(reserva)) {
-    const caminho = join(reserva, item.name);
-    if (inspecionar(caminho)) candidatos.push({ caminho, categoria: 'Quarentena de instaladores',
-      classe: 'preservar', motivo: 'ocupação mantida no volume para restauração' });
+  function inventoryReserve(dir, name, categoria) {
+    const reserve = join(dir, name);
+    for (const item of entradas(reserve)) {
+      const caminho = join(reserve, item.name);
+      const st = inspecionar(caminho);
+      if (!st) continue;
+      candidatos.push({ caminho, categoria, classe: 'preservar',
+        acao: st.isFile() ? 'restaurar' : 'preservar', motivo: 'ocupação mantida no volume para restauração' });
+    }
   }
-  for (const e of entradas(downloads)) {
+
+  inventoryReserve(downloads, '.higeia-instaladores', 'Quarentena de instaladores');
+  inventoryReserve(downloads, '.higeia-quarentena', 'Quarentena de arquivos pessoais');
+
+  const downloadEntries = entradas(downloads);
+  const pendingNames = new Set(downloadEntries
+    .filter(({ name }) => PARTIAL_DOWNLOAD.test(name))
+    .map(({ name }) => downloadKey(name.replace(PARTIAL_DOWNLOAD, ''))));
+  for (const e of downloadEntries) {
     if (e.name.startsWith('.') || !(e.isFile() || e.isDirectory())) continue;
     const caminho = join(downloads, e.name);
-    if (!inspecionar(caminho)) continue;
-    const incompleto = /\.(crdownload|download|part|partial)$/i.test(e.name);
+    const st = inspecionar(caminho);
+    if (!st) continue;
+    const incompleto = PARTIAL_DOWNLOAD.test(e.name) || pendingNames.has(downloadKey(e.name));
     let categoria = 'Outros downloads';
     if (incompleto) categoria = 'Downloads incompletos';
     else if (/\.(dmg|pkg|mpkg)$/i.test(e.name)) categoria = 'Instaladores em Downloads';
     else if (/\.(zip|7z|rar|tar|tgz|gz|bz2|xz)$/i.test(e.name)) categoria = 'Compactados em Downloads';
-    candidatos.push({ caminho, categoria, classe: incompleto ? 'preservar' : 'revisar',
+
+    const acao = incompleto ? 'preservar' : st.isFile() && st.nlink === 1 ? 'quarentena' : 'revisar';
+    candidatos.push({ caminho, categoria, classe: incompleto ? 'preservar' : 'revisar', acao,
       motivo: incompleto ? 'transferência possivelmente em andamento' : 'confirmar se deseja guardar ou se existe outra cópia' });
   }
   const lixeira = join(raiz, '.Trash');
@@ -95,16 +113,21 @@ export function computador({ home = homedir(), agora = Date.now() } = {}) {
       if (e.name === '.DS_Store') continue;
       const caminho = join(lixeira, e.name);
       if (inspecionar(caminho)) candidatos.push({ caminho, categoria: 'Lixeira', classe: 'revisar',
-        motivo: 'confirmar descarte definitivo dos itens deste usuário' });
+        acao: 'revisar', motivo: 'confirmar interesse no item ou restauração pelo Finder' });
     }
   }
   for (const local of ['Desktop', 'Documents', 'Movies']) {
     const dir = join(raiz, local);
+    inventoryReserve(dir, '.higeia-quarentena', 'Quarentena de arquivos pessoais');
     for (const e of entradas(dir)) {
       if (!e.isFile() || e.name.startsWith('.')) continue;
       const caminho = join(dir, e.name);
-      if (inspecionar(caminho)?.size >= arquivoGrandeBytes) candidatos.push({ caminho,
-        categoria: 'Arquivos pessoais grandes', classe: 'revisar', motivo: 'confirmar interesse e backup' });
+      const st = inspecionar(caminho);
+      if (!st?.isFile() || st.size < arquivoGrandeBytes) continue;
+      const incompleto = PARTIAL_DOWNLOAD.test(e.name);
+      const acao = incompleto ? 'preservar' : st.nlink === 1 ? 'quarentena' : 'revisar';
+      candidatos.push({ caminho, categoria: 'Arquivos pessoais grandes', classe: incompleto ? 'preservar' : 'revisar', acao,
+        motivo: incompleto ? 'transferência possivelmente em andamento' : 'confirmar interesse e backup' });
     }
   }
   const relatorios = join(biblioteca, 'Logs/DiagnosticReports');
@@ -112,7 +135,7 @@ export function computador({ home = homedir(), agora = Date.now() } = {}) {
     if (!e.isFile() || !/\.(ips|crash|diag|spin)$/i.test(e.name)) continue;
     const caminho = join(relatorios, e.name);
     if (inspecionar(caminho)?.mtimeMs <= agora - idadeRelatorioDias * 86400000) candidatos.push({ caminho,
-      categoria: 'Relatórios de falha antigos', classe: 'revisar', motivo: 'confirmar se há investigação em andamento' });
+      categoria: 'Relatórios de falha antigos', classe: 'revisar', acao: 'revisar', motivo: 'confirmar se há investigação em andamento' });
   }
   return { raiz, candidatos, limites, idadeRelatorioDias, arquivoGrandeBytes };
 }

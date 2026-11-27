@@ -1,6 +1,6 @@
 ---
 name: limpar-computador
-description: "Preview disk cleanup on macOS and clean rebuildable Chrome, Claude Desktop and Slack caches. Use when o usuário pedir limpar o computador, medir Downloads ou Lixeira, guardar ou restaurar instaladores em quarentena, limpar caches dos apps e conferir o ganho depois de reabri-los."
+description: "Preview disk cleanup on macOS and clean rebuildable Chrome, Claude Desktop and Slack caches. Use when o usuário pedir limpar o computador, medir Downloads ou Lixeira, revisar arquivos grandes ou guardar e restaurar arquivos em quarentena, limpar caches dos apps e conferir o ganho depois de reabri-los."
 ---
 
 # limpar-computador
@@ -13,13 +13,19 @@ Requer Node.js 22 ou posterior. Execute o coletor na conta do usuário em modo d
 node "${CLAUDE_PLUGIN_ROOT}/scripts/diagnostico.mjs" computador
 ```
 
-O coletor mede blocos alocados em diretórios conhecidos de cache de navegadores e aplicativos. Em Downloads, separa instaladores, compactados e demais entradas visíveis do primeiro nível, incluindo o conteúdo de pastas. Transferências incompletas reconhecidas pelo nome no primeiro nível ficam fora do potencial. A Lixeira da conta exige decisão. Em Mesa, Documentos e Filmes, considera arquivos diretos de pelo menos 500 MB. Relatórios de falha com pelo menos 30 dias também entram para revisão. Para caches de compiladores e simuladores, use `limpar-desenvolvimento`.
+O coletor mede blocos alocados em diretórios conhecidos de cache de navegadores e aplicativos. Em Downloads, separa instaladores, compactados e demais entradas visíveis do primeiro nível, incluindo o conteúdo de pastas. Transferências incompletas reconhecidas por nome no primeiro nível e os arquivos finais associados ficam fora do potencial. A Lixeira da conta exige decisão. Em Mesa, Documentos e Filmes, considera arquivos diretos de pelo menos 500 MB. Relatórios de falha com pelo menos 30 dias também entram para revisão. Para caches de compiladores e simuladores, use `limpar-desenvolvimento`.
 
 ## Resultado
 
 Use `espaco.porVolume` para mostrar o potencial dos caches recriáveis, o subtotal que depende de escolha pessoal e a soma por volume. Mostre cada categoria em GB decimais e como percentual da capacidade total do volume. Arredonde só ao apresentar. Para categorias com dados pessoais, explique a decisão necessária sem expor nomes de arquivos por padrão.
 
 Informe os limites em `espaco.limites` e `espaco.limitesInventario`. Uma pasta inacessível fica com valor desconhecido. Exclua itens a preservar da soma. Caches podem voltar a crescer, e blocos compartilhados pelo APFS podem reduzir o ganho efetivo. Trate a soma como prévia. Para um pedido de diagnóstico ou somente leitura, encerre com esse relatório.
+
+## Revisar arquivos pessoais
+
+Quando o usuário pedir detalhes de uma categoria, use `espaco.itens`. Mostre nome, pasta de origem, tamanho em blocos alocados (`bytes`), ação (`acao`) e motivo. Indique medição parcial ou indisponível conforme `completa` e os limites do relatório. Preserve os arquivos parciais ou de controle reconhecidos por sufixo e os nomes finais associados no grupo Downloads incompletos. Pastas, Lixeira e relatórios antigos ficam em revisão. Para recuperar algo da Lixeira, use o Finder.
+
+Mostre a ocupação dos itens examinados e a ocupação da quarentena em linhas próprias. Use `preservarBytes` das categorias de quarentena para informar o espaço ainda ocupado. O subtotal em revisão é uma estimativa de ocupação. A movimentação e a restauração no mesmo volume registram zero bytes liberados.
 
 ## Limpar caches de apps selecionados
 
@@ -67,3 +73,18 @@ python3 -I -B "${CLAUDE_PLUGIN_ROOT}/scripts/instaladores.py" restaurar -- "<nom
 ```
 
 Apresente nome e tamanho antes da escolha. Guarde somente o instalador autorizado, usando o plano da prévia. A reserva privada fica em Downloads/.higeia-instaladores. A movimentação libera zero bytes. Use listar para retomar em outra sessão e restaurar a pedido do usuário. Quando houver ocupação na categoria Quarentena de instaladores, mostre preservarBytes como espaço ainda ocupado no volume. Se o destino estiver ocupado, ofereça restaurar sob um nome escolhido com a mesma extensão usando `restaurar --como "<novo nome>" -- "<nome original>"`. Se o executor detectar troca durante a movimentação, informe a localização indicada e confirme o conteúdo com o usuário antes de qualquer nova movimentação.
+
+## Quarentena de arquivos pessoais
+
+Use Python 3 no macOS. Os escopos aceitos são `downloads`, `mesa`, `documentos` e `filmes`. A operação é individual e se limita a arquivos regulares visíveis do primeiro nível. Em Mesa, Documentos e Filmes, o arquivo precisa ter pelo menos 500 MB de tamanho lógico para entrar na quarentena.
+
+```sh
+python3 -I -B "${CLAUDE_PLUGIN_ROOT}/scripts/instaladores.py" --pasta downloads prever -- "<nome>"
+python3 -I -B "${CLAUDE_PLUGIN_ROOT}/scripts/instaladores.py" --pasta downloads guardar -- "<nome>" "<plano>"
+python3 -I -B "${CLAUDE_PLUGIN_ROOT}/scripts/instaladores.py" --pasta downloads listar
+python3 -I -B "${CLAUDE_PLUGIN_ROOT}/scripts/instaladores.py" --pasta downloads restaurar -- "<nome>"
+```
+
+Passe a pasta correspondente e o nome exato como um único argumento. Apresente a prévia antes de mover e use o plano correspondente ao item autorizado. O executor revalida a identidade e consulta sinais de escrita dos processos visíveis. Transfira somente itens que o usuário reconhece como concluídos. A consulta é pontual. Se houver escrita ou a consulta falhar, preserve o arquivo e repita a prévia quando a atividade terminar.
+
+A reserva privada `.higeia-quarentena` fica na própria pasta de origem. Use `listar` no escopo correspondente para encontrar o item em outra sessão. Em caso de colisão na restauração, preserve os dois arquivos e, se autorizado, use `restaurar --como "<novo nome>" -- "<nome original>"` com a mesma extensão. Ao guardar um instalador em Downloads, use as chamadas sem `--pasta` da seção de instaladores. Para restaurar, confira a reserva no diagnóstico. A categoria Quarentena de instaladores usa as chamadas sem `--pasta`. A categoria Quarentena de arquivos pessoais usa `--pasta` da origem, inclusive se o item for um instalador.

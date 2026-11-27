@@ -35,9 +35,9 @@ Entram como candidatos condicionais as worktrees secundárias limpas integradas 
 
 Em sistemas POSIX, a medida usa blocos alocados; no Windows usa tamanho lógico identificado no relatório. A medição preserva links simbólicos e exclui do potencial arquivos com vários hard links, que podem continuar alocados por outro caminho. Clones e snapshots do APFS também podem reduzir o espaço efetivamente liberado. Falhas de leitura aparecem em `limites` e marcam a estimativa parcial.
 
-## Instaladores em Downloads
+## Revisão de arquivos pessoais no macOS
 
-Peça “guarde este instalador de Downloads em quarentena” ou “restaure meu instalador”. A skill limpar-computador aceita arquivos regulares .pkg, .mpkg e .dmg no macOS. A quarentena ocupa o mesmo volume e permite recuperar o arquivo.
+Peça “mostre os compactados em Downloads” ou “revise os arquivos grandes de Documentos” para ver tamanho e ação por item. A skill `limpar-computador` com Python 3 pode guardar e restaurar arquivos regulares selecionados de Downloads e arquivos de pelo menos 500 MB em Mesa, Documentos e Filmes. A reserva mantém o arquivo no mesmo volume e a movimentação libera zero bytes. A quarentena original de instaladores continua acessível.
 
 ## Desenvolvimento no macOS
 

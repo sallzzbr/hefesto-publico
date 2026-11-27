@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0 — 2026-11-26
+
+- Mostra tamanho ocupado e ação por item na revisão das categorias pessoais do macOS. Preserva arquivos parciais ou de controle conhecidos e os nomes finais associados em Downloads.
+- Guarda e restaura arquivos selecionados de Downloads, Mesa, Documentos e Filmes no mesmo volume, sem sobrescrever destinos. Mostra a ocupação da quarentena e mantém a recuperação de instaladores.
+
 ## 0.12.0 — 2026-11-25
 
 - Em falhas de validação do Hermes e do Mimyr, distingue uma chamada interrompida de uma resposta já salva. Reconhece registros antigos e orienta repetir a validação dos arquivos existentes quando o replay repetiria o resultado.
